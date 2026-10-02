@@ -25,7 +25,8 @@ set (NLA3D_BLAS OFF
 
 # TODO:
 # CMAKE_BUILD_TYPE empty or Release means the same for us
-set (CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -msse2")
+# SSE2 is enabled by default now on 64-bit architectures
+# set (CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -msse2")
 
 # TODO: this should depend on compiler
 if(UNIX) 
