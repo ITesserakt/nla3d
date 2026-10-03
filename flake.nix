@@ -13,7 +13,7 @@
       let
         pname = "nla3d";
         version = "0.0.0";
-        src = inputs.self;
+        src = ./.;
       in
       {
         nla3d = pkgs.stdenv.mkDerivation {
