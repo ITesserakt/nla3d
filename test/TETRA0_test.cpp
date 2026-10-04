@@ -2,14 +2,14 @@
 // licensing go to project's repository on github:
 // https://github.com/dmitryikh/nla3d
 //
-#include "sys.h"
-#include "FEStorage.h"
-#include "FESolver.h"
-#include "VtkProcessor.h"
-#include "ReactionProcessor.h"
-#include "materials/MaterialFactory.h"
 #include "FEReaders.h"
+#include "FESolver.h"
+#include "FEStorage.h"
+#include "ReactionProcessor.h"
+#include "VtkProcessor.h"
 #include "elements/TETRA0.h"
+#include "materials/MaterialFactory.h"
+#include "sys.h"
 #include <tuple>
 
 using namespace nla3d;
@@ -17,70 +17,70 @@ using namespace nla3d;
 typedef std::vector<std::tuple<double, double, double>> disp_vec_t;
 typedef std::vector<math::MatSym<3>> stress_vec_t;
 
-disp_vec_t readDispData (std::string filename);
-stress_vec_t readStressData (std::string filename);
+disp_vec_t readDispData(std::string filename);
+stress_vec_t readStressData(std::string filename);
 
-int main (int argc, char* argv[]) {
+int main(int argc, char* argv[]) {
     std::string cdb_filename;
     std::string res_disp_filename;
     std::string res_stress_filename;
 
     if (argc > 1) {
-      cdb_filename = argv[1];
+        cdb_filename = argv[1];
     } else {
-      LOG(FATAL) << "You should provide the path to mesh (cdb file)";
+        LOG(FATAL) << "You should provide the path to mesh (cdb file)";
     }
     if (argc > 2) {
-      res_disp_filename = argv[2];
+        res_disp_filename = argv[2];
     }
     if (argc > 3) {
-      res_stress_filename = argv[3];
+        res_stress_filename = argv[3];
     }
 
     MeshData md;
     if (!readCdbFile(cdb_filename, md)) {
-      	LOG(FATAL) << "Can't read FE info from " << cdb_filename << "file. exiting..";
+        LOG(FATAL) << "Can't read FE info from " << cdb_filename << "file. exiting..";
     }
     md.compressNumbers();
 
-	FEStorage storage;
-	LinearFESolver solver;
+    FEStorage storage;
+    LinearFESolver solver;
 
-	// add nodes
-	auto sind = storage.createNodes(md.nodesNumbers.size());
-	for (uint32 i = 0; i < sind.size(); i++) {
-		storage.getNode(sind[i]).pos = md.nodesPos[i];
-	}
+    // add nodes
+    auto sind = storage.createNodes(md.nodesNumbers.size());
+    for (uint32 i = 0; i < sind.size(); i++) {
+        storage.getNode(sind[i]).pos = md.nodesPos[i];
+    }
 
     auto ind = md.getCellsByAttribute("TYPE", 1);
     sind = storage.createElements(ind.size(), ElementType::TETRA0);
     for (uint32 i = 0; i < sind.size(); i++) {
-      ElementTETRA0& el = dynamic_cast<ElementTETRA0&>(storage.getElement(sind[i]));
-      el.getNodeNumber(0) = md.cellNodes[ind[i]][0];
-      el.getNodeNumber(1) = md.cellNodes[ind[i]][1];
-      el.getNodeNumber(2) = md.cellNodes[ind[i]][2];
-      el.getNodeNumber(3) = md.cellNodes[ind[i]][4];
-      el.E = 1.0e8;
-      el.my = 0.3;
+        ElementTETRA0& el = dynamic_cast<ElementTETRA0&>(storage.getElement(sind[i]));
+        el.getNodeNumber(0) = md.cellNodes[ind[i]][0];
+        el.getNodeNumber(1) = md.cellNodes[ind[i]][1];
+        el.getNodeNumber(2) = md.cellNodes[ind[i]][2];
+        el.getNodeNumber(3) = md.cellNodes[ind[i]][4];
+        el.E = 1.0e8;
+        el.my = 0.3;
     }
 
     // add loadBc
     for (auto& v : md.loadBcs) {
-      solver.addLoad(v.node, v.node_dof, v.value);
+        solver.addLoad(v.node, v.node_dof, v.value);
     }
 
     // add fixBc
     for (auto& v : md.fixBcs) {
-      solver.addFix(v.node, v.node_dof, v.value);
+        solver.addFix(v.node, v.node_dof, v.value);
     }
 
 #ifdef NLA3D_USE_MKL
     math::PARDISO_equationSolver eqSolver = math::PARDISO_equationSolver();
     solver.attachEquationSolver(&eqSolver);
 #endif
-	solver.attachFEStorage (&storage);
+    solver.attachFEStorage(&storage);
 
-	// VtkProcessor* vtk = new VtkProcessor (&storage, "tetra");
+    // VtkProcessor* vtk = new VtkProcessor (&storage, "tetra");
     // solver.addPostProcessor(vtk);
     // vtk->writeAllResults();
 
@@ -112,7 +112,7 @@ int main (int argc, char* argv[]) {
     }
 }
 
-disp_vec_t readDispData (std::string filename) {
+disp_vec_t readDispData(std::string filename) {
     disp_vec_t disp_vec;
     std::ifstream file(filename);
     if (!file.is_open()) {
@@ -128,13 +128,13 @@ disp_vec_t readDispData (std::string filename) {
     // skip first line
     file.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
     while (!file.eof()) {
-      file >> tmp >> dx >> dy >> dz;
-      disp_vec.emplace_back(dx, dy, dz);
+        file >> tmp >> dx >> dy >> dz;
+        disp_vec.emplace_back(dx, dy, dz);
     }
     return disp_vec;
 }
 
-stress_vec_t readStressData (std::string filename) {
+stress_vec_t readStressData(std::string filename) {
     stress_vec_t stress_vec;
     std::ifstream file(filename);
     if (!file.is_open()) {
@@ -151,9 +151,9 @@ stress_vec_t readStressData (std::string filename) {
     file.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
     math::MatSym<3> mat;
     while (!file.eof()) {
-      file >> tmp >> mat.comp(0, 0) >> mat.comp(1, 1) >> mat.comp(2, 2)
-                  >> mat.comp(0, 1) >> mat.comp(1, 2) >> mat.comp(0, 2);
-      stress_vec.push_back(mat);
+        file >> tmp >> mat.comp(0, 0) >> mat.comp(1, 1) >> mat.comp(2, 2) >> mat.comp(0, 1) >> mat.comp(1, 2) >>
+            mat.comp(0, 2);
+        stress_vec.push_back(mat);
     }
     return stress_vec;
 }
