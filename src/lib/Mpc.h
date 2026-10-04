@@ -1,41 +1,34 @@
 // This file is a part of nla3d project. For information about authors and
 // licensing go to project's repository on github:
-// https://github.com/dmitryikh/nla3d 
+// https://github.com/dmitryikh/nla3d
 
 #pragma once
-#include <list>
-#include "sys.h"
 #include "Dof.h"
+#include "sys.h"
+#include <list>
 
 namespace nla3d {
 
 class FEStorage;
 
-
 class MpcTerm {
-public:
-  MpcTerm() : node(0), node_dof(Dof::UNDEFINED), coef(1.0) {
+  public:
+    MpcTerm() : node(0), node_dof(Dof::UNDEFINED), coef(1.0) {}
 
-  }
+    MpcTerm(int32 n, Dof::dofType dof, double coef = 1.0) : node(n), node_dof(dof), coef(coef) {}
 
-  MpcTerm(int32 n, Dof::dofType dof, double coef = 1.0) : node(n), node_dof(dof), coef(coef) {
-
-  }
-
-  int32 node = 0;
-  Dof::dofType node_dof = Dof::UNDEFINED;
-  double coef = 0.0;
+    int32 node = 0;
+    Dof::dofType node_dof = Dof::UNDEFINED;
+    double coef = 0.0;
 };
-
 
 class Mpc {
   public:
-    void print (std::ostream& out);
+    void print(std::ostream& out);
     std::list<MpcTerm> eq;
-    double b; // rhs of MPC eq.
+    double b;     // rhs of MPC eq.
     uint32 eqNum; // number of equation in global assembly
 };
-
 
 class MpcCollection {
   public:
@@ -47,40 +40,34 @@ class MpcCollection {
     FEStorage* storage;
 };
 
-
 class RigidBodyMpc : public MpcCollection {
   public:
     RigidBodyMpc();
     ~RigidBodyMpc();
     uint32 masterNode;
 
-    void pre ();
-    void update ();
+    void pre();
+    void update();
     std::vector<uint32> slaveNodes;
     std::vector<Dof::dofType> dofs;
 };
 
-
 class fixBC {
-public:
-  fixBC () { }
-  fixBC (int32 n, Dof::dofType dof, double val = 0.0) : node(n), node_dof(dof), value(val)
-  { }
-  int32 node = 0;
-  Dof::dofType node_dof = Dof::UNDEFINED;
-  double value = 0.0;
+  public:
+    fixBC() {}
+    fixBC(int32 n, Dof::dofType dof, double val = 0.0) : node(n), node_dof(dof), value(val) {}
+    int32 node = 0;
+    Dof::dofType node_dof = Dof::UNDEFINED;
+    double value = 0.0;
 };
-
 
 class loadBC {
-public:
-  loadBC () : node(0), node_dof(Dof::UNDEFINED), value(0.0)
-  { }
-  loadBC (int32 n, Dof::dofType dof, double val = 0.0) : node(n), node_dof(dof), value(val)
-  { }
-  int32 node = 0;
-  Dof::dofType node_dof = Dof::UNDEFINED;
-  double value = 0.0;
+  public:
+    loadBC() : node(0), node_dof(Dof::UNDEFINED), value(0.0) {}
+    loadBC(int32 n, Dof::dofType dof, double val = 0.0) : node(n), node_dof(dof), value(val) {}
+    int32 node = 0;
+    Dof::dofType node_dof = Dof::UNDEFINED;
+    double value = 0.0;
 };
 
-} // namespace nal3d
+} // namespace nla3d

@@ -1,13 +1,13 @@
 // This file is a part of nla3d project. For information about authors and
 // licensing go to project's repository on github:
-// https://github.com/dmitryikh/nla3d 
+// https://github.com/dmitryikh/nla3d
 
 #pragma once
-#include "sys.h"
-#include "math/Vec.h"
-#include "math/EquationSolver.h"
 #include "FEStorage.h"
 #include "PostProcessor.h"
+#include "math/EquationSolver.h"
+#include "math/Vec.h"
+#include "sys.h"
 
 #include <Eigen/Dense>
 
@@ -25,34 +25,35 @@ class PostProcessor;
 // convergedTimeInstances, for every time steps number of equilibrium steps are stored in
 // equilibriumSteps.
 class TimeControl {
-public:
-  uint16 getCurrentStep ();
-  uint16 getNumberOfConvergedSteps ();
+  public:
+    uint16 getCurrentStep();
+    uint16 getNumberOfConvergedSteps();
 
-  uint16 getCurrentEquilibriumStep ();
-  uint16 getTotalNumberOfEquilibriumSteps ();
+    uint16 getCurrentEquilibriumStep();
+    uint16 getTotalNumberOfEquilibriumSteps();
 
-  bool nextStep (double delta);
-  void nextEquilibriumStep ();
+    bool nextStep(double delta);
+    void nextEquilibriumStep();
 
-  double getCurrentTime ();
-  double getCurrentNormalizedTime ();
-  double getEndTime ();
-  double getStartTime ();
-  double getCurrentTimeDelta ();
-  double getCurrentNormalizedTimeDelta ();
+    double getCurrentTime();
+    double getCurrentNormalizedTime();
+    double getEndTime();
+    double getStartTime();
+    double getCurrentTimeDelta();
+    double getCurrentNormalizedTimeDelta();
 
-  void setEndTime (double _endTime);
-  void setStartTime (double _startTime);
-protected:
-  std::list<double> convergedTimeInstances;
-  std::list<uint16> equilibriumSteps;
-  uint16 currentEquilibriumStep = 0;
-  uint16 totalNumberOfEquilibriumSteps = 0;
-  double currentTimeDelta = 0.0;
-  double endTime = 1.0;
-  double startTime = 0.0;
-  double currentTime = 0.0;
+    void setEndTime(double _endTime);
+    void setStartTime(double _startTime);
+
+  protected:
+    std::list<double> convergedTimeInstances;
+    std::list<uint16> equilibriumSteps;
+    uint16 currentEquilibriumStep = 0;
+    uint16 totalNumberOfEquilibriumSteps = 0;
+    double currentTimeDelta = 0.0;
+    double endTime = 1.0;
+    double startTime = 0.0;
+    double currentTime = 0.0;
 };
 
 // The abstract class that represents the FE solver. This class use information and methods from
@@ -88,11 +89,11 @@ protected:
 //
 class FESolver {
   public:
-    FESolver ();
-    virtual ~FESolver ();
+    FESolver();
+    virtual ~FESolver();
 
-    void attachFEStorage(FEStorage *st);
-    void attachEquationSolver(math::EquationSolver *eq);
+    void attachFEStorage(FEStorage* st);
+    void attachEquationSolver(math::EquationSolver* eq);
 
     // main method were all solution scheme specific routines are performed
     virtual void solve() = 0;
@@ -102,7 +103,7 @@ class FESolver {
     // _np >= 0
     PostProcessor& getPostProcessor(size_t _np);
     // The function stores PostProcessor pointer in FESolver. FESovler will free the memory by itself.
-    uint16 addPostProcessor(PostProcessor *pp);
+    uint16 addPostProcessor(PostProcessor* pp);
     void deletePostProcessors();
 
     // run FEStorage procedures for initialization solution data structures and map matK, matC, matM,
@@ -118,17 +119,18 @@ class FESolver {
     // this work based on `fixs` array.
     void setConstrainedDofs();
 
-    // add DoF fixation (constraint) boundary condition 
+    // add DoF fixation (constraint) boundary condition
     void addFix(int32 n, Dof::dofType dof, const double value = 0.0);
-    // add DoF load (force) boundary condition 
+    // add DoF load (force) boundary condition
     void addLoad(int32 n, Dof::dofType dof, const double value = 0.0);
-    
+
     // for debug purpose:
     // dump matrices matK, matC, matM and vectors vecF, vecR
     void dumpMatricesAndVectors(std::string filename);
     // read matrices matK, matC, matM and vectors vecF, vecR from file and compare them with
     // solution instances
     void compareMatricesAndVectors(std::string filename, double th = 1.0e-9);
+
   protected:
     FEStorage* storage = nullptr;
     math::EquationSolver* eqSolver = nullptr;
@@ -141,7 +143,7 @@ class FESolver {
     std::vector<PostProcessor*> postProcessors;
 
     // the references on FEStorage FE data structures which is frequently used by FESolver. This
-    // references make it easy to operate with important FE data structures. 
+    // references make it easy to operate with important FE data structures.
     BlockSparseSymMatrix<2>* matK = nullptr;
     BlockSparseSymMatrix<2>* matC = nullptr;
     BlockSparseSymMatrix<2>* matM = nullptr;
@@ -192,7 +194,6 @@ class FESolver {
     std::list<fixBC> fixs;
 };
 
-
 // particular realization of FESolver for linear tasks
 class LinearFESolver : public FESolver {
   public:
@@ -213,10 +214,10 @@ class NonlinearFESolver : public FESolver {
     double convergenceCriteria = 1.0e-3;
 
     virtual void solve();
+
   protected:
     double calculateCriteria(dVec& delta);
 };
-
 
 // Solver for time integration of linear systems: M * DDU + C * DU + K * U = F + R
 // use Newmark scheme (based on section 9.2.4. Bathe K.J., Finite Element Procedures, 1997)
@@ -236,7 +237,7 @@ class LinearTransientFESolver : public FESolver {
     // initial values for vecUc
     double initValue = 0.0;
 
-    virtual void solve ();
+    virtual void solve();
 
     double a0, a1, a2, a3, a4, a5, a6, a7;
 };

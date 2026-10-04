@@ -1,24 +1,22 @@
 // This file is a part of nla3d project. For information about authors and
 // licensing go to project's repository on github:
-// https://github.com/dmitryikh/nla3d 
+// https://github.com/dmitryikh/nla3d
 
 #pragma once
-#include <vector>
+#include <algorithm>
+#include <iostream>
+#include <regex>
 #include <set>
 #include <string>
-#include <iostream>
-#include <algorithm>
-#include <regex>
+#include <vector>
 
-#include "sys.h"
+#include "FESolver.h"
+#include "FEStorage.h"
 #include "Node.h"
 #include "elements/element.h"
-#include "FEStorage.h"
-#include "FESolver.h"
-
+#include "sys.h"
 
 using namespace nla3d;
-
 
 // neutral data structure to keep FE data.
 class MeshData {
@@ -38,7 +36,7 @@ class MeshData {
     std::vector<loadBC> loadBcs;
     std::vector<fixBC> fixBcs;
 
-    std::vector<Mpc*> mpcs; 
+    std::vector<Mpc*> mpcs;
 
     std::map<std::string, FEComponent> feComps;
 
@@ -53,7 +51,6 @@ class MeshData {
     std::vector<uint32> getCellsByAttribute(std::string atr_name, uint32 atr_val);
 
   private:
-
 };
 
 std::string& strim(std::string& str);
@@ -67,15 +64,13 @@ std::string& stoupper(std::string& str);
 
 // split `line` to substrings with `widths` lengths, if `strict` is false then last substrings could
 // be missed
-std::vector<std::string> ssplit(const std::string& line, const std::vector<int>& widths,
-                                  bool strict = true);
+std::vector<std::string> ssplit(const std::string& line, const std::vector<int>& widths, bool strict = true);
 
 // case insensitive string comparison
 bool iequals(const std::string& a, const std::string& b);
 
 // get line from the `is`, supported all types of line endings
 std::istream& getLine(std::istream& is, std::string& t);
-
 
 // class to split line into substrings with delimiters.
 class Tokenizer {
@@ -91,10 +86,9 @@ class Tokenizer {
     bool tolower = false;
 };
 
-
 // read Ansys Mechanical APDL *.cdb file. Nodes, Elements, Displacement BC, Force BC and MPC
 // (Constraint equations) is supported
 bool readCdbFile(std::string filename, MeshData& md);
 
-// read netgen neutral volume mesh format *.neu file. 
+// read netgen neutral volume mesh format *.neu file.
 bool readNeuFile(std::string filename, MeshData& md);

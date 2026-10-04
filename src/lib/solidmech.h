@@ -1,6 +1,6 @@
 // This file is a part of nla3d project. For information about authors and
 // licensing go to project's repository on github:
-// https://github.com/dmitryikh/nla3d 
+// https://github.com/dmitryikh/nla3d
 
 #pragma once
 #include "sys.h"
@@ -9,35 +9,24 @@ namespace nla3d {
 namespace solidmech {
 
 // labels for tensor components stored in 1-dim array
-enum tensorComponents {
-	M_XX =  0,
-	M_XY =  1,
-	M_XZ =  2,
-	M_YY =  3,
-	M_YZ =  4,
-	M_ZZ =  5
-};
+enum tensorComponents { M_XX = 0, M_XY = 1, M_XZ = 2, M_YY = 3, M_YZ = 4, M_ZZ = 5 };
 
-// global order of tensor components in 1-dim array 
+// global order of tensor components in 1-dim array
 const tensorComponents defaultTensorComponents[] = {M_XX, M_XY, M_XZ, M_YY, M_YZ, M_ZZ};
 
 const int LeviCivita[3][3][3] = {
-{ {0,0,0},
-  {0,0,1},
-  {0,-1,0} },
-{ {0,0,-1},
-  {0,0,0},
-  {1,0,0} }, 
-{ {0,1,0},
-  {-1,0,0},
-  {0,0,0} } };
+    { {0, 0, 0},  {0, 0, 1}, {0, -1, 0}},
+    {{0, 0, -1},  {0, 0, 0},  {1, 0, 0}},
+    { {0, 1, 0}, {-1, 0, 0},  {0, 0, 0}}
+};
 
 const int I[3][3] = {
-    {1,0,0},
-    {0,1,0},
-    {0,0,1}};
+    {1, 0, 0},
+    {0, 1, 0},
+    {0, 0, 1}
+};
 
-const char* const labelsTensorComponent[]={"XX","XY", "XZ", "YY", "YZ", "ZZ"};
+const char* const labelsTensorComponent[] = {"XX", "XY", "XZ", "YY", "YZ", "ZZ"};
 // 3x3 symmetric tensor is stored in 1-dim array like order:
 // C = [CXX, CXY, CXZ, CYY, CYZ, CZZ]
 //
@@ -51,4 +40,4 @@ void E_C(const double* C, double* E);
 void IC_C(const double* C, double* IC);
 
 } // namespace solidmech
-} //namespace nla3d
+} // namespace nla3d

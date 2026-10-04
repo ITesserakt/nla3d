@@ -1,11 +1,11 @@
 // This file is a part of nla3d project. For information about authors and
 // licensing go to project's repository on github:
-// https://github.com/dmitryikh/nla3d 
+// https://github.com/dmitryikh/nla3d
 
 #pragma once
 
-#include "sys.h"
 #include "math/Vec.h"
+#include "sys.h"
 
 namespace nla3d {
 namespace math {
@@ -43,9 +43,9 @@ class SparsityInfo {
     friend class BaseSparseMatrix;
     friend class SparseMatrix;
     friend class SparseSymMatrix;
-    friend void matBVprod(SparseSymMatrix &B, const dVec &V, const double coef, dVec &R);
-    friend void matBVprod(SparseMatrix &B, const dVec &V, const double coef, dVec &R);
-    friend void matBTVprod(SparseMatrix &B, const dVec &V, const double coef, dVec &R);
+    friend void matBVprod(SparseSymMatrix& B, const dVec& V, const double coef, dVec& R);
+    friend void matBVprod(SparseMatrix& B, const dVec& V, const double coef, dVec& R);
+    friend void matBTVprod(SparseMatrix& B, const dVec& V, const double coef, dVec& R);
 
   private:
     void clear();
@@ -79,7 +79,6 @@ struct SparseEntry {
     double v;
 };
 
-
 // Base class for Sparse Matrix in a row-oriented data format. This class doesn't have particular
 // meaning. See SparseMatrix and SparseSymMatrix for practical usage.
 // The implementation of compressed sparse row format with 3 arrays (3-array CSR).
@@ -89,13 +88,13 @@ class BaseSparseMatrix {
     BaseSparseMatrix(uint32 _nrows, uint32 _ncolumns, uint32 _max_in_row = 100);
     BaseSparseMatrix(std::shared_ptr<SparsityInfo> spar_info);
     ~BaseSparseMatrix();
-    
+
     void reinit(uint32 _nrows, uint32 _ncols, const std::vector<SparseEntry>& entries);
     // perform compression procedure, after this new entries can't be added to matrix
     void compress();
 
     // for debug purpose
-    void printInternalData (std::ostream& out);
+    void printInternalData(std::ostream& out);
     // write matrix non-zero elements in Coordinate Text Format, details could be found here:
     // http://math.nist.gov/MatrixMarket/formats.html . NOTE: only upper triangle entries will be
     // stored for symmetric matrix.
@@ -124,29 +123,27 @@ class BaseSparseMatrix {
 
   protected:
     // particular values array. Part of compressed sparse format with 3 arrays (3-array CSR).
-    double *values = nullptr;
+    double* values = nullptr;
 
     std::shared_ptr<SparsityInfo> si;
 };
-
-
 
 class SparseMatrix : public BaseSparseMatrix {
   public:
     SparseMatrix();
     SparseMatrix(uint32 nrows, uint32 ncolumns, uint32 max_in_row = 100);
     SparseMatrix(std::shared_ptr<SparsityInfo> spar_info);
-    
+
     void reinit(uint32 _nrows, uint32 _ncols, uint32 _max_in_row = 100);
 
-    // add non-zero entry to sparse matrix. This should be called before compress(). 
+    // add non-zero entry to sparse matrix. This should be called before compress().
     void addEntry(uint32 _i, uint32 _j);
 
     // add value to the _i, _j entry. This should be called after compress().
     void addValue(uint32 _i, uint32 _j, double value);
 
     // debug output
-    void print (std::ostream& out);
+    void print(std::ostream& out);
 
     // return reference to the entry, if the entry doesn't exist in the matrix - fatal error
     double& operator()(uint32 _i, uint32 _j);
@@ -154,10 +151,9 @@ class SparseMatrix : public BaseSparseMatrix {
     // return the value of the entry, if the entry doesn't exists - return 0.0
     double value(uint32 _i, uint32 _j) const;
 
-    friend void matBVprod(SparseMatrix &B, const dVec &V, const double coef, dVec &R);
-    friend void matBTVprod(SparseMatrix &B, const dVec &V, const double coef, dVec &R);
+    friend void matBVprod(SparseMatrix& B, const dVec& V, const double coef, dVec& R);
+    friend void matBTVprod(SparseMatrix& B, const dVec& V, const double coef, dVec& R);
 };
-
 
 class SparseSymMatrix : public BaseSparseMatrix {
   public:
@@ -166,15 +162,15 @@ class SparseSymMatrix : public BaseSparseMatrix {
     SparseSymMatrix(std::shared_ptr<SparsityInfo> spar_info);
 
     void reinit(uint32 _nrows, uint32 _max_in_row = 100);
-    
-    // add non-zero entry to sparse matrix. This should be called before compress(). 
+
+    // add non-zero entry to sparse matrix. This should be called before compress().
     void addEntry(uint32 _i, uint32 _j);
 
     // add value to the _i, _j entry. This should be called after compress().
     void addValue(uint32 _i, uint32 _j, double value);
 
     // debug methods
-    void print (std::ostream& out);
+    void print(std::ostream& out);
 
     // return reference to the entry, if the entry doesn't exist in the matrix - fatal error
     double& operator()(uint32 _i, uint32 _j);
@@ -182,92 +178,82 @@ class SparseSymMatrix : public BaseSparseMatrix {
     // return the value of the entry, if the entry doesn't exists - return 0.0
     double value(uint32 _i, uint32 _j) const;
 
-    friend void matBVprod(SparseSymMatrix &B, const dVec &V, const double coef, dVec &R);
+    friend void matBVprod(SparseSymMatrix& B, const dVec& V, const double coef, dVec& R);
 };
 
-
-inline bool SparsityInfo::isCompressed() {
-    return compressed;
-}
+inline bool SparsityInfo::isCompressed() { return compressed; }
 
 inline uint32 SparsityInfo::nElementsInRow(uint32 _row) {
     assert(iofeir != nullptr);
     assert(_row > 0 && _row <= nRows);
-    return iofeir[_row] - iofeir[_row-1];
+    return iofeir[_row] - iofeir[_row - 1];
 }
 
-
 inline void BaseSparseMatrix::zero() {
-  assert(si);
-  assert(values);
-  std::fill_n(&values[0], si->numberOfValues, 0.0);
+    assert(si);
+    assert(values);
+    std::fill_n(&values[0], si->numberOfValues, 0.0);
 }
 
 inline double* BaseSparseMatrix::getValuesArray() {
-  assert(values != nullptr);
-  return values;
+    assert(values != nullptr);
+    return values;
 }
 
 inline uint32* BaseSparseMatrix::getColumnsArray() {
-  assert(si);
-  assert(si->compressed);
-  return si->columns;
+    assert(si);
+    assert(si->compressed);
+    return si->columns;
 }
 
 inline uint32* BaseSparseMatrix::getIofeirArray() {
-  assert(si);
-  assert(si->compressed);
-  return si->iofeir;
+    assert(si);
+    assert(si->compressed);
+    return si->iofeir;
 }
 
 inline uint32 BaseSparseMatrix::nValues() const {
-  assert(si);
-  return si->numberOfValues;
+    assert(si);
+    return si->numberOfValues;
 }
 
 inline uint32 BaseSparseMatrix::nRows() const {
-  assert(si);
-  return si->nRows;
+    assert(si);
+    return si->nRows;
 }
 
 inline uint32 BaseSparseMatrix::nColumns() const {
-  assert(si);
-  return si->nColumns;
+    assert(si);
+    return si->nColumns;
 }
 
 inline std::shared_ptr<SparsityInfo> BaseSparseMatrix::getSparsityInfo() {
-  assert(si);
-  return si;
+    assert(si);
+    return si;
 }
 
 inline bool BaseSparseMatrix::isCompressed() {
-  assert(si);
-  return si->compressed;
+    assert(si);
+    return si->compressed;
 }
-
 
 inline void SparseMatrix::addEntry(uint32 _i, uint32 _j) {
-  assert(si);
-  si->addEntry(_i, _j);
+    assert(si);
+    si->addEntry(_i, _j);
 }
 
-inline void SparseMatrix::addValue(uint32 _i, uint32 _j, double value) {
-  this->operator()(_i, _j) += value;
-}
-
+inline void SparseMatrix::addValue(uint32 _i, uint32 _j, double value) { this->operator()(_i, _j) += value; }
 
 inline void SparseSymMatrix::addEntry(uint32 _i, uint32 _j) {
-  assert(si);
+    assert(si);
 
-  // ensure that we work in upper triangle
-	if (_i > _j) std::swap(_i, _j);
-  si->addEntry(_i, _j);
+    // ensure that we work in upper triangle
+    if (_i > _j)
+        std::swap(_i, _j);
+    si->addEntry(_i, _j);
 }
 
-inline void SparseSymMatrix::addValue(uint32 _i, uint32 _j, double value) {
-  this->operator()(_i, _j) += value;
-}
+inline void SparseSymMatrix::addValue(uint32 _i, uint32 _j, double value) { this->operator()(_i, _j) += value; }
 
- 
 } // namespace math
 } // namespace nla3d
