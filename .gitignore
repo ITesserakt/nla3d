@@ -3,5 +3,8 @@
 target/
 .direnv/
 .envrc
-
+.zed/
+.vscode/
+.idea/
+.vs/
 
