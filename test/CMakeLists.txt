@@ -38,6 +38,13 @@ add_test(NAME ${TEST_NAME} COMMAND ${TEST_NAME} -dir ${PROJECT_SOURCE_DIR}/test/
 set_tests_properties(${TEST_NAME} PROPERTIES LABELS "FUNC")
 add_dependencies(check ${TEST_NAME})
 
+set (TEST_SOURCES "eigen_support_test.cpp")
+set (TEST_NAME "eigen_support_test")
+add_executable(${TEST_NAME} ${TEST_SOURCES})
+target_link_libraries(${TEST_NAME} nla3d_lib)
+add_test(NAME ${TEST_NAME} COMMAND ${TEST_NAME})
+set_tests_properties(${TEST_NAME} PROPERTIES LABELS "FUNC")
+add_dependencies(check ${TEST_NAME})
 
 # This test fails
 # add_test(NAME rigid_body_mpc_block_ROTZ COMMAND nla3d ${PROJECT_SOURCE_DIR}/test/rigid_body_mpc/block_ROTZ.cdb -element SOLID81 -material Neo-Hookean 1 500 -loadsteps 20 -novtk -refcurve ${PROJECT_SOURCE_DIR}/test/rigid_body_mpc/reference_MOMZ_reaction.txt -threshold 0.0001 -rigidbody 9 TOP_SIDE -reaction MASTER_NODE ROTZ)

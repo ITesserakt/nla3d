@@ -46,6 +46,16 @@ class GaussDenseEquationSolver : public EquationSolver {
     dMat matA = dMat(1, 1);
 };
 
+class ConjugateGradientEquationSolver : public EquationSolver {
+  public:
+    ~ConjugateGradientEquationSolver() override = default;
+    void solveEquations(math::SparseSymMatrix* matrix, double* rhs, double* unknowns) override;
+    void factorizeEquations(math::SparseSymMatrix* matrix) override;
+    void substituteEquations(math::SparseSymMatrix* matrix, double* rhs, double* unknowns) override;
+
+
+};
+
 #ifdef NLA3D_USE_MKL
 class PARDISO_equationSolver : public EquationSolver {
   public:

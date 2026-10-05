@@ -2,7 +2,10 @@
 // licensing go to project's repository on github:
 // https://github.com/dmitryikh/nla3d
 
+#include <Eigen/IterativeLinearSolvers>
+
 #include "math/EquationSolver.h"
+#include "math/eigen_support.h"
 
 #ifdef NLA3D_USE_MKL
 #include <mkl.h>
@@ -18,19 +21,19 @@ void EquationSolver::setSymmetric(bool symmetric) { isSymmetric = symmetric; }
 
 void EquationSolver::setPositive(bool positive) { isPositive = positive; }
 
-void GaussDenseEquationSolver::solveEquations(math::SparseSymMatrix* matrix, double* rhs, double* unknowns) {
+void GaussDenseEquationSolver::solveEquations(SparseSymMatrix* matrix, double* rhs, double* unknowns) {
     TIMED_SCOPE(t, "solveEquations");
     factorizeEquations(matrix);
     substituteEquations(matrix, rhs, unknowns);
 }
 
-void GaussDenseEquationSolver::factorizeEquations(math::SparseSymMatrix* matrix) {
+void GaussDenseEquationSolver::factorizeEquations(SparseSymMatrix* matrix) {
     // nothing to do here..
     nEq = matrix->nRows();
     CHECK(nEq < 1000) << "GaussDenseEquationSolver works only with number of equations less than 1000";
 }
 
-void GaussDenseEquationSolver::substituteEquations(math::SparseSymMatrix* matrix, double* rhs, double* unknowns) {
+void GaussDenseEquationSolver::substituteEquations(SparseSymMatrix* matrix, double* rhs, double* unknowns) {
     // NOTE: actually here we perform all steps factorization and substitution
     // because this is simplest solver dedicated to perform functional tests
     //
@@ -121,6 +124,34 @@ bool GaussDenseEquationSolver::_solve(double* X, double* A, double* B, int n) {
     }
 
     return true;
+}
+
+void ConjugateGradientEquationSolver::solveEquations(SparseSymMatrix* matrix, double* rhs, double* unknowns) {
+    TIMED_SCOPE(t, "solveEquations");
+    this->factorizeEquations(matrix);
+    this->substituteEquations(matrix, rhs, unknowns);
+}
+
+void ConjugateGradientEquationSolver::factorizeEquations(SparseSymMatrix* matrix) {
+    // ...noop
+}
+
+void ConjugateGradientEquationSolver::substituteEquations(SparseSymMatrix* matrix, double* rhs,
+                                                          double* unknowns) {
+    const auto size = matrix->nRows();
+    useSparseMat(*matrix, [rhs, unknowns, size](const traits<SparseSymMatrix>::MappedEigenEquivalent& view) {
+        const Eigen::ConjugateGradient<Eigen::SparseMatrix<double, Eigen::RowMajor>, Eigen::Upper> factorization{view.matrix()};
+
+        // FIXME: this does not work :(
+        //        solution is lazy, so no items are copied to unknowns
+        // const auto solution = factorization.solve(Eigen::Map<Eigen::VectorXd>{rhs, size});
+        // Eigen::Map<Eigen::VectorXd>{unknowns, size} = solution;
+
+        // This works, but requires additional allocation
+        const Eigen::MatrixXd solution = factorization.solve(Eigen::Map<Eigen::VectorXd>(rhs, size));
+        CHECK(factorization.info() == Eigen::Success) << "Cannot solve system: " << factorization.info();
+        Eigen::Map<Eigen::VectorXd>{unknowns, size} = solution;
+    });
 }
 
 #ifdef NLA3D_USE_MKL
