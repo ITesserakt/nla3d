@@ -21,11 +21,11 @@ void ElementINTER0::buildK() {
     K.setZero();
 
     // Произвольный линенйно независмый базис
-    math::Vec<3> s1(n[0], n[1] + 1., n[2] + 1.);
+    math::Vec<3> s1{n[0], n[1] + 1., n[2] + 1.};
     // ортогонализаця базиса
     math::Vec<3> proj_s1_n = n * ((s1[0] * n[0] + s1[1] * n[1] + s1[2] * n[2]) / n.qlength());
     s1 = s1 - proj_s1_n;
-    math::Vec<3> s2(n[1] * s1[2] - n[2] * s1[1], n[2] * s1[0] - n[0] * s1[2], n[0] * s1[1] - n[1] * s1[0]);
+    math::Vec<3> s2{n[1] * s1[2] - n[2] * s1[1], n[2] * s1[0] - n[0] * s1[2], n[0] * s1[1] - n[1] * s1[0]};
 
     n = n * (1. / n.length());
     s1 = s1 * (1. / s1.length());
@@ -58,16 +58,16 @@ void ElementINTER0::update() {
     ;
 }
 
-bool ElementINTER0::getVector(math::Vec<3>* vector, vectorQuery query, uint16 gp, const double scale) { return false; }
+bool ElementINTER0::getVector(math::Vec<3>& vector, vectorQuery query, uint16 gp, const double scale) { return false; }
 
-bool ElementINTER0::getTensor(math::MatSym<3>* tensor, tensorQuery query, uint16 gp, const double scale) {
+bool ElementINTER0::getTensor(math::MatSym<3>& tensor, tensorQuery query, uint16 gp, const double scale) {
     if (query == tensorQuery::C) {
-        tensor->comp(0, 0) += strains[0];
-        tensor->comp(1, 1) += strains[1];
-        tensor->comp(2, 2) += strains[2];
-        tensor->comp(0, 1) += 0.;
-        tensor->comp(1, 2) += 0.;
-        tensor->comp(0, 2) += 0.;
+        tensor.comp(0, 0) += strains[0];
+        tensor.comp(1, 1) += strains[1];
+        tensor.comp(2, 2) += strains[2];
+        tensor.comp(0, 1) += 0.;
+        tensor.comp(1, 2) += 0.;
+        tensor.comp(0, 2) += 0.;
         return true;
     }
     return false;

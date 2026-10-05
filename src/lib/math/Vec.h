@@ -16,14 +16,10 @@ template <uint16 dim> class Vec {
         assert(dim);
         memset(data, 0, sizeof(double) * dim); // не очень красиво
     }
-    Vec(double first, ...) {
+    Vec(std::initializer_list<double> list) {
         assert(dim);
-        va_list argp;
-        va_start(argp, first);
-        data[0] = first;
-        for (uint16 i = 1; i < dim; i++)
-            data[i] = va_arg(argp, double);
-        va_end(argp);
+        assert(list.size() == dim && "Invalid number of elements passed");
+        std::copy(list.begin(), list.end(), data);
     }
     ~Vec(void) {}
     // TODO: this should be size_t instead of uint16

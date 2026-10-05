@@ -121,8 +121,8 @@ class Element {
     // The methods return true if the query is relevant for the element and false if the element
     // can't return asked query code.
     virtual bool getScalar(double* scalar, scalarQuery query, uint16 gp = GP_MEAN, const double scale = 1.0);
-    virtual bool getVector(math::Vec<3>* vector, vectorQuery query, uint16 gp = GP_MEAN, const double scale = 1.0);
-    virtual bool getTensor(math::MatSym<3>* tensor, tensorQuery query, uint16 gp = GP_MEAN, const double scale = 1.0);
+    virtual bool getVector(math::Vec<3>& vector, vectorQuery query, uint16 gp = GP_MEAN, const double scale = 1.0);
+    virtual bool getTensor(math::MatSym<3>& tensor, tensorQuery query, uint16 gp = GP_MEAN, const double scale = 1.0);
 
     Element& operator=(const Element& from);
 

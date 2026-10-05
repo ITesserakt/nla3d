@@ -59,7 +59,7 @@ class ElementTETRA0 : public ElementTETRA {
 
     // postproc procedures
     bool getScalar(double* scalar, scalarQuery code, uint16 gp, const double scale);
-    bool getTensor(math::MatSym<3>* tensor, tensorQuery code, uint16 gp, const double scale);
+    bool getTensor(math::MatSym<3>& tensor, tensorQuery code, uint16 gp, const double scale);
 };
 
 } // namespace nla3d

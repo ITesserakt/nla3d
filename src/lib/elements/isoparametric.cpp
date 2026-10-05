@@ -32,11 +32,11 @@ double ElementIsoParamLINE::volume() {
     return volume;
 }
 
-math::Vec<2> ElementIsoParamLINE::formFunc(double r) { return math::Vec<2>(0.5 * (1.0 - r), 0.5 * (1.0 + r)); }
+math::Vec<2> ElementIsoParamLINE::formFunc(double r) { return math::Vec<2>{0.5 * (1.0 - r), 0.5 * (1.0 + r)}; }
 
 math::Vec<2> ElementIsoParamLINE::formFunc(uint16 np) { return formFunc(_table_line[i_int][np].r); }
 
-math::Mat<2, 1> ElementIsoParamLINE::formFuncDeriv(double r) { return math::Mat<2, 1>(-0.5, 0.5); }
+math::Mat<2, 1> ElementIsoParamLINE::formFuncDeriv(double r) { return math::Mat<2, 1>{-0.5, 0.5}; }
 
 void ElementIsoParamQUAD::makeJacob() {
     const uint16 dim = 2;
@@ -91,8 +91,8 @@ void ElementIsoParamQUAD::makeJacob() {
 }
 
 math::Vec<4> ElementIsoParamQUAD::formFunc(double r, double s) {
-    return math::Vec<4>(0.25 * (1.0 - r) * (1.0 - s), 0.25 * (1.0 + r) * (1.0 - s), 0.25 * (1.0 + r) * (1.0 + s),
-                        0.25 * (1.0 - r) * (1.0 + s));
+    return math::Vec<4>{0.25 * (1.0 - r) * (1.0 - s), 0.25 * (1.0 + r) * (1.0 - s), 0.25 * (1.0 + r) * (1.0 + s),
+                        0.25 * (1.0 - r) * (1.0 + s)};
 }
 
 math::Vec<4> ElementIsoParamQUAD::formFunc(uint16 np) {
@@ -101,8 +101,8 @@ math::Vec<4> ElementIsoParamQUAD::formFunc(uint16 np) {
 }
 
 math::Mat<4, 2> ElementIsoParamQUAD::formFuncDeriv(double r, double s) {
-    return math::Mat<4, 2>(-0.25 * (1.0 - s), -0.25 * (1.0 - r), +0.25 * (1.0 - s), -0.25 * (1.0 + r),
-                           +0.25 * (1.0 + s), +0.25 * (1.0 + r), -0.25 * (1.0 + s), +0.25 * (1.0 - r));
+    return math::Mat<4, 2>{-0.25 * (1.0 - s), -0.25 * (1.0 - r), +0.25 * (1.0 - s), -0.25 * (1.0 + r),
+                           +0.25 * (1.0 + s), +0.25 * (1.0 + r), -0.25 * (1.0 + s), +0.25 * (1.0 - r)};
 }
 
 double ElementIsoParamQUAD::volume() {
@@ -163,13 +163,13 @@ void ElementIsoParamHEXAHEDRON::makeJacob() {
 }
 
 math::Vec<8> ElementIsoParamHEXAHEDRON::formFunc(double r, double s, double t) {
-    return math::Vec<8>(0.125 * (1.0 - r) * (1.0 - s) * (1.0 - t), 0.125 * (1.0 + r) * (1.0 - s) * (1.0 - t),
+    return math::Vec<8>{0.125 * (1.0 - r) * (1.0 - s) * (1.0 - t), 0.125 * (1.0 + r) * (1.0 - s) * (1.0 - t),
                         0.125 * (1.0 + r) * (1.0 + s) * (1.0 - t), 0.125 * (1.0 - r) * (1.0 + s) * (1.0 - t),
 
                         0.125 * (1.0 - r) * (1.0 - s) * (1.0 + t),
 
                         0.125 * (1.0 + r) * (1.0 - s) * (1.0 + t), 0.125 * (1.0 + r) * (1.0 + s) * (1.0 + t),
-                        0.125 * (1.0 - r) * (1.0 + s) * (1.0 + t));
+                        0.125 * (1.0 - r) * (1.0 + s) * (1.0 + t)};
 }
 
 math::Vec<8> ElementIsoParamHEXAHEDRON::formFunc(uint16 np) {
@@ -178,7 +178,7 @@ math::Vec<8> ElementIsoParamHEXAHEDRON::formFunc(uint16 np) {
 }
 
 math::Mat<8, 3> ElementIsoParamHEXAHEDRON::formFuncDeriv(double r, double s, double t) {
-    return math::Mat<8, 3>(
+    return math::Mat<8, 3>{
         -0.125 * (1.0 - s) * (1.0 - t), -0.125 * (1.0 - r) * (1.0 - t), -0.125 * (1.0 - r) * (1.0 - s),
         +0.125 * (1.0 - s) * (1.0 - t), -0.125 * (1.0 + r) * (1.0 - t), -0.125 * (1.0 + r) * (1.0 - s),
         +0.125 * (1.0 + s) * (1.0 - t), +0.125 * (1.0 + r) * (1.0 - t), -0.125 * (1.0 + r) * (1.0 + s),
@@ -187,7 +187,7 @@ math::Mat<8, 3> ElementIsoParamHEXAHEDRON::formFuncDeriv(double r, double s, dou
         -0.125 * (1.0 - s) * (1.0 + t), -0.125 * (1.0 - r) * (1.0 + t), +0.125 * (1.0 - r) * (1.0 - s),
         +0.125 * (1.0 - s) * (1.0 + t), -0.125 * (1.0 + r) * (1.0 + t), +0.125 * (1.0 + r) * (1.0 - s),
         +0.125 * (1.0 + s) * (1.0 + t), +0.125 * (1.0 + r) * (1.0 + t), +0.125 * (1.0 + r) * (1.0 + s),
-        -0.125 * (1.0 + s) * (1.0 + t), +0.125 * (1.0 - r) * (1.0 + t), +0.125 * (1.0 - r) * (1.0 + s));
+        -0.125 * (1.0 + s) * (1.0 + t), +0.125 * (1.0 - r) * (1.0 + t), +0.125 * (1.0 - r) * (1.0 + s)};
 }
 
 double ElementIsoParamHEXAHEDRON::volume() {

@@ -106,7 +106,7 @@ int main(int argc, char* argv[]) {
         math::MatSym<3> mat;
         for (uint32 i = 1; i <= storage.nElements(); i++) {
             mat.zero();
-            storage.getElement(i).getTensor(&mat, tensorQuery::E);
+            storage.getElement(i).getTensor(mat, tensorQuery::E);
             CHECK(mat.compare(ans_stresses[i - 1], 1.0e-3));
         }
     }

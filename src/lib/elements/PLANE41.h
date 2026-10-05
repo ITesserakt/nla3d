@@ -29,8 +29,8 @@ class ElementPLANE41 : public ElementIsoParamQUAD {
 
     // postproc procedures
     bool getScalar(double* scalar, scalarQuery code, uint16 gp, const double scale);
-    bool getVector(math::Vec<3>* vector, vectorQuery code, uint16 gp, const double scale);
-    bool getTensor(math::MatSym<3>* tensor, tensorQuery code, uint16 gp, const double scale);
+    bool getVector(math::Vec<3>& vector, vectorQuery code, uint16 gp, const double scale);
+    bool getTensor(math::MatSym<3>& tensor, tensorQuery code, uint16 gp, const double scale);
 
     // internal element data
     // S[0] - Sx  S[1] - Sy S[2] - Sxy

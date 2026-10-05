@@ -202,32 +202,32 @@ bool ElementTETRA0::getScalar(double* scalar, scalarQuery query, uint16 gp, cons
     return false;
 }
 
-bool ElementTETRA0::getTensor(math::MatSym<3>* tensor, tensorQuery query, uint16 gp, const double scale) {
+bool ElementTETRA0::getTensor(math::MatSym<3>& tensor, tensorQuery query, uint16 gp, const double scale) {
     if (query == tensorQuery::C) {
-        tensor->comp(0, 0) += strains[0];
-        tensor->comp(1, 1) += strains[1];
-        tensor->comp(2, 2) += strains[2];
-        tensor->comp(0, 1) += strains[3];
-        tensor->comp(1, 2) += strains[4];
-        tensor->comp(0, 2) += strains[5];
+        tensor.comp(0, 0) += strains[0];
+        tensor.comp(1, 1) += strains[1];
+        tensor.comp(2, 2) += strains[2];
+        tensor.comp(0, 1) += strains[3];
+        tensor.comp(1, 2) += strains[4];
+        tensor.comp(0, 2) += strains[5];
         return true;
     }
     if (query == tensorQuery::E) {
-        tensor->comp(0, 0) += stress[0];
-        tensor->comp(1, 1) += stress[1];
-        tensor->comp(2, 2) += stress[2];
-        tensor->comp(0, 1) += stress[3];
-        tensor->comp(1, 2) += stress[4];
-        tensor->comp(0, 2) += stress[5];
+        tensor.comp(0, 0) += stress[0];
+        tensor.comp(1, 1) += stress[1];
+        tensor.comp(2, 2) += stress[2];
+        tensor.comp(0, 1) += stress[3];
+        tensor.comp(1, 2) += stress[4];
+        tensor.comp(0, 2) += stress[5];
         return true;
     }
     if (query == tensorQuery::TSTRAIN) {
-        tensor->comp(0, 0) += alpha * T;
-        tensor->comp(1, 1) += alpha * T;
-        tensor->comp(2, 2) += alpha * T;
-        tensor->comp(0, 1) += 0.;
-        tensor->comp(1, 2) += 0.;
-        tensor->comp(0, 2) += 0.;
+        tensor.comp(0, 0) += alpha * T;
+        tensor.comp(1, 1) += alpha * T;
+        tensor.comp(2, 2) += alpha * T;
+        tensor.comp(0, 1) += 0.;
+        tensor.comp(1, 2) += 0.;
+        tensor.comp(0, 2) += 0.;
         return true;
     }
 

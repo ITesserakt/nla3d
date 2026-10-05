@@ -5,6 +5,7 @@
 #pragma once
 #include "math/Vec.h"
 #include "sys.h"
+
 #include <iostream>
 
 #ifdef NLA3D_USE_BLAS
@@ -17,20 +18,12 @@ namespace math {
 template <uint16 dimM, uint16 dimN> class Mat {
   public:
     Mat() { assert(dimM && dimN); }
-    Mat(double first, ...) {
+    Mat(std::initializer_list<double> elements) {
         assert(dimM && dimN);
-        va_list argp;
-        va_start(argp, first);
-        for (uint16 i = 0; i < dimM; i++)
-            for (uint16 j = 0; j < dimN; j++) {
-                if (i == 0 && j == 0)
-                    data[i][j] = first;
-                else
-                    data[i][j] = va_arg(argp, double);
-            }
-        va_end(argp);
+        assert(elements.size() == dimM * dimN && "Invalid number of elements passed");
+        std::copy(elements.begin(), elements.end(), data[0].ptr());
     }
-    ~Mat() {}
+    ~Mat() = default;
 
     Vec<dimN>& operator[](uint16 n);
     const Vec<dimN>& operator[](uint16 n) const;
@@ -324,7 +317,7 @@ template <uint16 dimM, uint16 dimN> Vec<dimM> Mat<dimM, dimN>::eigenvalues() {
             s3 = root1;
         }
     }
-    return Vec<3>(s1, s2, s3);
+    return Vec<3>{s1, s2, s3};
 }
 
 template <uint16 dimM, uint16 dimN> double* Mat<dimM, dimN>::ptr() { return data[0].ptr(); }

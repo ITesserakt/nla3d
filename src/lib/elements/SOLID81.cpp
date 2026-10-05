@@ -13,9 +13,9 @@ void ElementSOLID81::pre() {
         makeJacob();
     }
 
-    S.assign(nOfIntPoints(), Vec<6>(0.0, 0.0, 0.0, 0.0, 0.0, 0.0));
-    C.assign(nOfIntPoints(), Vec<6>(1.0, 0.0, 0.0, 1.0, 0.0, 1.0));
-    O.assign(nOfIntPoints(), Vec<9>(0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0));
+    S.assign(nOfIntPoints(), Vec<6>{0.0, 0.0, 0.0, 0.0, 0.0, 0.0});
+    C.assign(nOfIntPoints(), Vec<6>{1.0, 0.0, 0.0, 1.0, 0.0, 1.0});
+    O.assign(nOfIntPoints(), Vec<9>{0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0});
 
     // register element equations
     for (uint16 i = 0; i < getNNodes(); i++) {
@@ -206,7 +206,7 @@ bool ElementSOLID81::getScalar(double* scalar, scalarQuery query, uint16 gp, con
         return true;
 
     case scalarQuery::WU:
-        getVector(&tmp, vectorQuery::IC, gp, 1.0);
+        getVector(tmp, vectorQuery::IC, gp, 1.0);
         mat = CHECK_NOTNULL(dynamic_cast<Mat_Hyper_Isotrop_General*>(storage->getMaterial()));
         *scalar += mat->W(tmp[0], tmp[1], tmp[2]) * scale;
         return true;
@@ -224,7 +224,7 @@ bool ElementSOLID81::getScalar(double* scalar, scalarQuery query, uint16 gp, con
     return false;
 }
 
-bool ElementSOLID81::getVector(math::Vec<3>* vector, vectorQuery query, uint16 gp, const double scale) {
+bool ElementSOLID81::getVector(Vec<3>& vector, vectorQuery query, uint16 gp, const double scale) {
     if (gp == GP_MEAN) { // need to average result over the element
         double dWtSum = volume();
         double dWt;
@@ -244,16 +244,16 @@ bool ElementSOLID81::getVector(math::Vec<3>* vector, vectorQuery query, uint16 g
     switch (query) {
     case vectorQuery::IC:
         solidmech::IC_C(C[gp].ptr(), IC);
-        (*vector)[0] += IC[0] * scale;
-        (*vector)[1] += IC[1] * scale;
-        (*vector)[2] += IC[2] * scale;
+        vector[0] += IC[0] * scale;
+        vector[1] += IC[1] * scale;
+        vector[2] += IC[2] * scale;
         return true;
     }
     return false;
 }
 
 // return a tensor in a global coordinate system
-bool ElementSOLID81::getTensor(math::MatSym<3>* tensor, tensorQuery query, uint16 gp, const double scale) {
+bool ElementSOLID81::getTensor(MatSym<3>& tensor, tensorQuery query, uint16 gp, const double scale) {
     if (gp == GP_MEAN) { // need to average result over the element
         double dWtSum = volume();
         double dWt;
@@ -299,7 +299,7 @@ bool ElementSOLID81::getTensor(math::MatSym<3>* tensor, tensorQuery query, uint1
         for (uint16 i = 0; i < 6; i++) {
             matS.data[i] = S[gp][i] + pe * J * cInv[i];
         }
-        matBTDBprod(matF, matS, 1.0 / J * scale, *tensor); // Symmetric Couchy tensor
+        matBTDBprod(matF, matS, 1.0 / J * scale, tensor); // Symmetric Couchy tensor
         return true;
 
     case tensorQuery::PK2:
@@ -308,26 +308,26 @@ bool ElementSOLID81::getTensor(math::MatSym<3>* tensor, tensorQuery query, uint1
         solidmech::invC_C(C[gp].ptr(), J, cInv);
         pe = storage->getElementDofSolution(getElNum(), Dof::HYDRO_PRESSURE);
         for (uint16 i = 0; i < 6; i++) {
-            tensor->data[i] += (S[gp][i] + pe * J * cInv[i]) * scale;
+            tensor.data[i] += (S[gp][i] + pe * J * cInv[i]) * scale;
         }
         return true;
 
     case tensorQuery::C:
-        tensor->data[0] += C[gp][M_XX] * scale;
-        tensor->data[1] += C[gp][M_XY] * scale;
-        tensor->data[2] += C[gp][M_XZ] * scale;
-        tensor->data[3] += C[gp][M_YY] * scale;
-        tensor->data[4] += C[gp][M_YZ] * scale;
-        tensor->data[5] += C[gp][M_ZZ] * scale;
+        tensor.data[0] += C[gp][M_XX] * scale;
+        tensor.data[1] += C[gp][M_XY] * scale;
+        tensor.data[2] += C[gp][M_XZ] * scale;
+        tensor.data[3] += C[gp][M_YY] * scale;
+        tensor.data[4] += C[gp][M_YZ] * scale;
+        tensor.data[5] += C[gp][M_ZZ] * scale;
         return true;
 
     case tensorQuery::E:
-        tensor->data[0] += (C[gp][M_XX] - 1.0) * 0.5 * scale;
-        tensor->data[1] += C[gp][M_XY] * 0.5 * scale;
-        tensor->data[2] += C[gp][M_XZ] * 0.5 * scale;
-        tensor->data[3] += (C[gp][M_YY] - 1.0) * 0.5 * scale;
-        tensor->data[4] += C[gp][M_YZ] * 0.5 * scale;
-        tensor->data[5] += (C[gp][M_ZZ] - 1.0) * 0.5 * scale;
+        tensor.data[0] += (C[gp][M_XX] - 1.0) * 0.5 * scale;
+        tensor.data[1] += C[gp][M_XY] * 0.5 * scale;
+        tensor.data[2] += C[gp][M_XZ] * 0.5 * scale;
+        tensor.data[3] += (C[gp][M_YY] - 1.0) * 0.5 * scale;
+        tensor.data[4] += C[gp][M_YZ] * 0.5 * scale;
+        tensor.data[5] += (C[gp][M_ZZ] - 1.0) * 0.5 * scale;
         return true;
     }
     return false;

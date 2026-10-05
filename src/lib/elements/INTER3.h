@@ -52,8 +52,8 @@ class ElementINTER3 : public ElementWEDGE {
     double det = 0.;  // determinant of Jacob matrix
 
     // postproc procedures
-    bool getVector(math::Vec<3>* vector, vectorQuery query, uint16 gp, const double scale);
-    bool getTensor(math::MatSym<3>* tensor, tensorQuery query, uint16 gp, const double scale);
+    bool getVector(math::Vec<3>& vector, vectorQuery query, uint16 gp, const double scale);
+    bool getTensor(math::MatSym<3>& tensor, tensorQuery query, uint16 gp, const double scale);
 };
 
 inline uint16 ElementINTER3::getNNodes() { return 6; }

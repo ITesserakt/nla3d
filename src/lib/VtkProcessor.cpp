@@ -245,7 +245,7 @@ void VtkProcessor::write_cell_data(std::ofstream& file) {
         dataVector.assign(en, Vec<3>());
         for (uint32 i = 1; i <= storage->nElements(); i++) {
             // dataVector[i-1].zero();
-            storage->getElement(i).getVector(&(dataVector[i - 1]), query);
+            storage->getElement(i).getVector(dataVector[i - 1], query);
         }
         writeVector(file, query2label(query), dataVector);
     }
@@ -255,7 +255,7 @@ void VtkProcessor::write_cell_data(std::ofstream& file) {
         dataTensor.assign(en, MatSym<3>());
         for (uint32 i = 1; i <= storage->nElements(); i++) {
             // dataTensor[i-1].zero();
-            storage->getElement(i).getTensor(&(dataTensor[i - 1]), query);
+            storage->getElement(i).getTensor(dataTensor[i - 1], query);
         }
         writeTensor(file, query2label(query), dataTensor);
     }
@@ -330,7 +330,7 @@ void VtkProcessor::revealAllResults() {
             vdummy.zero();
             // try to ask the element about particular query code. If result is false, than this element
             // know nothing about the query code, skip the code.
-            ret = el.getVector(&vdummy, vquery);
+            ret = el.getVector(vdummy, vquery);
             if (ret == true) {
                 cellVectorQueries.insert(vquery);
             }
@@ -346,7 +346,7 @@ void VtkProcessor::revealAllResults() {
             mdummy.zero();
             // try to ask the element about particular query code. If result is false, than this element
             // know nothing about the query code, skip the code.
-            ret = el.getTensor(&mdummy, tquery);
+            ret = el.getTensor(mdummy, tquery);
             if (ret == true) {
                 cellTensorQueries.insert(tquery);
             }

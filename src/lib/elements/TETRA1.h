@@ -32,7 +32,7 @@ class ElementTETRA1 : public ElementTETRA {
     // postproc procedures
     bool getScalar(double* scalar, scalarQuery code, uint16 gp, const double scale);
 
-    bool getVector(math::Vec<3>* vector, vectorQuery code, uint16 gp, const double scale);
+    bool getVector(math::Vec<3>& vector, vectorQuery code, uint16 gp, const double scale);
 };
 
 } // namespace nla3d

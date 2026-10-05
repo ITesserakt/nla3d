@@ -17,9 +17,9 @@ void ElementPLANE41::pre() {
         makeJacob();
     }
 
-    S.assign(nOfIntPoints(), Vec<3>(0.0f, 0.0f, 0.0f));
-    C.assign(nOfIntPoints(), Vec<3>(1.0f, 1.0f, 0.0f));
-    O.assign(nOfIntPoints(), Vec<4>(0.0f, 0.0f, 0.0f, 0.0f));
+    S.assign(nOfIntPoints(), Vec<3>{0.0f, 0.0f, 0.0f});
+    C.assign(nOfIntPoints(), Vec<3>{1.0f, 1.0f, 0.0f});
+    O.assign(nOfIntPoints(), Vec<4>{0.0f, 0.0f, 0.0f, 0.0f});
 
     // register element equations
     for (uint16 i = 0; i < getNNodes(); i++) {
@@ -65,12 +65,12 @@ void ElementPLANE41::buildK() {
 
         Mat<3, 8> matB = make_B(np);
         // матрица S для матричного умножения
-        Mat<4, 4> matS = Mat<4, 4>(S[np][0], S[np][2], 0.0, 0.0, S[np][2], S[np][1], 0.0, 0.0, 0.0, 0.0, S[np][0],
-                                   S[np][2], 0.0, 0.0, S[np][2], S[np][1]);
+        Mat<4, 4> matS = Mat<4, 4>{S[np][0], S[np][2], 0.0,      0.0,      S[np][2], S[np][1], 0.0,      0.0,
+                                   0.0,      0.0,      S[np][0], S[np][2], 0.0,      0.0,      S[np][2], S[np][1]};
         // матрица Омега.используется для составления
         // матр. накопленных линейных деформаций к текущему шагу
-        Mat<3, 4> matO = Mat<3, 4>(O[np][0], 0.0, O[np][2], 0.0, 0.0, O[np][1], 0.0, O[np][3], O[np][1], O[np][0],
-                                   O[np][3], O[np][2]);
+        Mat<3, 4> matO = Mat<3, 4>{O[np][0], 0.0,      O[np][2], 0.0,      0.0,      O[np][1],
+                                   0.0,      O[np][3], O[np][1], O[np][0], O[np][3], O[np][2]};
 
         Mat<4, 8> matBomega = make_Bomega(np);
         Mat<3, 8> matBl = matO * matBomega;
@@ -100,19 +100,20 @@ void ElementPLANE41::buildK() {
 }
 //
 inline Mat<3, 8> ElementPLANE41::make_B(uint16 np) {
-    Mat<3, 8> B = Mat<3, 8>(NiXj[np][0][0], 0.0f, NiXj[np][1][0], 0.0f, NiXj[np][2][0], 0.0f, NiXj[np][3][0], 0.0f,
-                            0.0f, NiXj[np][0][1], 0.0f, NiXj[np][1][1], 0.0f, NiXj[np][2][1], 0.0f, NiXj[np][3][1],
-                            NiXj[np][0][1], NiXj[np][0][0], NiXj[np][1][1], NiXj[np][1][0], NiXj[np][2][1],
-                            NiXj[np][2][0], NiXj[np][3][1], NiXj[np][3][0]);
+    Mat<3, 8> B{NiXj[np][0][0], 0.0f,           NiXj[np][1][0], 0.0f,           NiXj[np][2][0], 0.0f,
+                NiXj[np][3][0], 0.0f,           0.0f,           NiXj[np][0][1], 0.0f,           NiXj[np][1][1],
+                0.0f,           NiXj[np][2][1], 0.0f,           NiXj[np][3][1], NiXj[np][0][1], NiXj[np][0][0],
+                NiXj[np][1][1], NiXj[np][1][0], NiXj[np][2][1], NiXj[np][2][0], NiXj[np][3][1], NiXj[np][3][0]};
     return B;
 }
 //
 Mat<4, 8> ElementPLANE41::make_Bomega(uint16 np) {
-    Mat<4, 8> Bomega =
-        Mat<4, 8>(NiXj[np][0][0], 0.0f, NiXj[np][1][0], 0.0f, NiXj[np][2][0], 0.0f, NiXj[np][3][0], 0.0f,
-                  NiXj[np][0][1], 0.0f, NiXj[np][1][1], 0.0f, NiXj[np][2][1], 0.0f, NiXj[np][3][1], 0.0f, 0.0f,
-                  NiXj[np][0][0], 0.0f, NiXj[np][1][0], 0.0f, NiXj[np][2][0], 0.0f, NiXj[np][3][0], 0.0f,
-                  NiXj[np][0][1], 0.0f, NiXj[np][1][1], 0.0f, NiXj[np][2][1], 0.0f, NiXj[np][3][1]);
+    Mat<4, 8> Bomega{NiXj[np][0][0], 0.0f,           NiXj[np][1][0], 0.0f,           NiXj[np][2][0], 0.0f,
+                     NiXj[np][3][0], 0.0f,           NiXj[np][0][1], 0.0f,           NiXj[np][1][1], 0.0f,
+                     NiXj[np][2][1], 0.0f,           NiXj[np][3][1], 0.0f,           0.0f,           NiXj[np][0][0],
+                     0.0f,           NiXj[np][1][0], 0.0f,           NiXj[np][2][0], 0.0f,           NiXj[np][3][0],
+                     0.0f,           NiXj[np][0][1], 0.0f,           NiXj[np][1][1], 0.0f,           NiXj[np][2][1],
+                     0.0f,           NiXj[np][3][1]};
     return Bomega;
 }
 
@@ -172,8 +173,8 @@ bool ElementPLANE41::getScalar(double* scalar, scalarQuery query, uint16 gp, con
     return false;
 }
 
-bool ElementPLANE41::getVector(math::Vec<3>* vector, vectorQuery query, uint16 gp, const double scale) {
-    assert(vector != nullptr);
+bool ElementPLANE41::getVector(Vec<3>& vector, vectorQuery query, uint16 gp, const double scale) {
+    assert(&vector != nullptr);
 
     if (gp == GP_MEAN) { // need to average result over the element
         double dWtSum = volume();
@@ -207,8 +208,8 @@ bool ElementPLANE41::getVector(math::Vec<3>* vector, vectorQuery query, uint16 g
 }
 
 // return a tensor in a global coordinate system
-bool ElementPLANE41::getTensor(math::MatSym<3>* tensor, tensorQuery query, uint16 gp, const double scale) {
-    assert(tensor != nullptr);
+bool ElementPLANE41::getTensor(MatSym<3>& tensor, tensorQuery query, uint16 gp, const double scale) {
+    assert(&tensor != nullptr);
     if (gp == GP_MEAN) { // need to average result over the element
         double dWtSum = volume();
         double dWt;
@@ -262,7 +263,7 @@ bool ElementPLANE41::getTensor(math::MatSym<3>* tensor, tensorQuery query, uint1
         mat = dynamic_cast<Mat_Hyper_Isotrop_General*>(storage->getMaterial());
         CHECK_NOTNULL(mat);
         mat->getS_UP(6, solidmech::defaultTensorComponents, CVec.ptr(), p_e, matS.data);
-        matBTDBprod(matF, matS, 1.0 / J, *tensor); // Symmetric Couchy tensor
+        matBTDBprod(matF, matS, 1.0 / J, tensor); // Symmetric Couchy tensor
         return true;
 
     case tensorQuery::PK2:
@@ -270,30 +271,30 @@ bool ElementPLANE41::getTensor(math::MatSym<3>* tensor, tensorQuery query, uint1
         CHECK_NOTNULL(mat);
         p_e = storage->getElementDofSolution(getElNum(), Dof::HYDRO_PRESSURE);
         mat->getS_UP(6, solidmech::defaultTensorComponents, CVec.ptr(), p_e, matS.data);
-        tensor->data[0] += matS.data[0] * scale;
-        tensor->data[1] += matS.data[1] * scale;
-        tensor->data[2] += matS.data[2] * scale;
-        tensor->data[3] += matS.data[3] * scale;
-        tensor->data[4] += matS.data[4] * scale;
-        tensor->data[5] += matS.data[5] * scale;
+        tensor.data[0] += matS.data[0] * scale;
+        tensor.data[1] += matS.data[1] * scale;
+        tensor.data[2] += matS.data[2] * scale;
+        tensor.data[3] += matS.data[3] * scale;
+        tensor.data[4] += matS.data[4] * scale;
+        tensor.data[5] += matS.data[5] * scale;
         return true;
 
     case tensorQuery::C:
-        tensor->data[0] += CVec[M_XX] * scale;
-        tensor->data[1] += CVec[M_XY] * scale;
-        tensor->data[2] += CVec[M_XZ] * scale;
-        tensor->data[3] += CVec[M_YY] * scale;
-        tensor->data[4] += CVec[M_YZ] * scale;
-        tensor->data[5] += CVec[M_ZZ] * scale;
+        tensor.data[0] += CVec[M_XX] * scale;
+        tensor.data[1] += CVec[M_XY] * scale;
+        tensor.data[2] += CVec[M_XZ] * scale;
+        tensor.data[3] += CVec[M_YY] * scale;
+        tensor.data[4] += CVec[M_YZ] * scale;
+        tensor.data[5] += CVec[M_ZZ] * scale;
         return true;
 
     case tensorQuery::E:
-        tensor->data[0] += (CVec[M_XX] - 1.0) * 0.5 * scale;
-        tensor->data[1] += CVec[M_XY] * 0.5 * scale;
-        tensor->data[2] += CVec[M_XZ] * 0.5 * scale;
-        tensor->data[3] += (CVec[M_YY] - 1.0) * 0.5 * scale;
-        tensor->data[4] += CVec[M_YZ] * 0.5 * scale;
-        tensor->data[5] += (CVec[M_ZZ] - 1.0) * 0.5 * scale;
+        tensor.data[0] += (CVec[M_XX] - 1.0) * 0.5 * scale;
+        tensor.data[1] += CVec[M_XY] * 0.5 * scale;
+        tensor.data[2] += CVec[M_XZ] * 0.5 * scale;
+        tensor.data[3] += (CVec[M_YY] - 1.0) * 0.5 * scale;
+        tensor.data[4] += CVec[M_YZ] * 0.5 * scale;
+        tensor.data[5] += (CVec[M_ZZ] - 1.0) * 0.5 * scale;
         return true;
     }
     return false;

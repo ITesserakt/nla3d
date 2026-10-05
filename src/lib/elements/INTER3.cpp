@@ -105,18 +105,18 @@ void ElementINTER3::update() {
 void ElementINTER3::makeJacob() {
     // Находим координаты узлов в локальной декартовой системе координат треугольника (t1, t2)
     // Начало координт - первый узел треугольника
-    math::Vec<2> locX1(0., 0.);
+    math::Vec<2> locX1{0., 0.};
     // Вектор s1 направлен по одной из сторон
     math::Vec<3> t1 = storage->getNode(getNodeNumber(1)).pos - storage->getNode(getNodeNumber(0)).pos;
     math::Vec<3> t2 = storage->getNode(getNodeNumber(2)).pos - storage->getNode(getNodeNumber(0)).pos;
 
-    math::Vec<2> locX2(t1.length(), 0.);
+    math::Vec<2> locX2{t1.length(), 0.};
     // Для координат третьего узла нужна ортогонолизация. Ищем угол треугольника при начале координат
     double mult = t1[0] * t2[0] + t1[1] * t2[1] + t1[2] * t2[2];
     double angle = acos(mult / t1.length() / t2.length());
-    math::Vec<2> locX3(t2.length() * cos(angle), t2.length() * sin(angle));
+    math::Vec<2> locX3{t2.length() * cos(angle), t2.length() * sin(angle)};
 
-    math::Mat<2, 2> J(locX1[0] - locX3[0], locX1[1] - locX3[1], locX2[0] - locX3[0], locX2[1] - locX3[1]);
+    math::Mat<2, 2> J{locX1[0] - locX3[0], locX1[1] - locX3[1], locX2[0] - locX3[0], locX2[1] - locX3[1]};
 
     det = J.det(); // Якобиан перехода между L координатами и локальными декартовыми
     if (det < 0)
@@ -163,9 +163,9 @@ Eigen::MatrixXd ElementINTER3::make_T() {
     math::Vec<3> s1 = storage->getNode(getNodeNumber(1)).pos - storage->getNode(getNodeNumber(0)).pos;
     math::Vec<3> t2 = storage->getNode(getNodeNumber(2)).pos - storage->getNode(getNodeNumber(0)).pos;
     // Востанавливаем нормаль как векторное произведение двух вектров в плоскости треугольника
-    math::Vec<3> n(s1[1] * t2[2] - s1[2] * t2[1], s1[2] * t2[0] - s1[0] * t2[2], s1[0] * t2[1] - s1[1] * t2[0]);
+    math::Vec<3> n{s1[1] * t2[2] - s1[2] * t2[1], s1[2] * t2[0] - s1[0] * t2[2], s1[0] * t2[1] - s1[1] * t2[0]};
     // Востанавливаем s2 как векторное произведение n x s1
-    math::Vec<3> s2(n[1] * s1[2] - n[2] * s1[1], n[2] * s1[0] - n[0] * s1[2], n[0] * s1[1] - n[1] * s1[0]);
+    math::Vec<3> s2{n[1] * s1[2] - n[2] * s1[1], n[2] * s1[0] - n[0] * s1[2], n[0] * s1[1] - n[1] * s1[0]};
 
     n = n * (1. / n.length());
     s1 = s1 * (1. / s1.length());
@@ -180,25 +180,25 @@ Eigen::MatrixXd ElementINTER3::make_T() {
     return T;
 }
 
-bool ElementINTER3::getVector(math::Vec<3>* vector, vectorQuery query, uint16 gp, const double scale) { return false; }
+bool ElementINTER3::getVector(math::Vec<3>& vector, vectorQuery query, uint16 gp, const double scale) { return false; }
 
-bool ElementINTER3::getTensor(math::MatSym<3>* tensor, tensorQuery query, uint16 gp, const double scale) {
+bool ElementINTER3::getTensor(math::MatSym<3>& tensor, tensorQuery query, uint16 gp, const double scale) {
     if (query == tensorQuery::C) {
-        tensor->comp(0, 0) += strains[0];
-        tensor->comp(1, 1) += strains[1];
-        tensor->comp(2, 2) += strains[2];
-        tensor->comp(0, 1) += 0.;
-        tensor->comp(1, 2) += 0.;
-        tensor->comp(0, 2) += 0.;
+        tensor.comp(0, 0) += strains[0];
+        tensor.comp(1, 1) += strains[1];
+        tensor.comp(2, 2) += strains[2];
+        tensor.comp(0, 1) += 0.;
+        tensor.comp(1, 2) += 0.;
+        tensor.comp(0, 2) += 0.;
         return true;
     }
     if (query == tensorQuery::E) {
-        tensor->comp(0, 0) += stress[0];
-        tensor->comp(1, 1) += stress[1];
-        tensor->comp(2, 2) += stress[2];
-        tensor->comp(0, 1) += 0.;
-        tensor->comp(1, 2) += 0.;
-        tensor->comp(0, 2) += 0.;
+        tensor.comp(0, 0) += stress[0];
+        tensor.comp(1, 1) += stress[1];
+        tensor.comp(2, 2) += stress[2];
+        tensor.comp(0, 1) += 0.;
+        tensor.comp(1, 2) += 0.;
+        tensor.comp(0, 2) += 0.;
         return true;
     }
 }

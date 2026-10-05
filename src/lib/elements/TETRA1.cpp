@@ -11,12 +11,14 @@ void ElementTETRA1::pre() {
 }
 
 void ElementTETRA1::buildK() {
-    math::Mat<4, 4> matS(1., storage->getNode(getNodeNumber(0)).pos[0], storage->getNode(getNodeNumber(0)).pos[1],
-                         storage->getNode(getNodeNumber(0)).pos[2], 1., storage->getNode(getNodeNumber(1)).pos[0],
-                         storage->getNode(getNodeNumber(1)).pos[1], storage->getNode(getNodeNumber(1)).pos[2], 1.,
-                         storage->getNode(getNodeNumber(2)).pos[0], storage->getNode(getNodeNumber(2)).pos[1],
-                         storage->getNode(getNodeNumber(2)).pos[2], 1., storage->getNode(getNodeNumber(3)).pos[0],
-                         storage->getNode(getNodeNumber(3)).pos[1], storage->getNode(getNodeNumber(3)).pos[2]);
+    math::Mat<4, 4> matS{
+        1., storage->getNode(getNodeNumber(0)).pos[0], storage->getNode(getNodeNumber(0)).pos[1],
+        storage->getNode(getNodeNumber(0)).pos[2], 1., storage->getNode(getNodeNumber(1)).pos[0],
+        storage->getNode(getNodeNumber(1)).pos[1], storage->getNode(getNodeNumber(1)).pos[2], 1.,
+        storage->getNode(getNodeNumber(2)).pos[0], storage->getNode(getNodeNumber(2)).pos[1],
+        storage->getNode(getNodeNumber(2)).pos[2], 1., storage->getNode(getNodeNumber(3)).pos[0],
+        storage->getNode(getNodeNumber(3)).pos[1], storage->getNode(getNodeNumber(3)).pos[2]
+    };
 
     vol = matS.det() / 6.;
 
@@ -143,13 +145,13 @@ bool ElementTETRA1::getScalar(double* scalar, scalarQuery query, uint16 gp, cons
     return false;
 }
 
-bool ElementTETRA1::getVector(math::Vec<3>* vector, vectorQuery query, uint16 gp, const double scale) {
+bool ElementTETRA1::getVector(math::Vec<3>& vector, vectorQuery query, uint16 gp, const double scale) {
     switch (query) {
     case vectorQuery::FLUX:
-        *vector += flux * scale;
+        vector += flux * scale;
         return true;
     case vectorQuery::GRADT:
-        *vector += flux * (scale / k);
+        vector += flux * (scale / k);
         return true;
     }
     return false;
