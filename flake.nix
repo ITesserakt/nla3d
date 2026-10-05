@@ -19,6 +19,10 @@
         nla3d = pkgs.stdenv.mkDerivation {
           inherit pname version src;
           nativeBuildInputs = [ pkgs.cmake ];
+
+          cmakeFlags = [
+            "-DCMAKE_BUILD_TYPE=RelWithDebInfo"
+          ];
         };
 
         nla3d-with-mkl = pkgs.stdenv.mkDerivation {
