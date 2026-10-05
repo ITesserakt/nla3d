@@ -1,6 +1,7 @@
 cmake_minimum_required (VERSION 2.6...3.10)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+set(CMAKE_CXX_STANDARD 11)
 
 project (NLA3D)
 
@@ -32,7 +33,7 @@ set (NLA3D_BLAS OFF
 
 # TODO: this should depend on compiler
 if(UNIX) 
-    set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=gnu++11 -fPIC")
+    set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC")
 endif()
 
 # Linking on Mac Os was not working without this, see `cmake  --help-policy CMP0042`
