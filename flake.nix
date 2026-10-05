@@ -41,6 +41,7 @@
         packages = with pkgs; [
           llvmPackages.clang
           llvmPackages.openmp
+          gdb
           cmake
         ];
       };
