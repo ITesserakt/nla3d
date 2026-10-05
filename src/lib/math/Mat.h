@@ -46,7 +46,7 @@ template <uint16 dimM, uint16 dimN> class Mat {
     double* ptr();
     const double* ptr() const { return data[0].ptr(); }
     bool compare(const Mat& B, double eps = 1.0e-5);
-    void simple_read(std::istream& st) const;
+    void simple_read(std::istream& st);
     // friend функции
     template <uint16 dimM1, uint16 dimN1>
     friend std::ostream& operator<<(std::ostream& stream, const Mat<dimM1, dimN1>& obj);
@@ -336,7 +336,7 @@ template <uint16 dimM, uint16 dimN> bool Mat<dimM, dimN>::compare(const Mat& B, 
     return true;
 }
 
-template <uint16 dimM, uint16 dimN> void Mat<dimM, dimN>::simple_read(std::istream& st) const {
+template <uint16 dimM, uint16 dimN> void Mat<dimM, dimN>::simple_read(std::istream& st) {
     double* Bp = this->ptr();
     for (uint16 i = 0; i < dimM; i++) {
         for (uint16 j = 0; j < dimN; j++) {

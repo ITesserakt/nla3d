@@ -34,7 +34,7 @@ template <uint16 dim> class Vec {
     Vec operator*(double op) const;
     std::string toString() const;
     bool compare(const Vec& V, double eps = 0.00005) const;
-    void simple_read(std::istream& st) const;
+    void simple_read(std::istream& st);
     double operator*(const Vec& op) const;
     static uint16 size() { return dim; }
     template <uint16 dim1> friend std::ostream& operator<<(std::ostream& stream, const Vec<dim1>& obj);
@@ -150,8 +150,8 @@ template <uint16 dim> std::string Vec<dim>::toString() const {
 template <uint16 dim> double* Vec<dim>::ptr() { return data; }
 //-------------------------------------------------------
 template <uint16 dim> bool Vec<dim>::compare(const Vec& V, const double eps) const {
-    const auto& Dp = this->data;
-    const auto& Vp = V.data;
+    auto Dp = this->ptr();
+    auto Vp = V.ptr();
     for (uint16 j = 0; j < dim; j++) {
         if (std::abs(*Dp - *Vp) > eps) {
             return false;
@@ -162,8 +162,8 @@ template <uint16 dim> bool Vec<dim>::compare(const Vec& V, const double eps) con
     return true;
 }
 //-------------------------------------------------------
-template <uint16 dim> void Vec<dim>::simple_read(std::istream& st) const {
-    const auto& Dp = data;
+template <uint16 dim> void Vec<dim>::simple_read(std::istream& st) {
+    auto Dp = this->ptr();
     for (uint16 j = 0; j < dim; j++) {
         st >> *Dp;
         ++Dp;

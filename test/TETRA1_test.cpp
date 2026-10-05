@@ -5,12 +5,11 @@
 #include "FEReaders.h"
 #include "FESolver.h"
 #include "FEStorage.h"
+#include "Node.h"
 #include "ReactionProcessor.h"
 #include "VtkProcessor.h"
 #include "elements/TETRA1.h"
-#include "materials/MaterialFactory.h"
 #include "sys.h"
-#include <tuple>
 
 using namespace nla3d;
 
@@ -77,7 +76,7 @@ int main(int argc, char* argv[]) {
 #endif
     solver.attachFEStorage(&storage);
 
-    VtkProcessor* vtk = new VtkProcessor(&storage, "tetra1");
+    VtkProcessor* vtk = new VtkProcessor(storage, "tetra1");
     solver.addPostProcessor(vtk);
     vtk->writeAllResults();
 

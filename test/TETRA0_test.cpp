@@ -2,15 +2,16 @@
 // licensing go to project's repository on github:
 // https://github.com/dmitryikh/nla3d
 //
+
+#include <tuple>
+
 #include "FEReaders.h"
 #include "FESolver.h"
 #include "FEStorage.h"
-#include "ReactionProcessor.h"
+#include "Node.h"
 #include "VtkProcessor.h"
 #include "elements/TETRA0.h"
-#include "materials/MaterialFactory.h"
 #include "sys.h"
-#include <tuple>
 
 using namespace nla3d;
 

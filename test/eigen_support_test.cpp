@@ -58,7 +58,7 @@ int main() {
         });
     }
     {
-        SparseSymMatrix matrix = {3, 3};
+        SparseSymMatrix matrix {3, 3};
         matrix.addEntry(1, 1);
         matrix.addEntry(3, 1);
         matrix.addEntry(2, 2);
@@ -95,7 +95,7 @@ int main() {
         CHECK(solution.transpose().cwiseEqual(Eigen::RowVector3d{2.0/11.0, 1.0 / 2.0, 3.0 / 11.0}).all());
     }
     {
-        SparseSymMatrix matrix = {3, 3};
+        SparseSymMatrix matrix {3, 3};
         matrix.addEntry(1, 1);
         matrix.addEntry(3, 1);
         matrix.addEntry(2, 2);
