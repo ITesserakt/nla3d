@@ -181,9 +181,9 @@ Eigen::MatrixXd ElementINTER3::make_T() {
     return T;
 }
 
-bool ElementINTER3::getVector(math::Vec<3>& vector, vectorQuery query, uint16 gp, const double scale) { return false; }
+bool ElementINTER3::getVector(math::Vec<3>&, vectorQuery, uint16, const double) { return false; }
 
-bool ElementINTER3::getTensor(math::MatSym<3>& tensor, const tensorQuery query, uint16 gp, const double scale) {
+bool ElementINTER3::getTensor(math::MatSym<3>& tensor, const tensorQuery query, uint16, const double) {
     if (query == tensorQuery::C) {
         tensor.comp(0, 0) += strains[0];
         tensor.comp(1, 1) += strains[1];

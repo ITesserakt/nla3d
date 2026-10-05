@@ -34,7 +34,7 @@ math::Vec<2> ElementIsoParamLINE::formFunc(const double r) { return math::Vec<2>
 
 math::Vec<2> ElementIsoParamLINE::formFunc(const uint16 np) { return formFunc(_table_line[i_int][np].r); }
 
-math::Mat<2, 1> ElementIsoParamLINE::formFuncDeriv(double r) { return math::Mat<2, 1>{-0.5, 0.5}; }
+math::Mat<2, 1> ElementIsoParamLINE::formFuncDeriv(double) { return math::Mat<2, 1>{-0.5, 0.5}; }
 
 void ElementIsoParamQUAD::makeJacob() {
     constexpr uint16 dim = 2;

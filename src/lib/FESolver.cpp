@@ -106,7 +106,7 @@ PostProcessor& FESolver::getPostProcessor(const size_t _np) const {
 }
 
 uint16 FESolver::addPostProcessor(PostProcessor* pp) {
-    CHECK_NOTNULL(pp);
+    (void)CHECK_NOTNULL(pp);
     const auto num = static_cast<uint16>(this->postProcessors.size() + 1);
     pp->nPost_proc = num;
     postProcessors.push_back(pp);
@@ -281,8 +281,8 @@ void FESolver::compareMatricesAndVectors(std::string filename, double th) {
 void LinearFESolver::solve() {
     TIMED_SCOPE(timer, "solution");
     LOG(INFO) << "Start the solution process";
-    CHECK_NOTNULL(storage);
-    CHECK_NOTNULL(eqSolver);
+    (void)CHECK_NOTNULL(storage);
+    (void)CHECK_NOTNULL(eqSolver);
 
     // setup matrix properties for EquationSolver
     eqSolver->setSymmetric(true);
@@ -346,8 +346,8 @@ void LinearFESolver::solve() {
 void NonlinearFESolver::solve() {
     TIMED_SCOPE(timer, "solution");
     LOG(INFO) << "Start the solution process";
-    CHECK_NOTNULL(storage);
-    CHECK_NOTNULL(eqSolver);
+    (void)CHECK_NOTNULL(storage);
+    (void)CHECK_NOTNULL(eqSolver);
 
     // setup matrix properties for EquationSolver
     eqSolver->setSymmetric(true);
@@ -465,8 +465,8 @@ double NonlinearFESolver::calculateCriteria(dVec& delta) const {
 void LinearTransientFESolver::solve() {
     TIMED_SCOPE(timer, "solution");
     LOG(INFO) << "Start the solution process";
-    CHECK_NOTNULL(storage);
-    CHECK_NOTNULL(eqSolver);
+    (void)CHECK_NOTNULL(storage);
+    (void)CHECK_NOTNULL(eqSolver);
 
     // setup matrix properties for EquationSolver
     eqSolver->setSymmetric(true);

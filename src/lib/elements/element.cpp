@@ -56,18 +56,18 @@ void Element::buildC() { LOG(FATAL) << "buildC is not implemented"; }
 
 void Element::buildM() { LOG(FATAL) << "buildM is not implemented"; }
 
-bool Element::getScalar(double* scalar, scalarQuery code, uint16 gp, const double scale) {
+bool Element::getScalar(double*, scalarQuery, uint16, const double) {
     // TODO: check that LOG_N_TIMES macro work correctly inside of virtual functions
     LOG_N_TIMES(10, WARNING) << "getScalar function is not implemented";
     return false;
 }
 
-bool Element::getVector(math::Vec<3>& vector, vectorQuery code, uint16 gp, const double scale) {
+bool Element::getVector(math::Vec<3>&, vectorQuery, uint16, const double) {
     LOG_N_TIMES(10, WARNING) << "getVector function is not implemented";
     return false;
 }
 
-bool Element::getTensor(math::MatSym<3>& tensor, tensorQuery code, uint16 gp, const double scale) {
+bool Element::getTensor(math::MatSym<3>&, tensorQuery, uint16, const double) {
     LOG_N_TIMES(10, WARNING) << "getTensor function is not implemented";
     return false;
 }

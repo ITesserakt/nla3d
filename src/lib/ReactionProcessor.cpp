@@ -115,9 +115,9 @@ void ReactionProcessor::process(uint16 curLoadstep) {
     }
 }
 
-void ReactionProcessor::post(uint16 curLoadstep) {}
+void ReactionProcessor::post(uint16) {}
 
-std::vector<double> ReactionProcessor::getReactions(Dof::dofType dof) {
+std::vector<double> ReactionProcessor::getReactions(const Dof::dofType dof) {
     for (uint16 d = 0; d < dofs.size(); d++) {
         if (dofs[d] == dof) {
             return sumOfDofsReactions[d];

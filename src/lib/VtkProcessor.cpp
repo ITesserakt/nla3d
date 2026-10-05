@@ -64,9 +64,9 @@ void VtkProcessor::process(uint16 curLoadstep) {
     file.close();
 }
 
-void VtkProcessor::post(uint16 curLoadstep) {}
+void VtkProcessor::post(uint16) {}
 
-void VtkProcessor::writeAllResults(bool write) { _writeAllResults = write; }
+void VtkProcessor::writeAllResults(const bool write) { _writeAllResults = write; }
 
 bool VtkProcessor::registerResults(std::initializer_list<scalarQuery> queries) {
     // check that each query is valid

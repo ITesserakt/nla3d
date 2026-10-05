@@ -146,7 +146,7 @@ void ElementTETRA1::makeC(math::MatSym<3>& C) const {
     C.comp(2, 2) = -k;
 }
 
-bool ElementTETRA1::getScalar(double* scalar, const scalarQuery query, uint16 gp, const double scale) {
+bool ElementTETRA1::getScalar(double* scalar, const scalarQuery query, uint16, const double scale) {
     if (query == scalarQuery::VOL) {
         *scalar += vol * scale;
         return true;
@@ -154,7 +154,7 @@ bool ElementTETRA1::getScalar(double* scalar, const scalarQuery query, uint16 gp
     return false;
 }
 
-bool ElementTETRA1::getVector(math::Vec<3>& vector, const vectorQuery query, uint16 gp, const double scale) {
+bool ElementTETRA1::getVector(math::Vec<3>& vector, const vectorQuery query, uint16, const double scale) {
     switch (query) {
     case vectorQuery::FLUX:
         vector += flux * scale;

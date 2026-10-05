@@ -135,7 +135,7 @@ char sfirstNotBlank(const string& str) {
 std::vector<std::string> ssplit(const std::string& line, const std::vector<int>& widths, const bool strict) {
     int ind = 0;
     vector<string> vv;
-    for (const int w : widths) {
+    for (const size_t w : widths) {
         if (line.length() - ind < w) {
             // no room for another field
             if (strict) {
@@ -144,7 +144,7 @@ std::vector<std::string> ssplit(const std::string& line, const std::vector<int>&
                 if (line.length() - ind != 0) {
                     LOG(FATAL) << "ssplit: incomplete field: \"" << line << "\"";
                 }
-                return std::move(vv);
+                return vv;
             }
         }
         vv.push_back(line.substr(ind, w));
@@ -254,7 +254,7 @@ bool readNeuFile(std::string filename, MeshData& md) {
     }
 
     // read volumes section
-    int volumesCount;
+    uint32 volumesCount;
     file >> volumesCount;
     md.cellNumbers.reserve(volumesCount);
     vector<uint32> enodes(4, 0);
@@ -354,7 +354,7 @@ bool readCdbFile(std::string filename, MeshData& md) {
             stolower(strim(line));
             std::regex re(R"(\((\d+)i(\d+),(\d+)e(\d+)\.[0-9e]+\))");
             std::smatch match;
-            int int_num;
+            uint32 int_num;
             int int_field;
             int float_num;
             int float_field;
@@ -371,7 +371,7 @@ bool readCdbFile(std::string filename, MeshData& md) {
             // prepare array of field widths
             std::vector<int> widths;
             widths.reserve(int_num + float_num);
-            for (int i = 0; i < int_num; i++) {
+            for (uint32 i = 0; i < int_num; i++) {
                 widths.push_back(int_field);
             }
             for (int i = 0; i < float_num; i++) {
@@ -503,7 +503,7 @@ bool readCdbFile(std::string filename, MeshData& md) {
                 }
                 // parse element nodes
                 enodes.reserve(nNodes);
-                for (int i = 0; i < nNodes; i++) {
+                for (uint32 i = 0; i < nNodes; i++) {
                     enodes.push_back(static_cast<uint32>(std::stoi(v[st + i])));
                 }
 

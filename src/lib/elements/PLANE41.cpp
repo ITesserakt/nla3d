@@ -44,7 +44,7 @@ void ElementPLANE41::buildK() {
     Vec<3> vecD_p;
     const double p_e = storage->getElementDofSolution(getElNum(), Dof::HYDRO_PRESSURE);
     auto* mat = dynamic_cast<Mat_Hyper_Isotrop_General*>(storage->getMaterial());
-    CHECK_NOTNULL(mat);
+    (void)CHECK_NOTNULL(mat);
 
     const double k = mat->getK();
     // Gaussian quadrature
@@ -125,7 +125,7 @@ void ElementPLANE41::update() {
         U[i * 2 + 1] = storage->getNodeDofSolution(getNodeNumber(i), Dof::UY);
     }
     auto* mat = dynamic_cast<Mat_Hyper_Isotrop_General*>(storage->getMaterial());
-    CHECK_NOTNULL(mat);
+    (void)CHECK_NOTNULL(mat);
     Vec<6> CVec;
     CVec[M_XZ] = 0.0;
     CVec[M_YZ] = 0.0;
@@ -257,14 +257,14 @@ bool ElementPLANE41::getTensor(MatSym<3>& tensor, const tensorQuery query, const
         // Now 2) is working.
         p_e = storage->getElementDofSolution(getElNum(), Dof::HYDRO_PRESSURE);
         mat = dynamic_cast<Mat_Hyper_Isotrop_General*>(storage->getMaterial());
-        CHECK_NOTNULL(mat);
+        (void)CHECK_NOTNULL(mat);
         mat->getS_UP(6, solidmech::defaultTensorComponents, CVec.ptr(), p_e, matS.data);
         matBTDBprod(matF, matS, 1.0 / J, tensor); // Symmetric Couchy tensor
         return true;
 
     case tensorQuery::PK2:
         mat = dynamic_cast<Mat_Hyper_Isotrop_General*>(storage->getMaterial());
-        CHECK_NOTNULL(mat);
+        (void)CHECK_NOTNULL(mat);
         p_e = storage->getElementDofSolution(getElNum(), Dof::HYDRO_PRESSURE);
         mat->getS_UP(6, solidmech::defaultTensorComponents, CVec.ptr(), p_e, matS.data);
         tensor.data[0] += matS.data[0] * scale;

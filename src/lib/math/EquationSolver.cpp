@@ -15,7 +15,7 @@ namespace nla3d {
 
 namespace math {
 
-EquationSolver* defaultEquationSolver = new GaussDenseEquationSolver;
+EquationSolver* defaultEquationSolver = new ConjugateGradientEquationSolver{};
 
 void EquationSolver::setSymmetric(const bool symmetric) { isSymmetric = symmetric; }
 
@@ -59,7 +59,7 @@ bool GaussDenseEquationSolver::_solve(double* X, double* A, double* B, const uin
     // Gaussian elimination, with partial pivoting. It's an error if the
     // matrix is singular, because that means two constraints are
     // equivalent.
-    int i, j, ip, jp, imax;
+    uint32 i, j, ip, jp, imax;
     double temp;
 
     for (i = 0; i < n; i++) {
@@ -107,7 +107,7 @@ bool GaussDenseEquationSolver::_solve(double* X, double* A, double* B, const uin
 
     // We've put the matrix in upper triangular form, so at this point we
     // can solve by back-substitution.
-    for (i = n - 1; i >= 0; i--) {
+    for (i = n - 1; i > 0; i--) {
         // if(fabs(A[i][i]) < 1e-20) return false;
         if (fabs(A[i * n + i]) < 1e-20)
             return false;

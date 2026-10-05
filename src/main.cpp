@@ -9,6 +9,7 @@
 #include "ReactionProcessor.h"
 #include "VtkProcessor.h"
 #include "elements/ElementFactory.h"
+#include "elements/element.h"
 #include "materials/MaterialFactory.h"
 #include "sys.h"
 

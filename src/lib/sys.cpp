@@ -21,7 +21,7 @@ int32 npow(const int16 dig, const uint16 power) {
     return res;
 }
 
-static std::vector<std::string> read_tokens(const char* input) {
+std::vector<std::string> read_tokens(const char* input) {
     std::vector<std::string> vec = {};
     std::string tmp = {};
     constexpr char delimeters[] = "(),";

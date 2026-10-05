@@ -271,6 +271,8 @@ class FEStorage {
     // fill `topology` data based on the current mesh (Element::nodes numbers)
     void learnTopology();
 
+    void linkElement(uint32 elNum);
+
     // these functions are used to train sparsity info for matK/C/M
     // provide info that entry (eqi, eqj) are not zero
     // should be called before matK->compressed()
@@ -595,11 +597,8 @@ inline void FEStorage::addEntryMPC(const uint32 eq_num, const uint32 eqj) const 
 
 } // namespace nla3d
 
-// 'dirty' hack to avoid include loops (element-vs-festorage)
-#include "elements/element.h"
-
 namespace nla3d {
-template <typename T> std::vector<uint32> FEStorage::createElements(const uint32 _en, T example) {
+template <typename T> std::vector<uint32> FEStorage::createElements(const uint32 _en, T) {
     // TODO: catch if not enough memory
     std::vector<uint32> newIndexes;
     newIndexes.reserve(_en);
@@ -614,8 +613,7 @@ template <typename T> std::vector<uint32> FEStorage::createElements(const uint32
 
     for (uint32 i = nextNumber; i <= elements.size(); i++) {
         // access elNum protected values as friend
-        elements[i - 1]->elNum = i;
-        elements[i - 1]->storage = this;
+        this->linkElement(i);
         newIndexes.push_back(i);
     }
     return newIndexes;

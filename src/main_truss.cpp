@@ -19,7 +19,7 @@ using namespace nla3d;
 // Originally this file was downloaded from http://people.duke.edu/~hpgavin/cee421/truss-method.pdf.
 // In the code below you will find all neede comments about how all this work.
 
-int main(int argc, char* argv[]) {
+int main() {
     // Definition of the node table. Every node in nla3d lives in 3D space (has 3 coordinates). As fas
     // as we have a deal with 2D case, we just leave third coordinate equal to zero.
     const uint32 numberOfNodes = 5;

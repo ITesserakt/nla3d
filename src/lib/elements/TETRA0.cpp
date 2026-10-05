@@ -193,7 +193,7 @@ void ElementTETRA0::makeC(math::MatSym<6>& C) const {
     C.comp(5, 5) = (1. / 2. - my) * A;
 }
 
-bool ElementTETRA0::getScalar(double* scalar, const scalarQuery query, uint16 gp, const double scale) {
+bool ElementTETRA0::getScalar(double* scalar, const scalarQuery query, uint16, const double) {
     if (query == scalarQuery::VOL) {
         *scalar += vol;
         return true;
@@ -201,7 +201,7 @@ bool ElementTETRA0::getScalar(double* scalar, const scalarQuery query, uint16 gp
     return false;
 }
 
-bool ElementTETRA0::getTensor(math::MatSym<3>& tensor, const tensorQuery query, uint16 gp, const double scale) {
+bool ElementTETRA0::getTensor(math::MatSym<3>& tensor, const tensorQuery query, uint16, const double) {
     if (query == tensorQuery::C) {
         tensor.comp(0, 0) += strains[0];
         tensor.comp(1, 1) += strains[1];

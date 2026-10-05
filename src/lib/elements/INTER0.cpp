@@ -57,9 +57,9 @@ void ElementINTER0::update() {
     strains[2] = U(5) - U(2);
 }
 
-bool ElementINTER0::getVector(math::Vec<3>& vector, vectorQuery query, uint16 gp, const double scale) { return false; }
+bool ElementINTER0::getVector(math::Vec<3>&, vectorQuery, uint16, const double) { return false; }
 
-bool ElementINTER0::getTensor(math::MatSym<3>& tensor, const tensorQuery query, uint16 gp, const double scale) {
+bool ElementINTER0::getTensor(math::MatSym<3>& tensor, const tensorQuery query, uint16, const double) {
     if (query == tensorQuery::C) {
         tensor.comp(0, 0) += strains[0];
         tensor.comp(1, 1) += strains[1];

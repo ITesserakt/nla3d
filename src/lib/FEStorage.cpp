@@ -546,4 +546,9 @@ void FEStorage::learnTopology() {
     }
 }
 
+void FEStorage::linkElement(const uint32 elNum) {
+    this->elements[elNum - 1]->elNum = elNum;
+    this->elements[elNum - 1]->storage = this;
+}
+
 } // namespace nla3d
