@@ -5,6 +5,7 @@
 #include "FEReaders.h"
 #include "FESolver.h"
 #include "FEStorage.h"
+#include "Node.h"
 #include "VtkProcessor.h"
 #include "elements/QUADTH.h"
 #include "sys.h"
@@ -13,7 +14,7 @@ using namespace nla3d;
 
 class ProbeProcessor : public PostProcessor {
   public:
-    ProbeProcessor(FEStorage* st);
+    ProbeProcessor(FEStorage& st);
     virtual ~ProbeProcessor() {};
 
     virtual void pre();
@@ -29,7 +30,7 @@ class ProbeProcessor : public PostProcessor {
     std::vector<double> measurments;
 };
 
-ProbeProcessor::ProbeProcessor(FEStorage* st) : PostProcessor(st) { name = "ProbeProcessor"; }
+ProbeProcessor::ProbeProcessor(FEStorage& st) : PostProcessor(st) { name = "ProbeProcessor"; }
 
 void ProbeProcessor::pre() {
     if (node == 0 || dof == Dof::UNDEFINED) {
@@ -39,7 +40,7 @@ void ProbeProcessor::pre() {
 }
 
 void ProbeProcessor::process(uint16 curLoadstep) {
-    double val = storage->getNodeDofSolution(node, dof);
+    double val = storage.getNodeDofSolution(node, dof);
     measurments.push_back(val);
 }
 
@@ -135,10 +136,10 @@ int main(int argc, char* argv[]) {
 #endif
     // FESolver should know FEStorage instance. Attach it.
     solver.attachFEStorage(&storage);
-    VtkProcessor* vtk = new VtkProcessor(&storage, "QUADTH_transient");
+    VtkProcessor* vtk = new VtkProcessor(storage, "QUADTH_transient");
     solver.addPostProcessor(vtk);
 
-    ProbeProcessor* probe = new ProbeProcessor(&storage);
+    ProbeProcessor* probe = new ProbeProcessor(storage);
     probe->node = md.feComps["PROBE"].list[0];
     probe->dof = Dof::TEMP;
     solver.addPostProcessor(probe);

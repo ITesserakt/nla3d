@@ -6,7 +6,6 @@
 #include "FEStorage.h"
 #include "elements/element.h"
 #include "elements/isoparametric.h"
-#include "solidmech.h"
 
 namespace nla3d {
 
@@ -17,22 +16,22 @@ class ElementSOLID81 : public ElementIsoParamHEXAHEDRON {
         intOrder = 2;
         type = ElementType::SOLID81;
     }
-    ElementSOLID81(const ElementSOLID81& from) { operator=(from); }
+    ElementSOLID81(const ElementSOLID81& from) : ElementIsoParamHEXAHEDRON(from) { operator=(from); }
 
     // solving procedures
-    void pre();
-    void buildK();
-    void update();
+    void pre() override;
+    void buildK() override;
+    void update() override;
 
-    void make_B_L(uint16 nPoint, math::Mat<6, 24>& B); // функция создает линейную матрицу [B]
+    void make_B_L(uint16 nPoint, math::Mat<6, 24>& B);  // функция создает линейную матрицу [B]
     void make_B_NL(uint16 nPoint, math::Mat<9, 24>& B); // функция создает линейную матрицу [Bomega]
     void make_S(uint16 nPoint, math::MatSym<9>& B);
     void make_Omega(uint16 nPoint, math::Mat<6, 9>& B);
 
     // postproc procedures
-    bool getScalar(double* scalar, scalarQuery code, uint16 gp, const double scale);
-    bool getVector(math::Vec<3>& vector, vectorQuery code, uint16 gp, const double scale);
-    bool getTensor(math::MatSym<3>& tensor, tensorQuery code, uint16 gp, const double scale);
+    bool getScalar(double* scalar, scalarQuery code, uint16 gp, double scale) override;
+    bool getVector(math::Vec<3>& vector, vectorQuery code, uint16 gp, double scale) override;
+    bool getTensor(math::MatSym<3>& tensor, tensorQuery code, uint16 gp, double scale) override;
 
     // internal element data
     // S[M_XX], S[M_XY], S[M_XZ], S[M_YY], S[M_YZ], S[M_ZZ]
@@ -51,14 +50,14 @@ class ElementSOLID81 : public ElementIsoParamHEXAHEDRON {
 };
 
 template <uint16 dimM>
-void ElementSOLID81::assemble3(math::MatSym<dimM>& Kuu, math::Vec<dimM>& Kup, double Kpp, math::Vec<dimM>& Fu,
-                               double Fp) {
-    const uint16 dim = 3;
+void ElementSOLID81::assemble3(math::MatSym<dimM>& Kuu, math::Vec<dimM>& Kup, const double Kpp, math::Vec<dimM>& Fu,
+                               const double Fp) {
+    constexpr uint16 dim = 3;
     assert(getNNodes() * dim == dimM);
-    double* Kuu_p = Kuu.ptr();
-    double* Kup_p = Kup.ptr();
-    double* Fu_p = Fu.ptr();
-    Dof::dofType dofVec[] = {Dof::UX, Dof::UY, Dof::UZ};
+    const double* Kuu_p = Kuu.ptr();
+    const double* Kup_p = Kup.ptr();
+    const double* Fu_p = Fu.ptr();
+    const Dof::dofType dofVec[] = {Dof::UX, Dof::UY, Dof::UZ};
     for (uint16 i = 0; i < getNNodes(); i++)
         for (uint16 di = 0; di < dim; di++)
             for (uint16 j = i; j < getNNodes(); j++)
@@ -66,27 +65,25 @@ void ElementSOLID81::assemble3(math::MatSym<dimM>& Kuu, math::Vec<dimM>& Kup, do
                 for (uint16 dj = 0; dj < dim; dj++) {
                     if ((i == j) && (dj < di))
                         continue;
-                    else {
-                        storage->addValueK(nodes[i], dofVec[di], nodes[j], dofVec[dj], *Kuu_p);
-                        Kuu_p++;
-                    }
+                    storage->addValueK(nodes[i], dofVec[di], nodes[j], dofVec[dj], *Kuu_p);
+                    ++Kuu_p;
                 }
     // upper diagonal process for nodes-el dofs
-    uint32 elEq = storage->getElementDofEqNumber(getElNum(), Dof::HYDRO_PRESSURE);
+    const uint32 elEq = storage->getElementDofEqNumber(getElNum(), Dof::HYDRO_PRESSURE);
     for (uint16 i = 0; i < getNNodes(); i++) {
-        for (uint16 di = 0; di < dim; di++) {
-            uint32 rowEq = storage->getNodeDofEqNumber(nodes[i], dofVec[di]);
+        for (const auto di : dofVec) {
+            const uint32 rowEq = storage->getNodeDofEqNumber(nodes[i], di);
             storage->addValueK(rowEq, elEq, *Kup_p);
-            Kup_p++;
+            ++Kup_p;
         }
     }
     // upper diagonal process for el-el dofs
     storage->addValueK(elEq, elEq, Kpp);
 
     for (uint16 i = 0; i < getNNodes(); i++) {
-        for (uint16 di = 0; di < dim; di++) {
-            storage->addValueF(nodes[i], dofVec[di], *Fu_p);
-            Fu_p++;
+        for (const auto di : dofVec) {
+            storage->addValueF(nodes[i], di, *Fu_p);
+            ++Fu_p;
         }
     }
     storage->addValueF(elEq, Fp);

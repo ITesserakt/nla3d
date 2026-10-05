@@ -6,7 +6,7 @@
 
 namespace nla3d {
 
-Element::Element() {}
+Element::Element() = default;
 
 Element::~Element() {
     if (nodes) {
@@ -15,7 +15,7 @@ Element::~Element() {
     }
 }
 
-void Element::print(std::ostream& out) {
+void Element::print(std::ostream& out) const {
     out << "E " << getElNum() << ":";
     for (uint16 i = 0; i < getNNodes(); i++) {
         out << "\t" << getNodeNumber(i);
@@ -23,16 +23,18 @@ void Element::print(std::ostream& out) {
 }
 
 Element& Element::operator=(const Element& from) {
+    if (this == &from)
+        return *this;
     assert(nodes && from.nodes);
     memcpy(nodes, from.nodes, sizeof(uint32) * getNNodes());
     return *this;
 }
 
-void Element::assembleK(Eigen::Ref<Eigen::MatrixXd> Ke, std::initializer_list<Dof::dofType> _nodeDofs) {
-    assert(nodes != NULL);
+void Element::assembleK(Eigen::Ref<Eigen::MatrixXd> Ke, const std::initializer_list<Dof::dofType> _nodeDofs) const {
+    assert(nodes != nullptr);
     assert(Ke.rows() == Ke.cols());
-    std::vector<Dof::dofType> nodeDof(_nodeDofs);
-    uint16 dim = static_cast<uint16>(_nodeDofs.size());
+    const std::vector<Dof::dofType> nodeDof(_nodeDofs);
+    const auto dim = static_cast<uint16>(_nodeDofs.size());
     assert(getNNodes() * dim == Ke.rows());
 
     for (uint16 i = 0; i < getNNodes(); i++) {
@@ -41,10 +43,9 @@ void Element::assembleK(Eigen::Ref<Eigen::MatrixXd> Ke, std::initializer_list<Do
                 for (uint16 dj = 0; dj < dim; dj++) {
                     if ((i == j) && (dj < di)) {
                         continue;
-                    } else {
-                        storage->addValueK(nodes[i], nodeDof[di], nodes[j], nodeDof[dj],
-                                           Ke.selfadjointView<Eigen::Upper>()(i * dim + di, j * dim + dj));
                     }
+                    storage->addValueK(nodes[i], nodeDof[di], nodes[j], nodeDof[dj],
+                                       Ke.selfadjointView<Eigen::Upper>()(i * dim + di, j * dim + dj));
                 }
             }
         }
@@ -55,18 +56,18 @@ void Element::buildC() { LOG(FATAL) << "buildC is not implemented"; }
 
 void Element::buildM() { LOG(FATAL) << "buildM is not implemented"; }
 
-bool Element::getScalar(double* scalar, scalarQuery code, uint16 gp, const double scale) {
+bool Element::getScalar(double*, scalarQuery, uint16, const double) {
     // TODO: check that LOG_N_TIMES macro work correctly inside of virtual functions
     LOG_N_TIMES(10, WARNING) << "getScalar function is not implemented";
     return false;
 }
 
-bool Element::getVector(math::Vec<3>& vector, vectorQuery code, uint16 gp, const double scale) {
+bool Element::getVector(math::Vec<3>&, vectorQuery, uint16, const double) {
     LOG_N_TIMES(10, WARNING) << "getVector function is not implemented";
     return false;
 }
 
-bool Element::getTensor(math::MatSym<3>& tensor, tensorQuery code, uint16 gp, const double scale) {
+bool Element::getTensor(math::MatSym<3>&, tensorQuery, uint16, const double) {
     LOG_N_TIMES(10, WARNING) << "getTensor function is not implemented";
     return false;
 }

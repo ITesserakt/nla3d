@@ -2,13 +2,15 @@
 // licensing go to project's repository on github:
 // https://github.com/dmitryikh/nla3d
 
+#include <limits>
+
 #include "FEReaders.h"
 #include "FESolver.h"
 #include "FEStorage.h"
+#include "Node.h"
 #include "VtkProcessor.h"
 #include "elements/QUADTH.h"
 #include "sys.h"
-#include <limits>
 
 using namespace nla3d;
 
@@ -91,7 +93,7 @@ int main(int argc, char* argv[]) {
 #endif
     // FESolver should know FEStorage instance. Attach it.
     solver.attachFEStorage(&storage);
-    VtkProcessor* vtk = new VtkProcessor(&storage, "QUADTH");
+    VtkProcessor* vtk = new VtkProcessor(storage, "QUADTH");
     solver.addPostProcessor(vtk);
 
     solver.solve();

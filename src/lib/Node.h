@@ -3,7 +3,6 @@
 // https://github.com/dmitryikh/nla3d
 
 #pragma once
-#include "Dof.h"
 #include "math/Vec.h"
 #include "sys.h"
 
@@ -13,7 +12,7 @@ namespace nla3d {
 class Node {
   public:
     // in-out operation: (rudiment actually..)
-    void display(uint32 nn);
+    void display(uint32 nn) const;
     std::string toString();
 
     math::Vec<3> pos;

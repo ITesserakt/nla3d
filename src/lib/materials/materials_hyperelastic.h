@@ -5,7 +5,6 @@
 #pragma once
 #include "materials/material.h"
 #include "solidmech.h"
-#include <Eigen/Dense>
 
 namespace nla3d {
 
@@ -13,7 +12,6 @@ namespace nla3d {
 //-----------Mat_Hyper_Isotrop_General----------//
 //----------------------------------------------//
 class Mat_Hyper_Isotrop_General : public Material {
-
   public:
     // Mat_Hyper_Isotrop_General () {
     // }
@@ -23,9 +21,9 @@ class Mat_Hyper_Isotrop_General : public Material {
     void getS_U(uint16 ncomp, const solidmech::tensorComponents* comps, const double* C, double* S);
     void getD_U(uint16 ncomp, const solidmech::tensorComponents* comps, const double* C, double* D);
     // for nonlinear U-P elements
-    void getS_UP(uint16 ncomp, const solidmech::tensorComponents* comps, const double* C, const double press,
+    void getS_UP(uint16 ncomp, const solidmech::tensorComponents* comps, const double* C, double press,
                  double* S);
-    void getDdDp_UP(uint16 ncomp, const solidmech::tensorComponents* comps, const double* C, const double press,
+    void getDdDp_UP(uint16 ncomp, const solidmech::tensorComponents* comps, const double* C, double press,
                     double* Dd, double* Dp);
 
     virtual void W_first_derivatives(double I1, double I2, double I3, double* alpha) = 0;
@@ -46,11 +44,11 @@ class Mat_Comp_Neo_Hookean : public Mat_Hyper_Isotrop_General {
         name = "Neo-Hookean";
     }
 
-    void W_first_derivatives(double I1, double I2, double I3, double* alpha);
-    void W_second_derivatives(double I1, double I2, double I3, double* alpha);
-    double W(double I1, double I2, double I3);
+    void W_first_derivatives(double I1, double I2, double I3, double* alpha) override;
+    void W_second_derivatives(double I1, double I2, double I3, double* alpha) override;
+    double W(double I1, double I2, double I3) override;
 
-    double getK();
+    double getK() override;
 };
 
 class Mat_Comp_Biderman : public Mat_Hyper_Isotrop_General {
@@ -61,11 +59,11 @@ class Mat_Comp_Biderman : public Mat_Hyper_Isotrop_General {
         register_mat_const(5, "C10", "C20", "C30", "C01", "K");
         name = "Biderman";
     }
-    void W_first_derivatives(double I1, double I2, double I3, double* alpha);
-    void W_second_derivatives(double I1, double I2, double I3, double* alpha);
-    double W(double I1, double I2, double I3);
+    void W_first_derivatives(double I1, double I2, double I3, double* alpha) override;
+    void W_second_derivatives(double I1, double I2, double I3, double* alpha) override;
+    double W(double I1, double I2, double I3) override;
 
-    double getK();
+    double getK() override;
 };
 
 class Mat_Comp_MooneyRivlin : public Mat_Hyper_Isotrop_General {
@@ -76,11 +74,11 @@ class Mat_Comp_MooneyRivlin : public Mat_Hyper_Isotrop_General {
         register_mat_const(3, "C10", "C01", "K");
         name = "Money-Rivlin";
     }
-    void W_first_derivatives(double I1, double I2, double I3, double* alpha);
-    void W_second_derivatives(double I1, double I2, double I3, double* alpha);
-    double W(double I1, double I2, double I3);
+    void W_first_derivatives(double I1, double I2, double I3, double* alpha) override;
+    void W_second_derivatives(double I1, double I2, double I3, double* alpha) override;
+    double W(double I1, double I2, double I3) override;
 
-    double getK();
+    double getK() override;
 };
 
 } // namespace nla3d

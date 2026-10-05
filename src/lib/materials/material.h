@@ -3,9 +3,10 @@
 // https://github.com/dmitryikh/nla3d
 
 #pragma once
-#include "math/Mat.h"
-#include "math/Vec.h"
+
 #include <string>
+
+#include "math/Mat.h"
 
 namespace nla3d {
 
@@ -14,23 +15,22 @@ class MaterialFactory;
 // Material must have named material constants
 class Material {
   public:
-    Material() : MC(NULL), numC(0), code(0) {}
-    Material(uint16 num_c);
-    ~Material() // TODO: discover the virtual destructor
+    Material() : MC(nullptr), numC(0), code(0) {}
+    explicit Material(uint16 num_c);
+    virtual ~Material() // TODO: discover the virtual destructor
     {
-        if (MC)
-            delete[] MC;
-        MC = NULL;
+        delete[] MC;
+        MC = nullptr;
     }
 
     virtual std::string toString();
 
     std::string getName();
-    uint16 getCode();
+    uint16 getCode() const;
     // constants getters
-    double& Ci(uint16 i);
-    double& Ci(const std::string& nameConst);
-    uint16 getNumC();
+    double& Ci(uint16 i) const;
+    double& Ci(const std::string& nameConst) const;
+    uint16 getNumC() const;
 
     static const double I[6];
 
@@ -48,13 +48,13 @@ class Material {
 // ---=== FUNCTIONS ===--- //
 inline std::string Material::getName() { return name; }
 
-inline uint16 Material::getCode() { return code; }
+inline uint16 Material::getCode() const { return code; }
 
-inline double& Material::Ci(uint16 i) {
+inline double& Material::Ci(const uint16 i) const {
     assert(i < numC);
     return MC[i];
 }
 
-inline uint16 Material::getNumC() { return numC; }
+inline uint16 Material::getNumC() const { return numC; }
 
 } // namespace nla3d

@@ -3,8 +3,7 @@
 // https://github.com/dmitryikh/nla3d
 
 #pragma once
-#include <algorithm>
-#include <iostream>
+
 #include <regex>
 #include <set>
 #include <string>
@@ -12,8 +11,6 @@
 
 #include "FESolver.h"
 #include "FEStorage.h"
-#include "Node.h"
-#include "elements/element.h"
 #include "sys.h"
 
 using namespace nla3d;
@@ -49,8 +46,6 @@ class MeshData {
     // cell is degenerated when some it's nodes have the same numbers
     std::vector<uint32> getDegeneratedCells();
     std::vector<uint32> getCellsByAttribute(std::string atr_name, uint32 atr_val);
-
-  private:
 };
 
 std::string& strim(std::string& str);
@@ -76,9 +71,9 @@ std::istream& getLine(std::istream& is, std::string& t);
 class Tokenizer {
   public:
     int tokenize(const std::string& line);
-    int tokenInt(size_t ind);
-    double tokenDouble(size_t ind);
-    std::string& getTokenString(size_t ind);
+    int tokenInt(size_t ind) const;
+    double tokenDouble(size_t ind) const;
+    // std::string& getTokenString(size_t ind);
 
     std::set<char> delimiters;
     std::vector<std::string> tokens;

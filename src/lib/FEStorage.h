@@ -3,13 +3,14 @@
 // https://github.com/dmitryikh/nla3d
 
 #pragma once
+
+#include <list>
+
 #include "FEComponent.h"
 #include "Mpc.h"
-#include "elements/ElementFactory.h"
 #include "materials/MaterialFactory.h"
 #include "math/BlockSparseMatrix.h"
 #include "sys.h"
-#include <list>
 
 namespace nla3d {
 
@@ -56,21 +57,21 @@ class FEStorage {
     // NOTE: use addValueK(uint32 nodei, ...) to add nodal Dof vs nodal Dof value
     // or use addValueK(uint32 eqi, ..) to add value for equation number i vs equation number j (more general case)
     void addValueK(uint32 nodei, Dof::dofType dofi, uint32 nodej, Dof::dofType dofj, double value);
-    void addValueK(uint32 eqi, uint32 eqj, double value);
+    void addValueK(uint32 eqi, uint32 eqj, double value) const;
 
     // for damping matrix
     void addValueC(uint32 nodei, Dof::dofType dofi, uint32 nodej, Dof::dofType dofj, double value);
-    void addValueC(uint32 eqi, uint32 eqj, double value);
+    void addValueC(uint32 eqi, uint32 eqj, double value) const;
 
     // for mass matrix
     void addValueM(uint32 nodei, Dof::dofType dofi, uint32 nodej, Dof::dofType dofj, double value);
-    void addValueM(uint32 eqi, uint32 eqj, double value);
+    void addValueM(uint32 eqi, uint32 eqj, double value) const;
 
     // Add value to a matrix of MPC coefficients for DoFs.
     // NOTE: MPC equations can work only with vecU values, excluding derivatives values
     // vecDU, vecDDU.
     void addValueMPC(uint32 eq_num, uint32 nodej, Dof::dofType dofj, double coef);
-    void addValueMPC(uint32 eq_num, uint32 eqj, double coef);
+    void addValueMPC(uint32 eq_num, uint32 eqj, double coef) const;
 
     // Add value to vecF (term of RHS of global equations system representing internal element loads)
     // NOTE: use addValueF(uint32 nodei, ...) to add value to vecF for nodal Dof
@@ -87,18 +88,18 @@ class FEStorage {
     void addValueR(uint32 eqi, double value);
 
     // fill with zeros the matrices of global system of equations
-    void zeroK();
-    void zeroC();
-    void zeroM();
+    void zeroK() const;
+    void zeroC() const;
+    void zeroM() const;
     // fill with zeros the vector vecF
     void zeroF();
 
     // get the K, C, M matrices (stiffness, damping, inertia) of the global system of equations.  In current realization
     // the matrix is symmetric, but semi-positive defined, because of MPC equations (zeros on diagonals in Lagrangian
     // columns x rows)
-    math::BlockSparseSymMatrix<2>* getK();
-    math::BlockSparseSymMatrix<2>* getC();
-    math::BlockSparseSymMatrix<2>* getM();
+    math::BlockSparseSymMatrix<2>* getK() const;
+    math::BlockSparseSymMatrix<2>* getC() const;
+    math::BlockSparseSymMatrix<2>* getM() const;
 
     // get RHS vectors of the global system of equations
     math::dVec* getF();
@@ -114,17 +115,17 @@ class FEStorage {
     void assembleGlobalEqMatrices();
 
     // getters to get numbers of different entities stored in FEStorage
-    uint32 nNodes();
-    uint32 nElements();
-    uint32 nDofs();
-    uint32 nUnknownDofs();
-    uint32 nConstrainedDofs();
-    uint32 nMpc();
+    uint32 nNodes() const;
+    uint32 nElements() const;
+    uint32 nDofs() const;
+    uint32 nUnknownDofs() const;
+    uint32 nConstrainedDofs() const;
+    uint32 nMpc() const;
 
     // if isTransient() == bool then FEStorage initialize matC, matM, vecDU, vecDDU along with matK,
     // vecU.
     void setTransient(bool _transient);
-    bool isTransient();
+    bool isTransient() const;
 
     // Operations with DoFs
     //
@@ -166,29 +167,29 @@ class FEStorage {
     double getReaction(uint32 eq);
 
     // get an instance of Material class
-    Material* getMaterial();
+    Material* getMaterial() const;
 
     // get an instance of particular node
     // NOTE: `_nn` > 0
-    Node& getNode(uint32 _nn);
+    Node& getNode(uint32 _nn) const;
     // function fills node_ptr with pointers to Node classes for element el.
     // Calling side should reserve a space for an array of pointers node_ptr.
     // size of node_ptr should be at least Element::getNNodes()
     // NOTE: `el` > 0
-    void getElementNodes(uint32 el, Node** node_ptr);
+    void getElementNodes(uint32 el, Node** node_ptr) const;
     // The function return a spatial position of node `n` in either initial state (`deformed` = false)
     // or deformed state (`deformed` = true);
     // A calling side should take care about memory allocation for ptr. Size of ptr should be at least
     // 3 as the function always return 3-dimensional coordinates.
     void getNodePosition(uint32 n, double* ptr, bool deformed = false);
     // NOTE: `_en` > 0
-    Element& getElement(uint32 _en);
+    Element& getElement(uint32 _en) const;
     template <typename ET> ET& getElement(uint32 _en);
     // get a FEComponent instance by registration number
     // NOTE: `i` > -1
-    FEComponent* getFEComponent(size_t i);
+    FEComponent* getFEComponent(size_t i) const;
     // get a FEComponent instance by component name
-    FEComponent* getFEComponent(const std::string& name);
+    FEComponent* getFEComponent(const std::string& name) const;
 
     // storing operations
     //
@@ -245,7 +246,7 @@ class FEStorage {
     void deleteSolutionData();
 
     // print procedures
-    void listFEComponents();
+    void listFEComponents() const;
     // for debug purpose only. Be carefully, this is output intensive..
     void printDofInfo(std::ostream& out);
 
@@ -264,17 +265,19 @@ class FEStorage {
     // After global equations system is solved and vecU/DU/DDU/R is updated with appropriate values
     // FESolver should call this procedure to update element solution data
     // NOTE: actually Element::update() is called
-    void updateResults();
+    void updateResults() const;
 
   private:
     // fill `topology` data based on the current mesh (Element::nodes numbers)
     void learnTopology();
 
+    void linkElement(uint32 elNum);
+
     // these functions are used to train sparsity info for matK/C/M
     // provide info that entry (eqi, eqj) are not zero
     // should be called before matK->compressed()
-    void addEntryK(uint32 eqi, uint32 eqj);
-    void addEntryMPC(uint32 eq_num, uint32 eqj);
+    void addEntryK(uint32 eqi, uint32 eqj) const;
+    void addEntryMPC(uint32 eq_num, uint32 eqj) const;
 
     // Total number of DoFs (registered by FEStorage::add[Node/Element]Dof(..))
     uint32 _nDofs = 0;
@@ -374,101 +377,105 @@ class FEStorage {
     bool transient = false;
 };
 
-inline void FEStorage::addValueK(uint32 nodei, Dof::dofType dofi, uint32 nodej, Dof::dofType dofj, double value) {
+inline void FEStorage::addValueK(const uint32 nodei, const Dof::dofType dofi, const uint32 nodej,
+                                 const Dof::dofType dofj, const double value) {
     uint32 rowEq = getNodeDofEqNumber(nodei, dofi);
     uint32 colEq = getNodeDofEqNumber(nodej, dofj);
     addValueK(rowEq, colEq, value);
 }
 
-inline void FEStorage::addValueK(uint32 eqi, uint32 eqj, double value) {
+inline void FEStorage::addValueK(const uint32 eqi, const uint32 eqj, const double value) const {
     // eqi - row equation
     // eqj - column equation
     matK->addValue(eqi, eqj, value);
 }
 
-inline void FEStorage::addValueC(uint32 nodei, Dof::dofType dofi, uint32 nodej, Dof::dofType dofj, double value) {
+inline void FEStorage::addValueC(const uint32 nodei, const Dof::dofType dofi, const uint32 nodej,
+                                 const Dof::dofType dofj, const double value) {
     uint32 rowEq = getNodeDofEqNumber(nodei, dofi);
     uint32 colEq = getNodeDofEqNumber(nodej, dofj);
     addValueC(rowEq, colEq, value);
 }
 
-inline void FEStorage::addValueC(uint32 eqi, uint32 eqj, double value) {
+inline void FEStorage::addValueC(const uint32 eqi, const uint32 eqj, const double value) const {
     // eqi - row equation
     // eqj - column equation
     matC->addValue(eqi, eqj, value);
 }
 
-inline void FEStorage::addValueM(uint32 nodei, Dof::dofType dofi, uint32 nodej, Dof::dofType dofj, double value) {
+inline void FEStorage::addValueM(const uint32 nodei, const Dof::dofType dofi, const uint32 nodej,
+                                 const Dof::dofType dofj, const double value) {
     uint32 rowEq = getNodeDofEqNumber(nodei, dofi);
     uint32 colEq = getNodeDofEqNumber(nodej, dofj);
     addValueM(rowEq, colEq, value);
 }
 
-inline void FEStorage::addValueM(uint32 eqi, uint32 eqj, double value) {
+inline void FEStorage::addValueM(const uint32 eqi, const uint32 eqj, const double value) const {
     // eqi - row equation
     // eqj - column equation
     matM->addValue(eqi, eqj, value);
 }
 
-inline void FEStorage::addValueMPC(uint32 eq_num, uint32 nodej, Dof::dofType dofj, double coef) {
+inline void FEStorage::addValueMPC(const uint32 eq_num, const uint32 nodej, const Dof::dofType dofj,
+                                   const double coef) {
     uint32 colEq = getNodeDofEqNumber(nodej, dofj);
     addValueMPC(eq_num, colEq, coef);
 }
 
-inline void FEStorage::addValueMPC(uint32 eq_num, uint32 eqj, double coef) { matK->addValue(eq_num, eqj, coef); }
+inline void FEStorage::addValueMPC(const uint32 eq_num, const uint32 eqj, const double coef) const { matK->addValue(eq_num, eqj, coef); }
 
-inline void FEStorage::addValueF(uint32 nodei, Dof::dofType dofi, double value) {
+inline void FEStorage::addValueF(const uint32 nodei, const Dof::dofType dofi, const double value) {
     uint32 rowEq = getNodeDofEqNumber(nodei, dofi);
     addValueF(rowEq, value);
 }
 
-inline void FEStorage::addValueF(uint32 eqi, double value) {
+inline void FEStorage::addValueF(const uint32 eqi, const double value) {
     assert(eqi > 0);
     assert(eqi <= vecF.size());
     assert(eqi <= nDofs() + nMpc());
     vecF[eqi - 1] += value;
 }
 
-inline void FEStorage::addValueR(uint32 nodei, Dof::dofType dofi, double value) {
+inline void FEStorage::addValueR(const uint32 nodei, const Dof::dofType dofi, const double value) {
     uint32 rowEq = getNodeDofEqNumber(nodei, dofi);
     addValueR(rowEq, value);
 }
 
-inline void FEStorage::addValueR(uint32 eqi, double value) {
+inline void FEStorage::addValueR(const uint32 eqi, const double value) {
     assert(eqi > 0);
     assert(eqi <= vecR.size());
     assert(eqi <= nDofs() + nMpc());
     vecR[eqi - 1] += value;
 }
 
-inline void FEStorage::zeroK() {
+inline void FEStorage::zeroK() const {
     assert(matK);
     matK->zero();
 }
 
-inline void FEStorage::zeroC() {
+inline void FEStorage::zeroC() const {
     assert(matC);
     matC->zero();
 }
 
-inline void FEStorage::zeroM() {
+inline void FEStorage::zeroM() const {
     assert(matM);
     matM->zero();
 }
 
 inline void FEStorage::zeroF() { vecF.zero(); }
 
-inline math::BlockSparseSymMatrix<2>* FEStorage::getK() {
+inline math::BlockSparseSymMatrix<2>* FEStorage::getK() const {
     assert(matK->isCompressed());
     return matK;
 }
 
-inline math::BlockSparseSymMatrix<2>* FEStorage::getC() {
+inline math::BlockSparseSymMatrix<2>* FEStorage::getC() const {
     assert(matC->isCompressed());
     return matC;
 }
 
-inline math::BlockSparseSymMatrix<2>* FEStorage::getM() {
+inline math::BlockSparseSymMatrix<2>* FEStorage::getM() const {
     assert(matM->isCompressed());
     return matM;
 }
@@ -498,28 +505,28 @@ inline math::dVec* FEStorage::getR() {
     return &vecR;
 }
 
-inline uint32 FEStorage::nDofs() { return _nDofs; }
+inline uint32 FEStorage::nDofs() const { return _nDofs; }
 
-inline uint32 FEStorage::nConstrainedDofs() { return _nConstrainedDofs; }
+inline uint32 FEStorage::nConstrainedDofs() const { return _nConstrainedDofs; }
 
-inline uint32 FEStorage::nUnknownDofs() { return _nUnknownDofs; }
+inline uint32 FEStorage::nUnknownDofs() const { return _nUnknownDofs; }
 
-inline uint32 FEStorage::nMpc() { return static_cast<uint32>(mpcs.size()); }
+inline uint32 FEStorage::nMpc() const { return static_cast<uint32>(mpcs.size()); }
 
-inline uint32 FEStorage::nNodes() { return static_cast<uint32>(nodes.size()); }
+inline uint32 FEStorage::nNodes() const { return static_cast<uint32>(nodes.size()); }
 
-inline uint32 FEStorage::nElements() { return static_cast<uint32>(elements.size()); }
+inline uint32 FEStorage::nElements() const { return static_cast<uint32>(elements.size()); }
 
-inline void FEStorage::setTransient(bool _transient) { transient = _transient; }
+inline void FEStorage::setTransient(const bool _transient) { transient = _transient; }
 
-inline bool FEStorage::isTransient() { return transient; }
+inline bool FEStorage::isTransient() const { return transient; }
 
-inline void FEStorage::addNodeDof(uint32 node, std::initializer_list<Dof::dofType> _dofs) {
+inline void FEStorage::addNodeDof(const uint32 node, const std::initializer_list<Dof::dofType> _dofs) {
     assert(nodeDofs.getNumberOfEntities() > 0);
     nodeDofs.addDof(node, _dofs);
 }
 
-inline void FEStorage::addElementDof(uint32 el, std::initializer_list<Dof::dofType> _dofs) {
+inline void FEStorage::addElementDof(const uint32 el, const std::initializer_list<Dof::dofType> _dofs) {
     assert(elementDofs.getNumberOfEntities() > 0);
     elementDofs.addDof(el, _dofs);
 }
@@ -528,59 +535,59 @@ inline std::set<Dof::dofType> FEStorage::getUniqueNodeDofTypes() { return nodeDo
 
 inline std::set<Dof::dofType> FEStorage::getUniqueElementDofTypes() { return elementDofs.getUniqueDofTypes(); }
 
-inline bool FEStorage::isElementDofUsed(uint32 el, Dof::dofType dof) {
+inline bool FEStorage::isElementDofUsed(const uint32 el, const Dof::dofType dof) {
     assert(elementDofs.getNumberOfEntities() > 0);
     return elementDofs.isDofUsed(el, dof);
 }
 
-inline bool FEStorage::isNodeDofUsed(uint32 node, Dof::dofType dof) {
+inline bool FEStorage::isNodeDofUsed(const uint32 node, const Dof::dofType dof) {
     assert(nodeDofs.getNumberOfEntities() > 0);
     return nodeDofs.isDofUsed(node, dof);
 }
 
-inline uint32 FEStorage::getElementDofEqNumber(uint32 el, Dof::dofType dof) { return getElementDof(el, dof)->eqNumber; }
+inline uint32 FEStorage::getElementDofEqNumber(const uint32 el, const Dof::dofType dof) { return getElementDof(el, dof)->eqNumber; }
 
-inline uint32 FEStorage::getNodeDofEqNumber(uint32 node, Dof::dofType dof) { return getNodeDof(node, dof)->eqNumber; }
+inline uint32 FEStorage::getNodeDofEqNumber(const uint32 node, const Dof::dofType dof) { return getNodeDof(node, dof)->eqNumber; }
 
-inline Dof* FEStorage::getElementDof(uint32 el, Dof::dofType dof) {
+inline Dof* FEStorage::getElementDof(const uint32 el, const Dof::dofType dof) {
     assert(elementDofs.getNumberOfUsedDofs() > 0);
     return elementDofs.getDof(el, dof);
 }
 
-inline Dof* FEStorage::getNodeDof(uint32 node, Dof::dofType dof) {
+inline Dof* FEStorage::getNodeDof(const uint32 node, const Dof::dofType dof) {
     assert(nodeDofs.getNumberOfUsedDofs() > 0);
     return nodeDofs.getDof(node, dof);
 }
 
-inline double FEStorage::getNodeDofSolution(uint32 node, Dof::dofType dof) {
+inline double FEStorage::getNodeDofSolution(const uint32 node, const Dof::dofType dof) {
     assert(vecU.size() > 0);
     return vecU[getNodeDofEqNumber(node, dof) - 1];
 }
 
-inline double FEStorage::getElementDofSolution(uint32 el, Dof::dofType dof) {
+inline double FEStorage::getElementDofSolution(const uint32 el, const Dof::dofType dof) {
     assert(vecU.size() > 0);
     return vecU[getElementDofEqNumber(el, dof) - 1];
 }
 
-inline Node& FEStorage::getNode(uint32 _nn) {
+inline Node& FEStorage::getNode(const uint32 _nn) const {
     assert(_nn > 0 && _nn <= nNodes());
     return *nodes[_nn - 1];
 }
 
-inline Element& FEStorage::getElement(uint32 _en) {
+inline Element& FEStorage::getElement(const uint32 _en) const {
     assert(_en <= nElements());
     return *(elements[_en - 1]);
 }
 
-template <typename ET> inline ET& FEStorage::getElement(uint32 _en) { return dynamic_cast<ET&>(getElement(_en)); }
+template <typename ET> inline ET& FEStorage::getElement(const uint32 _en) { return dynamic_cast<ET&>(getElement(_en)); }
 
-inline void FEStorage::addEntryK(uint32 eqi, uint32 eqj) {
+inline void FEStorage::addEntryK(const uint32 eqi, const uint32 eqj) const {
     // eqi - row equation
     // eqj - column equation
     matK->addEntry(eqi, eqj);
 }
 
-inline void FEStorage::addEntryMPC(uint32 eq_num, uint32 eqj) {
+inline void FEStorage::addEntryMPC(const uint32 eq_num, const uint32 eqj) const {
     assert(matK);
     assert(eq_num > nConstrainedDofs() + nUnknownDofs());
     assert(eq_num <= nConstrainedDofs() + nUnknownDofs() + nMpc());
@@ -590,11 +597,8 @@ inline void FEStorage::addEntryMPC(uint32 eq_num, uint32 eqj) {
 
 } // namespace nla3d
 
-// 'dirty' hack to avoid include loops (element-vs-festorage)
-#include "elements/element.h"
-
 namespace nla3d {
-template <typename T> std::vector<uint32> FEStorage::createElements(uint32 _en, T example) {
+template <typename T> std::vector<uint32> FEStorage::createElements(const uint32 _en, T) {
     // TODO: catch if not enough memory
     std::vector<uint32> newIndexes;
     newIndexes.reserve(_en);
@@ -609,8 +613,7 @@ template <typename T> std::vector<uint32> FEStorage::createElements(uint32 _en, 
 
     for (uint32 i = nextNumber; i <= elements.size(); i++) {
         // access elNum protected values as friend
-        elements[i - 1]->elNum = i;
-        elements[i - 1]->storage = this;
+        this->linkElement(i);
         newIndexes.push_back(i);
     }
     return newIndexes;

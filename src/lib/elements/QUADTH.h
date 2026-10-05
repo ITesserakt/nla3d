@@ -6,7 +6,6 @@
 #include "FEStorage.h"
 #include "elements/element.h"
 #include "elements/isoparametric.h"
-#include "solidmech.h"
 
 namespace nla3d {
 
@@ -19,11 +18,11 @@ class ElementQUADTH : public ElementIsoParamQUAD {
     }
 
     // solving procedures
-    void pre();
-    void buildK();
-    void buildC();
-    void buildM() {};
-    void update();
+    void pre() override;
+    void buildK() override;
+    void buildC() override;
+    void buildM() override {};
+    void update() override;
     math::Mat<2, 4> make_B(uint16 nPoint); // make derivatives matrix
 
     // conductivity coef ( W/(K m), for example)
@@ -43,11 +42,11 @@ class SurfaceLINETH : public ElementIsoParamLINE {
     }
 
     // solving procedures
-    void pre();
-    void buildK();
-    void buildC() {};
-    void buildM() {};
-    void update();
+    void pre() override;
+    void buildK() override;
+    void buildC() override {};
+    void buildM() override {};
+    void update() override;
 
     double flux = 0.0;
     double htc = 0.0;

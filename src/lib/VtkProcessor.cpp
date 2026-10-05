@@ -3,17 +3,17 @@
 // https://github.com/dmitryikh/nla3d
 
 #include "VtkProcessor.h"
+
 #include "elements/element.h"
+#include <utility>
 
 namespace nla3d {
 using namespace math;
 
-VtkProcessor::VtkProcessor(FEStorage* st, std::string _fileName) : PostProcessor(st) {
+VtkProcessor::VtkProcessor(FEStorage& st, std::string _fileName) : PostProcessor(st) {
     name = "VtkProcessor";
-    file_name = _fileName;
+    file_name = std::move(_fileName);
 }
-
-VtkProcessor::~VtkProcessor() {}
 
 void VtkProcessor::pre() {
     useDisplacementsDofs = false;
@@ -22,7 +22,7 @@ void VtkProcessor::pre() {
 
     // find which nodal Dofs used in FEStorage and add to list nodalDofTypes for printing out into VTK
     // file
-    auto u_dofs = storage->getUniqueNodeDofTypes();
+    auto u_dofs = storage.getUniqueNodeDofTypes();
     for (auto& type : u_dofs) {
         // take care of displacement dofs: if one of them exist in storage we need to write 3x1 vector
         // into VTK (for wrapping)
@@ -34,7 +34,7 @@ void VtkProcessor::pre() {
     }
 
     // the same for Element dofs
-    u_dofs = storage->getUniqueElementDofTypes();
+    u_dofs = storage.getUniqueElementDofTypes();
     for (auto& type : u_dofs) {
         elementDofTypes.insert(type);
     }
@@ -64,9 +64,9 @@ void VtkProcessor::process(uint16 curLoadstep) {
     file.close();
 }
 
-void VtkProcessor::post(uint16 curLoadstep) {}
+void VtkProcessor::post(uint16) {}
 
-void VtkProcessor::writeAllResults(bool write) { _writeAllResults = write; }
+void VtkProcessor::writeAllResults(const bool write) { _writeAllResults = write; }
 
 bool VtkProcessor::registerResults(std::initializer_list<scalarQuery> queries) {
     // check that each query is valid
@@ -104,11 +104,11 @@ void VtkProcessor::write_header(std::ofstream& file) {
     file << "DATASET UNSTRUCTURED_GRID" << std::endl;
 }
 
-void VtkProcessor::write_geometry(std::ofstream& file, bool def) {
+void VtkProcessor::write_geometry(std::ofstream& file, const bool def) const {
     Vec<3> xi;
-    file << "POINTS " << storage->nNodes() << " float" << std::endl;
-    for (uint32 i = 1; i <= storage->nNodes(); i++) {
-        storage->getNodePosition(i, xi.ptr(), def);
+    file << "POINTS " << storage.nNodes() << " float" << std::endl;
+    for (uint32 i = 1; i <= storage.nNodes(); i++) {
+        storage.getNodePosition(i, xi.ptr(), def);
         file << xi << std::endl;
     }
     /*
@@ -122,20 +122,20 @@ void VtkProcessor::write_geometry(std::ofstream& file, bool def) {
 
     // calculate overall size of element data
     uint32 data_size = 0;
-    for (uint32 i = 1; i <= storage->nElements(); i++)
-        data_size += storage->getElement(i).getNNodes() + 1;
+    for (uint32 i = 1; i <= storage.nElements(); i++)
+        data_size += storage.getElement(i).getNNodes() + 1;
 
-    file << "CELLS " << storage->nElements() << " " << data_size << std::endl;
-    for (uint32 i = 1; i <= storage->nElements(); i++) {
-        uint16 nodesNum = storage->getElement(i).getNNodes();
+    file << "CELLS " << storage.nElements() << " " << data_size << std::endl;
+    for (uint32 i = 1; i <= storage.nElements(); i++) {
+        uint16 nodesNum = storage.getElement(i).getNNodes();
         file << nodesNum;
         for (uint16 j = 0; j < nodesNum; j++)
-            file << " " << storage->getElement(i).getNodeNumber(j) - 1;
+            file << " " << storage.getElement(i).getNodeNumber(j) - 1;
         file << std::endl;
     }
-    file << "CELL_TYPES " << storage->nElements() << std::endl;
-    for (uint32 i = 1; i <= storage->nElements(); i++) {
-        ElementShape eltype = storage->getElement(i).getShape();
+    file << "CELL_TYPES " << storage.nElements() << std::endl;
+    for (uint32 i = 1; i <= storage.nElements(); i++) {
+        ElementShape eltype = storage.getElement(i).getShape();
         if (eltype == ElementShape::QUAD) {
             file << "9" << std::endl; // VTK_QUAD, see VTK file formats
         } else if (eltype == ElementShape::HEXAHEDRON) {
@@ -158,31 +158,31 @@ void VtkProcessor::write_geometry(std::ofstream& file, bool def) {
     }
 }
 
-void VtkProcessor::write_point_data(std::ofstream& file) {
-    size_t nn = storage->nNodes();
+void VtkProcessor::write_point_data(std::ofstream& file) const {
+    const size_t nn = storage.nNodes();
     file << "POINT_DATA " << nn << std::endl;
-    std::vector<Vec<3>> dataVector;
     std::vector<double> dataScalar;
 
     if (useDisplacementsDofs) {
+        std::vector<Vec<3>> dataVector;
         dataVector.assign(nn, Vec<3>());
         for (uint32 j = 1; j <= nn; j++) {
-            if (storage->isNodeDofUsed(j, Dof::UX)) {
-                dataVector[j - 1][0] = storage->getNodeDofSolution(j, Dof::UX);
+            if (storage.isNodeDofUsed(j, Dof::UX)) {
+                dataVector[j - 1][0] = storage.getNodeDofSolution(j, Dof::UX);
             }
-            if (storage->isNodeDofUsed(j, Dof::UY)) {
-                dataVector[j - 1][1] = storage->getNodeDofSolution(j, Dof::UY);
+            if (storage.isNodeDofUsed(j, Dof::UY)) {
+                dataVector[j - 1][1] = storage.getNodeDofSolution(j, Dof::UY);
             }
-            if (storage->isNodeDofUsed(j, Dof::UZ)) {
-                dataVector[j - 1][2] = storage->getNodeDofSolution(j, Dof::UZ);
+            if (storage.isNodeDofUsed(j, Dof::UZ)) {
+                dataVector[j - 1][2] = storage.getNodeDofSolution(j, Dof::UZ);
             }
         }
         writeVector(file, "disp", dataVector);
 
         for (uint32 j = 1; j <= nn; j++) {
-            dataVector[j - 1][0] = storage->getReaction(j, Dof::UX);
-            dataVector[j - 1][1] = storage->getReaction(j, Dof::UY);
-            dataVector[j - 1][2] = storage->getReaction(j, Dof::UZ);
+            dataVector[j - 1][0] = storage.getReaction(j, Dof::UX);
+            dataVector[j - 1][1] = storage.getReaction(j, Dof::UY);
+            dataVector[j - 1][2] = storage.getReaction(j, Dof::UZ);
         }
         writeVector(file, "reaction", dataVector);
 
@@ -192,8 +192,8 @@ void VtkProcessor::write_point_data(std::ofstream& file) {
     for (auto& v : nodalDofTypes) {
         dataScalar.assign(nn, 0.0);
         for (uint32 j = 1; j <= nn; j++) {
-            if (storage->isNodeDofUsed(j, v)) {
-                dataScalar[j - 1] = storage->getNodeDofSolution(j, v);
+            if (storage.isNodeDofUsed(j, v)) {
+                dataScalar[j - 1] = storage.getNodeDofSolution(j, v);
             }
         }
         writeScalar(file, Dof::dofType2label(v), dataScalar);
@@ -204,15 +204,15 @@ void VtkProcessor::write_point_data(std::ofstream& file) {
 // Write cell data averaging from all integration points.
 // Use global coordinate system. all futher transformations
 // should be done on paraview side.
-void VtkProcessor::write_cell_data(std::ofstream& file) {
-    size_t en = storage->nElements();
+void VtkProcessor::write_cell_data(std::ofstream& file) const {
+    const size_t en = storage.nElements();
     std::vector<MatSym<3>> dataTensor;
     std::vector<Vec<3>> dataVector;
     std::vector<double> dataScalar;
 
     // if queries are empty - no cell data to be stored into VTK
-    if (cellScalarQueries.size() == 0 && cellVectorQueries.size() == 0 && cellTensorQueries.size() == 0 &&
-        elementDofTypes.size() == 0) {
+    if (cellScalarQueries.empty() && cellVectorQueries.empty() && cellTensorQueries.empty() &&
+        elementDofTypes.empty()) {
         return;
     }
 
@@ -222,8 +222,8 @@ void VtkProcessor::write_cell_data(std::ofstream& file) {
     for (auto& v : elementDofTypes) {
         dataScalar.assign(en, 0.0);
         for (uint32 j = 1; j <= en; j++) {
-            if (storage->isElementDofUsed(j, v)) {
-                dataScalar[j - 1] = storage->getElementDofSolution(j, v);
+            if (storage.isElementDofUsed(j, v)) {
+                dataScalar[j - 1] = storage.getElementDofSolution(j, v);
             }
         }
         writeScalar(file, Dof::dofType2label(v), dataScalar);
@@ -233,9 +233,9 @@ void VtkProcessor::write_cell_data(std::ofstream& file) {
     // write Element scalar results (only if they are requested in cellScalarQueries)
     for (auto query : cellScalarQueries) {
         dataScalar.assign(en, 0.0);
-        for (uint32 i = 1; i <= storage->nElements(); i++) {
+        for (uint32 i = 1; i <= storage.nElements(); i++) {
             // dataScalar[i-1] = 0.0;
-            storage->getElement(i).getScalar(&(dataScalar[i - 1]), query);
+            storage.getElement(i).getScalar(&(dataScalar[i - 1]), query);
         }
         writeScalar(file, query2label(query), dataScalar);
     }
@@ -243,9 +243,9 @@ void VtkProcessor::write_cell_data(std::ofstream& file) {
     // write Element vector results (only if they are requested in cellScalarQueries)
     for (auto query : cellVectorQueries) {
         dataVector.assign(en, Vec<3>());
-        for (uint32 i = 1; i <= storage->nElements(); i++) {
+        for (uint32 i = 1; i <= storage.nElements(); i++) {
             // dataVector[i-1].zero();
-            storage->getElement(i).getVector(dataVector[i - 1], query);
+            storage.getElement(i).getVector(dataVector[i - 1], query);
         }
         writeVector(file, query2label(query), dataVector);
     }
@@ -253,38 +253,38 @@ void VtkProcessor::write_cell_data(std::ofstream& file) {
     // write Element tensor results (only if they are requested in cellScalarQueries)
     for (auto query : cellTensorQueries) {
         dataTensor.assign(en, MatSym<3>());
-        for (uint32 i = 1; i <= storage->nElements(); i++) {
+        for (uint32 i = 1; i <= storage.nElements(); i++) {
             // dataTensor[i-1].zero();
-            storage->getElement(i).getTensor(dataTensor[i - 1], query);
+            storage.getElement(i).getTensor(dataTensor[i - 1], query);
         }
         writeTensor(file, query2label(query), dataTensor);
     }
 }
 
-void VtkProcessor::writeScalar(std::ofstream& file, const char* name, std::vector<double>& data) {
+void VtkProcessor::writeScalar(std::ofstream& file, const char* name, const std::vector<double>& data) {
     file << "SCALARS " << name << " float 1" << std::endl;
     file << "LOOKUP_TABLE default" << std::endl;
-    for (size_t i = 0; i < data.size(); i++) {
-        file << data[i] << std::endl;
+    for (double i : data) {
+        file << i << std::endl;
     }
     file << std::endl;
 }
 
-void VtkProcessor::writeTensor(std::ofstream& file, const char* name, std::vector<MatSym<3>>& data) {
+void VtkProcessor::writeTensor(std::ofstream& file, const char* name, const std::vector<MatSym<3>>& data) {
     for (size_t j = 0; j < 6; j++) {
         file << "SCALARS " << name << "_" << solidmech::labelsTensorComponent[j] << " float 1" << std::endl;
         file << "LOOKUP_TABLE default" << std::endl;
-        for (size_t i = 0; i < data.size(); i++) {
-            file << data[i].data[j] << std::endl;
+        for (const auto& i : data) {
+            file << i.data[j] << std::endl;
         }
         file << std::endl;
     }
 }
 
-void VtkProcessor::writeVector(std::ofstream& file, const char* name, std::vector<Vec<3>>& data) {
+void VtkProcessor::writeVector(std::ofstream& file, const char* name, const std::vector<Vec<3>>& data) {
     file << "VECTORS " << name << " float" << std::endl;
-    for (size_t i = 0; i < data.size(); i++) {
-        file << data[i] << std::endl;
+    for (const auto& i : data) {
+        file << i << std::endl;
     }
     file << std::endl;
 }
@@ -293,8 +293,8 @@ void VtkProcessor::revealAllResults() {
     std::set<ElementType> typesRevealed;
     bool ret;
 
-    for (uint32 i = 1; i <= storage->nElements(); i++) {
-        Element& el = storage->getElement(i);
+    for (uint32 i = 1; i <= storage.nElements(); i++) {
+        Element& el = storage.getElement(i);
         ElementType etype = el.getType();
         if (typesRevealed.find(etype) != typesRevealed.end())
             continue;

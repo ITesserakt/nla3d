@@ -12,40 +12,38 @@ namespace math {
 
 template <uint16 dim> class Vec {
   public:
-    Vec() {
-        assert(dim);
-        memset(data, 0, sizeof(double) * dim); // не очень красиво
-    }
+    Vec() = default;
     Vec(std::initializer_list<double> list) {
         assert(dim);
         assert(list.size() == dim && "Invalid number of elements passed");
         std::copy(list.begin(), list.end(), data);
     }
-    ~Vec(void) {}
+    ~Vec() = default;
     // TODO: this should be size_t instead of uint16
     double& operator[](uint16 n);
-    const double operator[](uint16 n) const;
-    void display();
+    double operator[](uint16 n) const;
+    void display() const;
     void zero() { memset(data, 0, sizeof(double) * dim); }
-    double length();
-    double qlength();
-    Vec operator+(const Vec<dim>& op);
-    Vec& operator+=(const Vec<dim>& op);
-    Vec operator-();
-    Vec& operator=(const Vec<dim>& op);
-    Vec operator-(const Vec<dim>& op);
-    Vec operator*(const double op);
-    std::string toString();
-    bool compare(Vec<dim>& V, double eps = 0.00005);
+    double length() const;
+    double qlength() const;
+    Vec operator+(const Vec& op) const;
+    Vec& operator+=(const Vec& op);
+    Vec operator-() const;
+    Vec& operator=(const Vec& op);
+    Vec operator-(const Vec& op) const;
+    Vec operator*(double op) const;
+    std::string toString() const;
+    bool compare(const Vec& V, double eps = 0.00005) const;
     void simple_read(std::istream& st);
-    double operator*(const Vec<dim>& op);
-    uint16 size() const { return dim; }
+    double operator*(const Vec& op) const;
+    static uint16 size() { return dim; }
     template <uint16 dim1> friend std::ostream& operator<<(std::ostream& stream, const Vec<dim1>& obj);
-    template <uint16 dim1> friend Vec operator*(const double op1, const Vec<dim1>& op2);
+    template <uint16 dim1> friend Vec operator*(double op1, const Vec<dim1>& op2);
     double* ptr();
+    const double* ptr() const { return data; }
 
   private:
-    double data[dim];
+    double data[dim] = {};
 };
 //------operator[]------------------------------------------------------
 template <uint16 dim> double& Vec<dim>::operator[](uint16 n) {
@@ -53,12 +51,12 @@ template <uint16 dim> double& Vec<dim>::operator[](uint16 n) {
     return data[n];
 }
 //-------operator[]-const-----------------------------------------------
-template <uint16 dim> const double Vec<dim>::operator[](uint16 n) const {
+template <uint16 dim> double Vec<dim>::operator[](uint16 n) const {
     assert(n < dim);
     return data[n];
 }
 //--------display----------------------------------------------------
-template <uint16 dim> void Vec<dim>::display() {
+template <uint16 dim> void Vec<dim>::display() const {
     for (uint16 i = 0; i < dim; i++) {
         std::cout << data[i];
         if (i < dim - 1)
@@ -66,55 +64,55 @@ template <uint16 dim> void Vec<dim>::display() {
     }
 }
 //-------operator+-----------------------------------------------------
-template <uint16 dim> Vec<dim> Vec<dim>::operator+(const Vec<dim>& op) {
-    Vec<dim> p;
+template <uint16 dim> Vec<dim> Vec<dim>::operator+(const Vec& op) const {
+    Vec p;
     for (uint16 i = 0; i < dim; i++)
         p[i] = data[i] + op.data[i];
     return p;
 }
 //-------operator+=-----------------------------------------------------
-template <uint16 dim> Vec<dim>& Vec<dim>::operator+=(const Vec<dim>& op) {
+template <uint16 dim> Vec<dim>& Vec<dim>::operator+=(const Vec& op) {
     for (uint16 i = 0; i < dim; i++)
         this->data[i] += op.data[i];
     return *this;
 }
 //-------operator- ----------------------------------------------------
-template <uint16 dim> Vec<dim> Vec<dim>::operator-() {
-    Vec<dim> p;
+template <uint16 dim> Vec<dim> Vec<dim>::operator-() const {
+    Vec p;
     for (uint16 i = 0; i < dim; i++)
         p[i] = -data[i];
     return p;
 }
 //------operator- -----------------------------------------------------
-template <uint16 dim> Vec<dim> Vec<dim>::operator-(const Vec<dim>& op) {
-    Vec<dim> p;
+template <uint16 dim> Vec<dim> Vec<dim>::operator-(const Vec& op) const {
+    Vec p;
     for (uint16 i = 0; i < dim; i++)
         p[i] = data[i] - op.data[i];
     return p;
 }
 //------operator*------------------------------------------------------
-template <uint16 dim> Vec<dim> Vec<dim>::operator*(const double op) {
-    Vec<dim> p;
+template <uint16 dim> Vec<dim> Vec<dim>::operator*(const double op) const {
+    Vec p;
     for (uint16 i = 0; i < dim; i++)
         p[i] = data[i] * op;
     return p;
 }
 //------operator*------------------------------------------------------
-template <uint16 dim> double Vec<dim>::operator*(const Vec<dim>& op) {
+template <uint16 dim> double Vec<dim>::operator*(const Vec& op) const {
     double p = 0;
     for (uint16 i = 0; i < dim; i++)
         p += data[i] * op.data[i];
     return p;
 }
 //---------qlength----------------------------------------------------
-template <uint16 dim> double Vec<dim>::qlength() {
+template <uint16 dim> double Vec<dim>::qlength() const {
     double p = 0;
     for (uint16 i = 0; i < dim; i++)
         p += data[i] * data[i];
     return p;
 }
 //---------length----------------------------------------------------
-template <uint16 dim> double Vec<dim>::length() { return sqrt(qlength()); }
+template <uint16 dim> double Vec<dim>::length() const { return sqrt(qlength()); }
 //---------operator*----------------------------------------------------
 template <uint16 dim1> Vec<dim1> operator*(const double op1, const Vec<dim1>& op2) {
     Vec<dim1> p;
@@ -123,7 +121,8 @@ template <uint16 dim1> Vec<dim1> operator*(const double op1, const Vec<dim1>& op
     return p;
 }
 //--------operator=------------------------------------------------------
-template <uint16 dim> Vec<dim>& Vec<dim>::operator=(const Vec<dim>& op) {
+template <uint16 dim> Vec<dim>& Vec<dim>::operator=(const Vec& op) {
+    if (this == &op) return *this;
     memcpy(this->data, op.data, sizeof(double) * dim);
     return *this;
 }
@@ -136,7 +135,7 @@ template <uint16 dim1> std::ostream& operator<<(std::ostream& stream, const Vec<
     return stream;
 }
 //-------------------------------------------------------------
-template <uint16 dim> std::string Vec<dim>::toString() {
+template <uint16 dim> std::string Vec<dim>::toString() const {
     std::string p;
     char buff[100];
     for (uint16 i = 0; i < dim; i++) {
@@ -150,24 +149,24 @@ template <uint16 dim> std::string Vec<dim>::toString() {
 //-------------------------------------------------------
 template <uint16 dim> double* Vec<dim>::ptr() { return data; }
 //-------------------------------------------------------
-template <uint16 dim> bool Vec<dim>::compare(Vec<dim>& V, double eps) {
-    double* Dp = (double*)data;
-    double* Vp = V.ptr();
+template <uint16 dim> bool Vec<dim>::compare(const Vec& V, const double eps) const {
+    auto Dp = this->ptr();
+    auto Vp = V.ptr();
     for (uint16 j = 0; j < dim; j++) {
-        if (fabs((double)*Dp - *Vp) > eps) {
+        if (std::abs(*Dp - *Vp) > eps) {
             return false;
         }
-        Dp++;
-        Vp++;
+        ++Dp;
+        ++Vp;
     }
     return true;
 }
 //-------------------------------------------------------
 template <uint16 dim> void Vec<dim>::simple_read(std::istream& st) {
-    double* Dp = data;
+    auto Dp = this->ptr();
     for (uint16 j = 0; j < dim; j++) {
         st >> *Dp;
-        Dp++;
+        ++Dp;
     }
 }
 
@@ -176,33 +175,33 @@ template <uint16 dim> void Vec<dim>::simple_read(std::istream& st) {
 // allocated by another dVec. memory_owner variable is used to distinct these modes
 class dVec {
   public:
-    dVec();
+    dVec() = default;
     dVec(dVec const& rhs);
-    dVec(dVec&& rhs);
-    dVec(uint32 _n, double _val = 0.0);
+    dVec(dVec&& rhs) noexcept;
+    explicit dVec(uint32 _n, double _val = 0.0);
     dVec(dVec& _ref, uint32 _start, uint32 _size);
     void reinit(uint32 _n, double _val = 0.0);
-    void reinit(dVec& _ref, uint32 _start, uint32 _size);
+    void reinit(const dVec& _ref, uint32 _start, uint32 size);
     ~dVec();
 
     uint32 size() const;
     void zero();
-    double* ptr();
+    double* ptr() const;
     void clear();
-    void fill(double val);
+    void fill(double val) const;
 
     bool isInit() const;
 
     double& operator[](uint32 _n);
     double operator[](uint32 _n) const;
 
-    dVec operator-();
+    dVec operator-() const;
 
-    dVec operator+(const dVec& op);
-    dVec operator-(const dVec& op);
-    dVec operator*(const double op);
-    friend dVec operator*(const double op1, const dVec& op2);
-    dVec operator/(const double op);
+    dVec operator+(const dVec& op) const;
+    dVec operator-(const dVec& op) const;
+    dVec operator*(double op) const;
+    friend dVec operator*(double op1, const dVec& op2);
+    dVec operator/(double op) const;
 
     dVec& operator+=(const dVec& op);
     dVec& operator-=(const dVec& op);
@@ -210,14 +209,14 @@ class dVec {
     dVec& operator=(const dVec& op);
 
     // for debug purpose:
-    bool compare(const dVec& op2, double th = 1.0e-10);
+    bool compare(const dVec& op2, double th = 1.0e-10) const;
     // write and read to/from simple text format:
     // n
     // value1
     // value2
     // ...
     // valuen
-    void writeTextFormat(std::ostream& out);
+    void writeTextFormat(std::ostream& out) const;
     void readTextFormat(std::istream& in);
 
   private:

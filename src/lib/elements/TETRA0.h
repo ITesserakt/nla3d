@@ -19,7 +19,7 @@ class ElementTETRA0 : public ElementTETRA {
     // step element also need to initialize any variables that it is going to use in solution process
     // (strains and stresses in integration points in finite deformations analysis, for example).
     // ElementTETRA::pre () registers Dof::UX, Dof::UY, Dof::UZ as DoFs in every node.
-    void pre();
+    void pre() override;
 
     // buildK() - a central point in element class. Here the element should build element stiffness
     // matrix (actually, tangential matrix, as soon as we make non-linear-ready elements). The element
@@ -27,15 +27,15 @@ class ElementTETRA0 : public ElementTETRA {
     // matrix. Fro this purpose here is a special procedure in base class Element::assemble(..). Also,
     // the element should assemble right hand side (rhs) of equations related to this element
     // (especially used in non-linear analysis).
-    void buildK();
+    void buildK() override;
 
     // update() - the function updates internal state of the element based on found solution of
     // global equation system. For example, here you can calculate stresses in the element which depends
     // on found DoFs solution.
-    void update();
+    void update() override;
 
     void makeB(math::Mat<6, 12>& B);
-    void makeC(math::MatSym<6>& C);
+    void makeC(math::MatSym<6>& C) const;
 
     // Elastic module
     double E = 0.0;
@@ -58,8 +58,8 @@ class ElementTETRA0 : public ElementTETRA {
     double vol;
 
     // postproc procedures
-    bool getScalar(double* scalar, scalarQuery code, uint16 gp, const double scale);
-    bool getTensor(math::MatSym<3>& tensor, tensorQuery code, uint16 gp, const double scale);
+    bool getScalar(double* scalar, scalarQuery code, uint16 gp, const double scale) override;
+    bool getTensor(math::MatSym<3>& tensor, tensorQuery code, uint16 gp, const double scale) override;
 };
 
 } // namespace nla3d

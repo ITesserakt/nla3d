@@ -18,7 +18,7 @@ class SparseSymMatrix;
 
 class EquationSolver {
   public:
-    virtual ~EquationSolver() {};
+    virtual ~EquationSolver() = default;
     virtual void solveEquations(math::SparseSymMatrix* matrix, double* rhs, double* unknowns) = 0;
     virtual void factorizeEquations(math::SparseSymMatrix* matrix) = 0;
     virtual void substituteEquations(math::SparseSymMatrix* matrix, double* rhs, double* unknowns) = 0;
@@ -36,11 +36,11 @@ class EquationSolver {
 
 class GaussDenseEquationSolver : public EquationSolver {
   public:
-    virtual ~GaussDenseEquationSolver() {};
-    virtual void solveEquations(math::SparseSymMatrix* matrix, double* rhs, double* unknowns);
-    virtual void factorizeEquations(math::SparseSymMatrix* matrix);
-    virtual void substituteEquations(math::SparseSymMatrix* matrix, double* rhs, double* unknowns);
-    static bool _solve(double* X, double* A, double* B, int n);
+    ~GaussDenseEquationSolver() override = default;
+    void solveEquations(math::SparseSymMatrix* matrix, double* rhs, double* unknowns) override;
+    void factorizeEquations(math::SparseSymMatrix* matrix) override;
+    void substituteEquations(math::SparseSymMatrix* matrix, double* rhs, double* unknowns) override;
+    static bool _solve(double* X, double* A, double* B, uint32 n);
 
   protected:
     dMat matA = dMat(1, 1);

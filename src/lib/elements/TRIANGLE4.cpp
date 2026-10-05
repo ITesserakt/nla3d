@@ -1,6 +1,5 @@
 #include "elements/TRIANGLE4.h"
-
-#include <iostream>
+#include "Node.h"
 
 using namespace std;
 
@@ -8,7 +7,7 @@ namespace nla3d {
 
 ElementTRIANGLE4::ElementTRIANGLE4() {
     type = ElementType::TRIANGLE4;
-    state = PlaneState::Stress;
+    state = Stress;
 }
 
 void ElementTRIANGLE4::pre() {
@@ -99,9 +98,9 @@ void ElementTRIANGLE4::makeB(math::Mat<3, 6>& B) {
     B_L[2 * 6 + 5] = b[2] * A;
 }
 
-void ElementTRIANGLE4::makeC(math::MatSym<3>& C) {
+void ElementTRIANGLE4::makeC(math::MatSym<3>& C) const {
     // Plane deformed state
-    if (state == PlaneState::Strain) {
+    if (state == Strain) {
         const double A = E * (1. - my) / ((1. + my) * (1. - 2. * my));
         C.comp(0, 0) = 1. * A;
         C.comp(0, 1) = my / (1 - my) * A;
@@ -109,7 +108,7 @@ void ElementTRIANGLE4::makeC(math::MatSym<3>& C) {
         C.comp(2, 2) = (1. - 2. * my) / (2. * (1. - my)) * A;
     }
     // Plane stress state
-    if (state == PlaneState::Stress) {
+    if (state == Stress) {
         const double A = E * (1. - my * my);
         C.comp(0, 0) = 1. * A;
         C.comp(0, 1) = my * A;

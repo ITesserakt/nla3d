@@ -6,7 +6,6 @@
 #include <Eigen/SparseCore>
 
 #include "math/Mat.h"
-#include "math/SparseMatrix.h"
 #include "math/Vec.h"
 #include "sys.h"
 

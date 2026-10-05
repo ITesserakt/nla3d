@@ -11,9 +11,9 @@ namespace nla3d {
 
 static LogInitializer logInitializer;
 
-uint32 tick() { return (uint32)clock(); }
+uint32 tick() { return static_cast<uint32>(clock()); }
 
-int32 npow(int16 dig, uint16 power) {
+int32 npow(const int16 dig, const uint16 power) {
     int32 res = 1; // TODO: if too big number?
     for (uint16 i = 0; i < power; i++) {
         res *= dig;
@@ -21,18 +21,18 @@ int32 npow(int16 dig, uint16 power) {
     return res;
 }
 
-std::vector<std::string> read_tokens(char* input) {
-    std::vector<std::string> vec;
-    std::string tmp("");
-    char delimeters[] = "(),";
-    char* p = input;
-    char* start = p;
+std::vector<std::string> read_tokens(const char* input) {
+    std::vector<std::string> vec = {};
+    std::string tmp = {};
+    constexpr char delimeters[] = "(),";
+    const char* p = input;
+    const char* start = p;
     while (*p) {
         if (*p == '!') {
             break;
         }
         bool isfind = false;
-        char* delp = delimeters;
+        const char* delp = delimeters;
         while (*delp) {
             if (*delp == *p) {
                 isfind = true;
@@ -41,17 +41,17 @@ std::vector<std::string> read_tokens(char* input) {
             delp++;
         }
         if (isfind) {
-            tmp.assign(start, (int16)(p - start));
+            tmp.assign(start, static_cast<int16>(p - start));
             del_spaces(tmp);
             vec.push_back(tmp);
-            vec.push_back(std::string(delp, 1));
+            vec.emplace_back(delp, 1);
             p++;
             start = p;
             continue;
         }
         p++;
     }
-    tmp.assign(start, (int16)(p - start));
+    tmp.assign(start, static_cast<int16>(p - start));
     del_spaces(tmp);
     vec.push_back(tmp);
     return vec;
@@ -59,7 +59,7 @@ std::vector<std::string> read_tokens(char* input) {
 
 void del_spaces(std::string& str) {
     uint16 start = 0;
-    if (str.length() == 0)
+    if (str.empty())
         return;
     while (str[start] == ' ') {
         start++;
@@ -68,7 +68,7 @@ void del_spaces(std::string& str) {
             return;
         }
     }
-    uint16 end = static_cast<uint16>(str.length() - 1);
+    auto end = static_cast<uint16>(str.length() - 1);
     while (str[end] == ' ') {
         end--;
     }
@@ -80,7 +80,7 @@ char* getCmdOption(char** begin, char** end, const std::string& option) {
     if (itr != end && ++itr != end) {
         return *itr;
     }
-    return 0;
+    return nullptr;
 }
 
 std::vector<char*> getCmdManyOptions(char** begin, char** end, const std::string& option) {
@@ -103,8 +103,8 @@ bool cmdOptionExists(char** begin, char** end, const std::string& option) {
 
 // TODO: this functions only truncate file extension.
 // But it was intended to leave only a file name (delete path and extension)
-std::string getFileNameFromPath(const std::string filename) {
-    std::string::const_reverse_iterator pivot = std::find(filename.rbegin(), filename.rend(), '.');
+std::string getFileNameFromPath(const std::string& filename) {
+    const auto pivot = std::find(filename.rbegin(), filename.rend(), '.');
     return pivot == filename.rend() ? filename : std::string(filename.begin(), pivot.base() - 1);
 }
 

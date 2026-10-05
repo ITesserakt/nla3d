@@ -6,14 +6,12 @@
 
 namespace nla3d {
 
-void Node::display(uint32 nn) { LOG(INFO) << "N " << nn << " : " << pos; }
+void Node::display(const uint32 nn) const { LOG(INFO) << "N " << nn << " : " << pos; }
 
 std::string Node::toString() {
-    std::string str;
-    char buff[100];
-    sprintf_s(buff, 100, "%f %f %f", pos[0], pos[1], pos[2]);
-    str += buff;
-    return str; // TODO: do it easy
+    std::stringstream ss;
+    ss << pos[0] << ' ' << pos[1] << ' ' << pos[2];
+    return ss.str();
 }
 
 } // namespace nla3d

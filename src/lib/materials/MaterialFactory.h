@@ -13,8 +13,8 @@ class MaterialFactory {
 
     static const char* const matModelLabels[];
 
-    static matId matName2matId(std::string matName);
-    static Material* createMaterial(std::string matName);
+    static matId matName2matId(const std::string& matName);
+    static Material* createMaterial(const std::string& matName);
 };
 
 } // namespace nla3d

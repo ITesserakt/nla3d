@@ -7,6 +7,7 @@
 #include "VtkProcessor.h"
 #include "elements/TRUSS3.h"
 #include "sys.h"
+#include "Node.h"
 
 using namespace nla3d;
 
@@ -18,7 +19,7 @@ using namespace nla3d;
 // Originally this file was downloaded from http://people.duke.edu/~hpgavin/cee421/truss-method.pdf.
 // In the code below you will find all neede comments about how all this work.
 
-int main(int argc, char* argv[]) {
+int main() {
     // Definition of the node table. Every node in nla3d lives in 3D space (has 3 coordinates). As fas
     // as we have a deal with 2D case, we just leave third coordinate equal to zero.
     const uint32 numberOfNodes = 5;
@@ -93,7 +94,7 @@ int main(int argc, char* argv[]) {
     // We would like to generate *.vtk file with deformed and undeformed models. For this purpose
     // PostProcessor with name VtkProcessor is added to FESolver. The names of vtk files will be
     // "truss2D0.vtk" for undeformed model, and "truss2D1.vtk" for deformed one.
-    VtkProcessor* vtk = new VtkProcessor(&storage, "truss2D");
+    VtkProcessor* vtk = new VtkProcessor(storage, "truss2D");
     solver.addPostProcessor(vtk);
     // just solve the model. Yes, so easy.
     solver.solve();

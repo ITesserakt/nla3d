@@ -11,15 +11,15 @@ using namespace ::nla3d::math;
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
 // TimeControl
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
-uint16 TimeControl::getCurrentStep() { return static_cast<uint16>(convergedTimeInstances.size() + 1); }
+uint16 TimeControl::getCurrentStep() const { return static_cast<uint16>(convergedTimeInstances.size() + 1); }
 
-uint16 TimeControl::getNumberOfConvergedSteps() { return static_cast<uint16>(convergedTimeInstances.size()); }
+uint16 TimeControl::getNumberOfConvergedSteps() const { return static_cast<uint16>(convergedTimeInstances.size()); }
 
-uint16 TimeControl::getCurrentEquilibriumStep() { return currentEquilibriumStep; }
+uint16 TimeControl::getCurrentEquilibriumStep() const { return currentEquilibriumStep; }
 
-uint16 TimeControl::getTotalNumberOfEquilibriumSteps() { return totalNumberOfEquilibriumSteps; }
+uint16 TimeControl::getTotalNumberOfEquilibriumSteps() const { return totalNumberOfEquilibriumSteps; }
 
-bool TimeControl::nextStep(double delta) {
+bool TimeControl::nextStep(const double delta) {
     if (currentEquilibriumStep > 0) {
         equilibriumSteps.push_back(currentEquilibriumStep);
         convergedTimeInstances.push_back(currentTime);
@@ -49,37 +49,35 @@ void TimeControl::nextEquilibriumStep() {
               << ", Cumulutive iterations = " << totalNumberOfEquilibriumSteps;
 }
 
-double TimeControl::getCurrentTime() { return currentTime; }
+double TimeControl::getCurrentTime() const { return currentTime; }
 
-double TimeControl::getCurrentNormalizedTime() { return (currentTime - startTime) / (endTime - startTime); }
+double TimeControl::getCurrentNormalizedTime() const { return (currentTime - startTime) / (endTime - startTime); }
 
-double TimeControl::getEndTime() { return endTime; }
+double TimeControl::getEndTime() const { return endTime; }
 
-double TimeControl::getStartTime() { return startTime; }
+double TimeControl::getStartTime() const { return startTime; }
 
-double TimeControl::getCurrentTimeDelta() {
+double TimeControl::getCurrentTimeDelta() const {
     if (currentEquilibriumStep == 1) {
         return currentTimeDelta;
-    } else {
-        return 0.0;
     }
+    return 0.0;
 }
 
-double TimeControl::getCurrentNormalizedTimeDelta() {
+double TimeControl::getCurrentNormalizedTimeDelta() const {
     if (currentEquilibriumStep == 1) {
         return currentTimeDelta / (endTime - startTime);
-    } else {
-        return 0.0;
     }
+    return 0.0;
 }
 
-void TimeControl::setEndTime(double _endTime) {
+void TimeControl::setEndTime(const double _endTime) {
     LOG_IF(currentTime > 0.0, ERROR) << "Trying to set end time = " << _endTime
                                      << " when solution is running (current time = " << currentTime << ")";
     endTime = _endTime;
 }
 
-void TimeControl::setStartTime(double _startTime) {
+void TimeControl::setStartTime(const double _startTime) {
     LOG_IF(currentTime > 0.0, ERROR) << "Trying to set start time = " << _startTime
                                      << " when solution is running (current time = " << currentTime << ")";
     startTime = _startTime;
@@ -99,25 +97,25 @@ void FESolver::attachFEStorage(FEStorage* st) {
     storage = CHECK_NOTNULL(st);
 }
 
-size_t FESolver::getNumberOfPostProcessors() { return postProcessors.size(); }
+size_t FESolver::getNumberOfPostProcessors() const { return postProcessors.size(); }
 
 // numbering from 0
-PostProcessor& FESolver::getPostProcessor(size_t _np) {
+PostProcessor& FESolver::getPostProcessor(const size_t _np) const {
     CHECK(_np < getNumberOfPostProcessors());
     return *postProcessors[_np];
 }
 
 uint16 FESolver::addPostProcessor(PostProcessor* pp) {
-    CHECK_NOTNULL(pp);
-    uint16 num = static_cast<uint16>(this->postProcessors.size() + 1);
+    (void)CHECK_NOTNULL(pp);
+    const auto num = static_cast<uint16>(this->postProcessors.size() + 1);
     pp->nPost_proc = num;
     postProcessors.push_back(pp);
     return num;
 }
 
 void FESolver::deletePostProcessors() {
-    for (size_t i = 0; i < postProcessors.size(); i++) {
-        delete postProcessors[i];
+    for (const auto postProcessor : postProcessors) {
+        delete postProcessor;
     }
     postProcessors.clear();
 }
@@ -174,40 +172,42 @@ void FESolver::initSolutionData() {
     }
 }
 
-void FESolver::setConstrainedDofs() {
+void FESolver::setConstrainedDofs() const {
     for (auto& fix : fixs) {
         // TODO: now support only nodal dofs..
         storage->setConstrainedNodeDof(fix.node, fix.node_dof);
     }
 }
 
-void FESolver::applyBoundaryConditions(double time) {
+void FESolver::applyBoundaryConditions(const double time) {
     TIMED_SCOPE(t, "applyBoundaryConditions");
     LOG(INFO) << "Applying boundary conditions.. (" << loads.size() << " nodal loads and " << fixs.size()
               << "nodal fixations)";
 
     // fill nodal loads
-    for (auto& load : loads) {
+    for (const auto& load : loads) {
         storage->addValueR(load.node, load.node_dof, load.value * time);
     }
 
     // fill nodal displacements (kinematic fixs)
-    for (auto& fix : fixs) {
+    for (const auto& fix : fixs) {
         // TODO: now support only nodal dofs..
-        uint32 eq_num = storage->getNodeDofEqNumber(fix.node, fix.node_dof);
+        const uint32 eq_num = storage->getNodeDofEqNumber(fix.node, fix.node_dof);
         // To be sure that constrained DoF lays in numberOfConstrainedDofs part
         assert(eq_num - 1 < storage->nConstrainedDofs());
         vecUc[eq_num - 1] = fix.value * time;
     }
 }
 
-void FESolver::addFix(int32 n, Dof::dofType dof, const double value) {
+void FESolver::addFix(const int32 n, const Dof::dofType dof, const double value) {
     // NOTE: we believes that all fixBC are distinct!
     //       Do not pass to it the same BC twice!
-    fixs.push_back(fixBC(n, dof, value));
+    fixs.emplace_back(n, dof, value);
 }
 
-void FESolver::addLoad(int32 n, Dof::dofType dof, const double value) { loads.push_back(loadBC(n, dof, value)); }
+void FESolver::addLoad(const int32 n, const Dof::dofType dof, const double value) {
+    loads.emplace_back(n, dof, value);
+}
 
 void FESolver::dumpMatricesAndVectors(std::string filename) {
     std::ofstream out(filename);
@@ -278,13 +278,11 @@ void FESolver::compareMatricesAndVectors(std::string filename, double th) {
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
 // LinearFESolver
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
-LinearFESolver::LinearFESolver() : FESolver() {}
-
 void LinearFESolver::solve() {
     TIMED_SCOPE(timer, "solution");
     LOG(INFO) << "Start the solution process";
-    CHECK_NOTNULL(storage);
-    CHECK_NOTNULL(eqSolver);
+    (void)CHECK_NOTNULL(storage);
+    (void)CHECK_NOTNULL(eqSolver);
 
     // setup matrix properties for EquationSolver
     eqSolver->setSymmetric(true);
@@ -345,13 +343,11 @@ void LinearFESolver::solve() {
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
 // NonlinearFESolver
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
-NonlinearFESolver::NonlinearFESolver() : FESolver() {}
-
 void NonlinearFESolver::solve() {
     TIMED_SCOPE(timer, "solution");
     LOG(INFO) << "Start the solution process";
-    CHECK_NOTNULL(storage);
-    CHECK_NOTNULL(eqSolver);
+    (void)CHECK_NOTNULL(storage);
+    (void)CHECK_NOTNULL(eqSolver);
 
     // setup matrix properties for EquationSolver
     eqSolver->setSymmetric(true);
@@ -372,14 +368,14 @@ void NonlinearFESolver::solve() {
     dVec deltaUc(deltaU, 0, storage->nConstrainedDofs());
     dVec deltaUsl(deltaU, storage->nConstrainedDofs(), storage->nUnknownDofs() + storage->nMpc());
     dVec deltaUs(deltaU, storage->nConstrainedDofs(), storage->nUnknownDofs());
-    dVec deltaUl(deltaU, storage->nConstrainedDofs() + storage->nUnknownDofs(), storage->nMpc());
+    const dVec deltaUl(deltaU, storage->nConstrainedDofs() + storage->nUnknownDofs(), storage->nMpc());
 
     for (size_t i = 0; i < getNumberOfPostProcessors(); i++) {
         postProcessors[i]->pre();
     }
 
     double currentCriteria = 0.0;
-    double timeDelta = (timeControl.getEndTime() - timeControl.getStartTime()) / numberOfLoadsteps;
+    const double timeDelta = (timeControl.getEndTime() - timeControl.getStartTime()) / numberOfLoadsteps;
 
     while (timeControl.nextStep(timeDelta)) {
         bool converged = false;
@@ -451,7 +447,7 @@ void NonlinearFESolver::solve() {
     //  }
 }
 
-double NonlinearFESolver::calculateCriteria(dVec& delta) {
+double NonlinearFESolver::calculateCriteria(dVec& delta) const {
     double curCriteria = 0.0;
     for (uint32 i = 0; i < delta.size(); i++) {
         curCriteria += fabs(delta[i]);
@@ -466,13 +462,11 @@ double NonlinearFESolver::calculateCriteria(dVec& delta) {
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
 // LinearTransientFESolver
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
-LinearTransientFESolver::LinearTransientFESolver() : FESolver() {}
-
 void LinearTransientFESolver::solve() {
     TIMED_SCOPE(timer, "solution");
     LOG(INFO) << "Start the solution process";
-    CHECK_NOTNULL(storage);
-    CHECK_NOTNULL(eqSolver);
+    (void)CHECK_NOTNULL(storage);
+    (void)CHECK_NOTNULL(eqSolver);
 
     // setup matrix properties for EquationSolver
     eqSolver->setSymmetric(true);
@@ -500,8 +494,8 @@ void LinearTransientFESolver::solve() {
 
     vecR.zero();
 
-    uint32 nEq = storage->nUnknownDofs() + storage->nMpc();
-    uint32 nAll = storage->nConstrainedDofs() + storage->nUnknownDofs() + storage->nMpc();
+    const uint32 nEq = storage->nUnknownDofs() + storage->nMpc();
+    const uint32 nAll = storage->nConstrainedDofs() + storage->nUnknownDofs() + storage->nMpc();
 
     dVec vecUnext(nAll);
     dVec vecUnextc(vecUnext, 0, storage->nConstrainedDofs());

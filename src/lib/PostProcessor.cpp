@@ -2,22 +2,23 @@
 // licensing go to project's repository on github:
 // https://github.com/dmitryikh/nla3d
 
+#include <string>
+
 #include "PostProcessor.h"
 
 namespace nla3d {
 
-PostProcessor::PostProcessor(FEStorage* st) {
-    assert(st);
-    storage = st;
+PostProcessor::PostProcessor(FEStorage& st) : storage(st) {
     active = false;
     failed = false;
+    nPost_proc = 0;
 }
 
-std::string PostProcessor::getStatus() {
-    char buf[300];
-    sprintf_s(buf, 200, "PostProcessor No %d: %s\n\tActive - %s, Failed - %s", nPost_proc, name.c_str(),
-              active ? "true" : "false", active ? "true" : "false");
-    return std::string(buf);
+std::string PostProcessor::getStatus() const {
+    std::stringstream ss;
+    ss << "PostProcessor No " << nPost_proc << ": " << name << "\n\tActive - " << (active ? "true" : "false")
+       << ", Failed - " << (failed ? "true" : "false");
+    return ss.str();
 }
 
 } // namespace nla3d

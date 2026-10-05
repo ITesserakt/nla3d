@@ -11,11 +11,11 @@ class ElementINTER0 : public ElementTWIN_VERTEX {
   public:
     ElementINTER0();
 
-    void pre();
+    void pre() override;
 
-    void buildK();
+    void buildK() override;
 
-    void update();
+    void update() override;
 
     // stiffness
     double kn = 0.0, ks = 0.0;
@@ -25,8 +25,8 @@ class ElementINTER0 : public ElementTWIN_VERTEX {
     math::Vec<3> strains; // displacement jump
 
     // postproc procedures
-    bool getVector(math::Vec<3>& vector, vectorQuery code, uint16 gp, const double scale);
-    bool getTensor(math::MatSym<3>& tensor, tensorQuery query, uint16 gp, const double scale);
+    bool getVector(math::Vec<3>& vector, vectorQuery code, uint16 gp, double scale) override;
+    bool getTensor(math::MatSym<3>& tensor, tensorQuery query, uint16 gp, double scale) override;
 };
 
 } // namespace nla3d

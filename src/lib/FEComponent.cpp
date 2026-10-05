@@ -16,7 +16,7 @@ FEComponent::~FEComponent() { list.clear(); }
 
 FEComponent::typeOfComponent FEComponent::typeFromString(const std::string& typeName) {
     for (size_t i = 1; i < LAST; i++) {
-        if (typeName.compare(labelsOfComponent[i]) == 0) {
+        if (typeName == labelsOfComponent[i]) {
             return static_cast<typeOfComponent>(i);
         }
     }

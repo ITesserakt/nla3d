@@ -15,11 +15,11 @@ namespace nla3d {
 
 namespace math {
 
-EquationSolver* defaultEquationSolver = new GaussDenseEquationSolver;
+EquationSolver* defaultEquationSolver = new ConjugateGradientEquationSolver{};
 
-void EquationSolver::setSymmetric(bool symmetric) { isSymmetric = symmetric; }
+void EquationSolver::setSymmetric(const bool symmetric) { isSymmetric = symmetric; }
 
-void EquationSolver::setPositive(bool positive) { isPositive = positive; }
+void EquationSolver::setPositive(const bool positive) { isPositive = positive; }
 
 void GaussDenseEquationSolver::solveEquations(SparseSymMatrix* matrix, double* rhs, double* unknowns) {
     TIMED_SCOPE(t, "solveEquations");
@@ -46,26 +46,26 @@ void GaussDenseEquationSolver::substituteEquations(SparseSymMatrix* matrix, doub
     }
 
     // fill dense matA from sparse matrix
-    for (uint16 i = 0; i < nEq; i++)
-        for (uint16 j = 0; j < nEq; j++)
+    for (uint32 i = 0; i < nEq; i++)
+        for (uint32 j = 0; j < nEq; j++)
             // NOTE: SparseMatrix getters works with indexes started from 1
             // TODO: we can fill dense matrix from sparse one in a more optimized way
             matA[i][j] = matrix->value(i + 1, j + 1);
-    bool res = _solve(unknowns, matA.ptr(), rhs, nEq);
+    const bool res = _solve(unknowns, matA.ptr(), rhs, nEq);
     CHECK(res == true) << "ERROR during solution";
 }
 
-bool GaussDenseEquationSolver::_solve(double* X, double* A, double* B, int n) {
+bool GaussDenseEquationSolver::_solve(double* X, double* A, double* B, const uint32 n) {
     // Gaussian elimination, with partial pivoting. It's an error if the
     // matrix is singular, because that means two constraints are
     // equivalent.
-    int i, j, ip, jp, imax;
-    double max, temp;
+    uint32 i, j, ip, jp, imax;
+    double temp;
 
     for (i = 0; i < n; i++) {
         // We are trying eliminate the term in column i, for rows i+1 and
         // greater. First, find a pivot (between rows i and N-1).
-        max = 0;
+        double max = 0;
         for (ip = i; ip < n; ip++) {
             // if(ffabs(A[ip][i]) > max) {
             if (fabs(A[ip * n + i]) > max) {
@@ -83,14 +83,12 @@ bool GaussDenseEquationSolver::_solve(double* X, double* A, double* B, int n) {
         // Swap row imax with row i
         for (jp = 0; jp < n; jp++) {
             // SWAP(double, A[i][jp], A[imax][jp]);
-            double tmp;
-            tmp = A[i * n + jp];
+            const double tmp = A[i * n + jp];
             A[i * n + jp] = A[imax * n + jp];
             A[imax * n + jp] = tmp;
         }
         // SWAP(double, B[i], B[imax]);
-        double tmp;
-        tmp = B[i];
+        const double tmp = B[i];
         B[i] = B[imax];
         B[imax] = tmp;
 
@@ -109,7 +107,7 @@ bool GaussDenseEquationSolver::_solve(double* X, double* A, double* B, int n) {
 
     // We've put the matrix in upper triangular form, so at this point we
     // can solve by back-substitution.
-    for (i = n - 1; i >= 0; i--) {
+    for (i = n - 1; i > 0; i--) {
         // if(fabs(A[i][i]) < 1e-20) return false;
         if (fabs(A[i * n + i]) < 1e-20)
             return false;
@@ -132,7 +130,7 @@ void ConjugateGradientEquationSolver::solveEquations(SparseSymMatrix* matrix, do
     this->substituteEquations(matrix, rhs, unknowns);
 }
 
-void ConjugateGradientEquationSolver::factorizeEquations(SparseSymMatrix* matrix) {
+void ConjugateGradientEquationSolver::factorizeEquations(SparseSymMatrix*) {
     // ...noop
 }
 

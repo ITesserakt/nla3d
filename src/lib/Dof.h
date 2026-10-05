@@ -3,6 +3,9 @@
 // https://github.com/dmitryikh/nla3d
 
 #pragma once
+
+#include <set>
+
 #include "sys.h"
 
 namespace nla3d {
@@ -24,7 +27,7 @@ class Dof {
         UNDEFINED // should be last
     };
 
-    Dof(dofType t) : eqNumber(0), isConstrained(false), type(t) {}
+    explicit Dof(const dofType t) : type(t) {}
 
     uint32 eqNumber = 0;        // 0 - not use
     bool isConstrained = false; // is this DOF defined by B.C.
@@ -33,7 +36,7 @@ class Dof {
     static const char* const dofTypeLabels[];
     static const uint16 numberOfDofTypes;
     static dofType label2dofType(const std::string& label);
-    static const char* dofType2label(const dofType t);
+    static const char* dofType2label(dofType t);
 };
 
 inline const char* Dof::dofType2label(const Dof::dofType t) {
@@ -43,8 +46,8 @@ inline const char* Dof::dofType2label(const Dof::dofType t) {
 
 class DofCollection {
   public:
-    uint32 getNumberOfUsedDofs();
-    uint32 getNumberOfEntities();
+    uint32 getNumberOfUsedDofs() const;
+    uint32 getNumberOfEntities() const;
 
     // return a poiner to Dof class for Entity n and for type dof
     Dof* getDof(uint32 n, Dof::dofType dof);
@@ -72,14 +75,14 @@ class DofCollection {
     std::set<Dof::dofType> uniqueDofTypes;
 };
 
-inline uint32 DofCollection::getNumberOfUsedDofs() { return numberOfUsedDofs; }
+inline uint32 DofCollection::getNumberOfUsedDofs() const { return numberOfUsedDofs; }
 
-inline uint32 DofCollection::getNumberOfEntities() { return numberOfEntities; }
+inline uint32 DofCollection::getNumberOfEntities() const { return numberOfEntities; }
 
 inline std::pair<std::vector<Dof>::iterator, std::vector<Dof>::iterator> DofCollection::getEntityDofs(uint32 n) {
     assert(n > 0);
     assert(n <= numberOfEntities);
-    assert(dofPos.size() > 0);
+    assert(!dofPos.empty());
 
     return std::make_pair(dofs.begin() + dofPos[n - 1], dofs.begin() + dofPos[n]);
 }
