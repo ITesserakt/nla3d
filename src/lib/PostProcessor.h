@@ -14,14 +14,15 @@ class FESolver;
 // Data_Processor
 class PostProcessor {
   public:
-    PostProcessor(FEStorage* st);
-    ~PostProcessor() {};
+    explicit PostProcessor(FEStorage& st);
+    virtual ~PostProcessor() = default;
     virtual void pre() = 0;
     virtual void process(uint16 curLoadstep) = 0;
     virtual void post(uint16 curLoadstep) = 0;
-    std::string getStatus();
-    uint16 getnPost_num() { return nPost_proc; }
-    void setActive(bool act) {
+
+    std::string getStatus() const;
+    uint16 getnPost_num() const { return nPost_proc; }
+    void setActive(const bool act) {
         if (failed) {
             LOG(WARNING) << "PostProcessor " << nPost_proc << " (" << name << "): can't set active,"
                          << "because post_proc has been already failed";
@@ -29,15 +30,15 @@ class PostProcessor {
         }
         active = act;
     }
-    bool getActive() { return active; }
 
-    uint16 getProc_num() { return nPost_proc; }
+    bool getActive() const { return active; }
+    uint16 getProc_num() const { return nPost_proc; }
 
     friend class FEStorage;
     friend class FESolver;
 
   protected:
-    FEStorage* storage;
+    FEStorage& storage;
     uint16 nPost_proc;
     std::string name;
     bool active;

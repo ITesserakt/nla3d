@@ -232,14 +232,14 @@ int main(int argc, char* argv[]) {
     if (options::useVtk) {
         // obtain job name from path of a FE model file
         std::string jobname = getFileNameFromPath(options::modelFilename);
-        VtkProcessor* vtk = new VtkProcessor(&storage, jobname);
+        VtkProcessor* vtk = new VtkProcessor(storage, jobname);
         solver.addPostProcessor(vtk);
         vtk->writeAllResults();
     }
 
     reactProc = NULL;
     if (options::reactionComponentName.length() > 0) {
-        reactProc = new ReactionProcessor(&storage);
+        reactProc = new ReactionProcessor(storage);
         solver.addPostProcessor(reactProc);
         FEComponent* feComp = &(md.feComps[options::reactionComponentName]);
         if (feComp->type != FEComponent::NODES) {

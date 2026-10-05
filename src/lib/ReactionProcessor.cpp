@@ -7,9 +7,9 @@
 
 namespace nla3d {
 
-ReactionProcessor::ReactionProcessor(FEStorage* st) : PostProcessor(st) { name = "ReactionProcessor"; }
+ReactionProcessor::ReactionProcessor(FEStorage& st) : PostProcessor(st) { name = "ReactionProcessor"; }
 
-ReactionProcessor::ReactionProcessor(FEStorage* st, std::string _filename) : PostProcessor(st) {
+ReactionProcessor::ReactionProcessor(FEStorage& st, std::string _filename) : PostProcessor(st) {
     name = "ReactionProcessor";
     filename = _filename;
 }
@@ -27,7 +27,7 @@ void ReactionProcessor::pre() {
     if (dofs.size() == 0) {
         for (uint16 d = 0; d < Dof::numberOfDofTypes; d++) {
             Dof::dofType t = static_cast<Dof::dofType>(d);
-            if (storage->isNodeDofUsed(nodes[0], t) && storage->getNodeDof(nodes[0], t)->isConstrained) {
+            if (storage.isNodeDofUsed(nodes[0], t) && storage.getNodeDof(nodes[0], t)->isConstrained) {
                 dofs.push_back(t);
             }
         }
@@ -39,8 +39,8 @@ void ReactionProcessor::pre() {
         uint32 n = 0;
         while (sameDofsConstrained && n < nodes.size()) {
             for (uint16 d = 0; d < dofs.size(); d++) {
-                if (!storage->isNodeDofUsed(nodes[n], dofs[d]) &&
-                    !storage->getNodeDof(nodes[n], dofs[d])->isConstrained) {
+                if (!storage.isNodeDofUsed(nodes[n], dofs[d]) &&
+                    !storage.getNodeDof(nodes[n], dofs[d])->isConstrained) {
                     LOG(FATAL) << "Different dofs are constrained in the node set. Autochoosing of dofs is failed";
                     sameDofsConstrained = false;
                     break;
@@ -54,7 +54,7 @@ void ReactionProcessor::pre() {
         uint32 n = 0;
         while (dofsUsed && n < nodes.size()) {
             for (uint16 d = 0; d < dofs.size(); d++) {
-                if (!storage->isNodeDofUsed(nodes[n], dofs[d])) {
+                if (!storage.isNodeDofUsed(nodes[n], dofs[d])) {
                     LOG(ERROR) << "some dofs are not used in FE calculations";
                     dofsUsed = false;
                     break;
@@ -93,7 +93,7 @@ void ReactionProcessor::process(uint16 curLoadstep) {
 
     for (uint32 n = 0; n < nodes.size(); n++) {
         for (uint16 d = 0; d < dofs.size(); d++) {
-            reactions[d] += storage->getReaction(nodes[n], dofs[d]);
+            reactions[d] += storage.getReaction(nodes[n], dofs[d]);
         }
     }
 

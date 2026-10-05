@@ -11,8 +11,8 @@ namespace nla3d {
 
 class ReactionProcessor : public PostProcessor {
   public:
-    ReactionProcessor(FEStorage* st);
-    ReactionProcessor(FEStorage* st, std::string _filename);
+    ReactionProcessor(FEStorage& st);
+    ReactionProcessor(FEStorage& st, std::string _filename);
     virtual ~ReactionProcessor() {};
 
     virtual void pre();

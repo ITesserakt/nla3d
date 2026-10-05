@@ -24,7 +24,7 @@ namespace nla3d {
 
 class VtkProcessor : public PostProcessor {
   public:
-    VtkProcessor(FEStorage* st, std::string _fileName);
+    VtkProcessor(FEStorage& st, std::string _fileName);
     virtual ~VtkProcessor();
     virtual void pre();
     virtual void process(uint16 curLoadstep);
