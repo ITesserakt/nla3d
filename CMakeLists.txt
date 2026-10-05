@@ -11,10 +11,6 @@ include(GNUInstallDirs)
 # Use mine findFoo.cmake modules
 set(CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake/modules ${CMAKE_MODULE_PATH})
 
-# cotire module will speed up compilation time
-# see https://github.com/sakra/cotire
-include(cotire)
-
 #options
 set (NLA3D_USE_MKL OFF
      CACHE BOOL "Use MKL library for math routines")

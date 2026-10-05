@@ -2,13 +2,15 @@
 // licensing go to project's repository on github:
 // https://github.com/dmitryikh/nla3d
 
+#include <cmath>
+
 #include "solidmech.h"
 
 namespace nla3d {
 namespace solidmech {
 
 double J_C(const double* C) {
-    return sqrt(C[M_XX] * (C[M_YY] * C[M_ZZ] - C[M_YZ] * C[M_YZ]) - C[M_XY] * (C[M_XY] * C[M_ZZ] - C[M_YZ] * C[M_XZ]) +
+    return std::sqrt(C[M_XX] * (C[M_YY] * C[M_ZZ] - C[M_YZ] * C[M_YZ]) - C[M_XY] * (C[M_XY] * C[M_ZZ] - C[M_YZ] * C[M_XZ]) +
                 C[M_XZ] * (C[M_XY] * C[M_YZ] - C[M_YY] * C[M_XZ]));
 }
 
