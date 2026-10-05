@@ -33,6 +33,8 @@
             "-DNLA3D_USE_MKL=ON"
           ];
         };
+
+        default = inputs.self.packages.${system}.nla3d;
       }
     ) inputs.nixpkgs.legacyPackages;
 
