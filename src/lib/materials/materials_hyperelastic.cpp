@@ -29,32 +29,32 @@ void Mat_Hyper_Isotrop_General::getD_U(uint16 ncomp, const solidmech::tensorComp
 }
 
 // C - all times we must have 6 components
-void Mat_Hyper_Isotrop_General::getS_UP(uint16 ncomp, const solidmech::tensorComponents* comps, const double* C,
+void Mat_Hyper_Isotrop_General::getS_UP(const uint16 ncomp, const solidmech::tensorComponents* comps, const double* C,
                                         const double press, double* S) {
     double alpha[2];
 
     double IC[3];
     solidmech::IC_C(C, IC);
 
-    double _13I1C = 1.0 / 3.0 * IC[0];
-    double _23I2C = 2.0 / 3.0 * IC[1];
+    const double _13I1C = 1.0 / 3.0 * IC[0];
+    const double _23I2C = 2.0 / 3.0 * IC[1];
 
-    double J = IC[2];
+    const double J = IC[2];
 
     double oo = 1.0 / (J * J);
-    double pp = pow(J, -2.0 / 3.0);
-    double pppp = pp * pp;
+    const double pp = pow(J, -2.0 / 3.0);
+    const double pppp = pp * pp;
 
     double C_inv[6];
     solidmech::invC_C(C, J, C_inv);
 
     W_first_derivatives(IC[0] * pp, IC[1] * pppp, 0.0, alpha); // only first derivatives
-    double ko1 = 2 * alpha[AL_1] * pp;
-    double ko2 = 2 * alpha[AL_2] * pppp;
+    const double ko1 = 2 * alpha[AL_1] * pp;
+    const double ko2 = 2 * alpha[AL_2] * pppp;
 
-    double A[] = {I[0] - _13I1C * C_inv[0], I[1] - _13I1C * C_inv[1], I[2] - _13I1C * C_inv[2],
+    const double A[] = {I[0] - _13I1C * C_inv[0], I[1] - _13I1C * C_inv[1], I[2] - _13I1C * C_inv[2],
                   I[3] - _13I1C * C_inv[3], I[4] - _13I1C * C_inv[4], I[5] - _13I1C * C_inv[5]};
-    double B[] = {IC[0] * I[0] - C[0] - _23I2C * C_inv[0], IC[0] * I[1] - C[1] - _23I2C * C_inv[1],
+    const double B[] = {IC[0] * I[0] - C[0] - _23I2C * C_inv[0], IC[0] * I[1] - C[1] - _23I2C * C_inv[1],
                   IC[0] * I[2] - C[2] - _23I2C * C_inv[2], IC[0] * I[3] - C[3] - _23I2C * C_inv[3],
                   IC[0] * I[4] - C[4] - _23I2C * C_inv[4], IC[0] * I[5] - C[5] - _23I2C * C_inv[5]};
     solidmech::tensorComponents ij;
@@ -64,20 +64,20 @@ void Mat_Hyper_Isotrop_General::getS_UP(uint16 ncomp, const solidmech::tensorCom
     }
 }
 
-void Mat_Hyper_Isotrop_General::getDdDp_UP(uint16 ncomp, const solidmech::tensorComponents* comps, const double* C,
+void Mat_Hyper_Isotrop_General::getDdDp_UP(const uint16 ncomp, const solidmech::tensorComponents* comps, const double* C,
                                            const double press, double* Dd, double* Dp) {
     double alpha[5];
     double IC[3];
     solidmech::IC_C(C, IC);
 
-    double _13I1C = 1.0 / 3.0 * IC[0];
-    double _23I2C = 2.0 / 3.0 * IC[1];
+    const double _13I1C = 1.0 / 3.0 * IC[0];
+    const double _23I2C = 2.0 / 3.0 * IC[1];
 
-    double J = IC[2];
+    const double J = IC[2];
 
-    double pp = pow(J, -2.0 / 3.0);
-    double oo = pow(J, -2);
-    double pppp = pp * pp;
+    const double pp = pow(J, -2.0 / 3.0);
+    const double oo = pow(J, -2);
+    const double pppp = pp * pp;
 
     double C_inv[6];
     solidmech::invC_C(C, J, C_inv);
@@ -91,13 +91,13 @@ void Mat_Hyper_Isotrop_General::getDdDp_UP(uint16 ncomp, const solidmech::tensor
     */
     W_second_derivatives(IC[0] * pp, IC[1] * pppp, 1.0, alpha);
 
-    double A[] = {I[0] - _13I1C * C_inv[0], I[1] - _13I1C * C_inv[1], I[2] - _13I1C * C_inv[2],
+    const double A[] = {I[0] - _13I1C * C_inv[0], I[1] - _13I1C * C_inv[1], I[2] - _13I1C * C_inv[2],
                   I[3] - _13I1C * C_inv[3], I[4] - _13I1C * C_inv[4], I[5] - _13I1C * C_inv[5]};
-    double B[] = {IC[0] * I[0] - C[0] - _23I2C * C_inv[0], IC[0] * I[1] - C[1] - _23I2C * C_inv[1],
+    const double B[] = {IC[0] * I[0] - C[0] - _23I2C * C_inv[0], IC[0] * I[1] - C[1] - _23I2C * C_inv[1],
                   IC[0] * I[2] - C[2] - _23I2C * C_inv[2], IC[0] * I[3] - C[3] - _23I2C * C_inv[3],
                   IC[0] * I[4] - C[4] - _23I2C * C_inv[4], IC[0] * I[5] - C[5] - _23I2C * C_inv[5]};
 
-    double IIt[6][6] = {
+    const double IIt[6][6] = {
         {-C_inv[M_XX] * C_inv[M_XX],                                     -C_inv[M_XX] * C_inv[M_XY],-C_inv[M_XX] * C_inv[M_XZ], -C_inv[M_XY] * C_inv[M_XY],
          -C_inv[M_XY] * C_inv[M_XZ], -C_inv[M_XZ] * C_inv[M_XZ]                                    },
         // 1211 = 11*12, 1212 = 0.5*(11*22 + 12*12), 1213 = 0.5*(11*23+13*12), 1222 = 12*22, 1223 = 0.5*(12*23+13*22),
@@ -163,26 +163,26 @@ void Mat_Comp_Neo_Hookean::W_second_derivatives(double I1, double I2, double I3,
     alpha[AL_12] = 0.0;
 }
 
-double Mat_Comp_Neo_Hookean::W(double I1, double I2, double I3) { return 0.5 * MC[C_G] * (I1 - 3.0); }
+double Mat_Comp_Neo_Hookean::W(const double I1, double I2, double I3) { return 0.5 * MC[C_G] * (I1 - 3.0); }
 
 double Mat_Comp_Neo_Hookean::getK() { return MC[C_K]; }
 
 //---------------------------------------------------------
 //-------------------Mat_Comp_Biderman---------------------
 //---------------------------------------------------------
-void Mat_Comp_Biderman::W_first_derivatives(double I1, double I2, double I3, double* alpha) {
+void Mat_Comp_Biderman::W_first_derivatives(const double I1, double I2, double I3, double* alpha) {
     alpha[AL_1] = MC[C_C10] + 2 * MC[C_C20] * (I1 - 3.0) + 3 * MC[C_C30] * (I1 - 3.0) * (I1 - 3.0);
     alpha[AL_2] = MC[C_C01];
 }
 
-void Mat_Comp_Biderman::W_second_derivatives(double I1, double I2, double I3, double* alpha) {
+void Mat_Comp_Biderman::W_second_derivatives(const double I1, double I2, double I3, double* alpha) {
     alpha[AL_1] = MC[C_C10] + 2 * MC[C_C20] * (I1 - 3.0) + 3 * MC[C_C30] * (I1 - 3.0) * (I1 - 3.0);
     alpha[AL_2] = MC[C_C01];
     alpha[AL_11] = 2 * MC[C_C20] + 6 * MC[C_C30] * (I1 - 3.0);
     alpha[AL_22] = 0.0;
     alpha[AL_12] = 0.0;
 }
-double Mat_Comp_Biderman::W(double I1, double I2, double I3) {
+double Mat_Comp_Biderman::W(const double I1, const double I2, double I3) {
     return MC[C_C10] * (I1 - 3.0) + MC[C_C20] * (I1 - 3.0) * (I1 - 3.0) +
            MC[C_C30] * (I1 - 3.0) * (I1 - 3.0) * (I1 - 3.0) + MC[C_C01] * (I2 - 3.0);
 }
@@ -204,7 +204,7 @@ void Mat_Comp_MooneyRivlin::W_second_derivatives(double I1, double I2, double I3
     alpha[AL_22] = 0.0;
     alpha[AL_12] = 0.0;
 }
-double Mat_Comp_MooneyRivlin::W(double I1, double I2, double I3) {
+double Mat_Comp_MooneyRivlin::W(const double I1, const double I2, double I3) {
     return MC[C_C10] * (I1 - 3.0) + MC[C_C01] * (I2 - 3.0);
 }
 

@@ -21,40 +21,40 @@ void Mpc::print(std::ostream& out) {
             first = false;
         }
         out << toStr(token->coef) << " * " << toStr(token->node) << ":" << Dof::dofTypeLabels[token->node_dof];
-        token++;
+        ++token;
     }
     out << " = " << toStr(b);
 }
 
-void MpcCollection::registerMpcsInStorage() {
-    for (size_t i = 0; i < collection.size(); i++) {
-        storage->addMpc(collection[i]);
+void MpcCollection::registerMpcsInStorage() const {
+    for (const auto i : collection) {
+        storage->addMpc(i);
     }
 }
 
-void MpcCollection::printEquations(std::ostream& out) {
-    for (size_t i = 0; i < collection.size(); i++) {
-        collection[i]->print(out);
+void MpcCollection::printEquations(std::ostream& out) const {
+    for (const auto i : collection) {
+        i->print(out);
         out << std::endl;
     }
 }
 
-RigidBodyMpc::RigidBodyMpc() {}
+RigidBodyMpc::RigidBodyMpc() : masterNode(0) {}
 
 RigidBodyMpc::~RigidBodyMpc() { collection.clear(); }
 
 void RigidBodyMpc::pre() {
     // create Mpc for all nodes and all dofs..
-    collection.assign(slaveNodes.size() * dofs.size(), NULL);
+    collection.assign(slaveNodes.size() * dofs.size(), nullptr);
     for (size_t i = 0; i < slaveNodes.size(); i++) {
         for (size_t j = 0; j < dofs.size(); j++) {
-            Mpc* mpc = new Mpc;
+            const auto mpc = new Mpc;
             mpc->b = 0.0;
-            mpc->eq.push_back(MpcTerm(slaveNodes[i], dofs[j], 1.0));
-            mpc->eq.push_back(MpcTerm(masterNode, dofs[j], -1.0));
-            mpc->eq.push_back(MpcTerm(masterNode, Dof::ROTX, 0.0));
-            mpc->eq.push_back(MpcTerm(masterNode, Dof::ROTY, 0.0));
-            mpc->eq.push_back(MpcTerm(masterNode, Dof::ROTZ, 0.0));
+            mpc->eq.emplace_back(slaveNodes[i], dofs[j], 1.0);
+            mpc->eq.emplace_back(masterNode, dofs[j], -1.0);
+            mpc->eq.emplace_back(masterNode, Dof::ROTX, 0.0);
+            mpc->eq.emplace_back(masterNode, Dof::ROTY, 0.0);
+            mpc->eq.emplace_back(masterNode, Dof::ROTZ, 0.0);
             collection[i * dofs.size() + j] = mpc;
         }
     }
@@ -80,7 +80,7 @@ void RigidBodyMpc::update() {
     w0[0] = storage->getNodeDofSolution(masterNode, Dof::UX);
     w0[1] = storage->getNodeDofSolution(masterNode, Dof::UY);
     w0[2] = storage->getNodeDofSolution(masterNode, Dof::UZ);
-    double thetaNorm = theta0.length();
+    const double thetaNorm = theta0.length();
     Vec<3> masterPos;
     Vec<3> slavePos;
     Mat<3, 3> C;
@@ -102,9 +102,9 @@ void RigidBodyMpc::update() {
     }
     for (uint16 i = 0; i < 3; i++) {
         for (uint16 j = 0; j < 3; j++) {
-            double theta0Mat_ij = solidmech::LeviCivita[i][0][j] * theta0[0] +
-                                  solidmech::LeviCivita[i][1][j] * theta0[1] +
-                                  solidmech::LeviCivita[i][2][j] * theta0[2];
+            const double theta0Mat_ij = solidmech::LeviCivita[i][0][j] * theta0[0] +
+                                        solidmech::LeviCivita[i][1][j] * theta0[1] +
+                                        solidmech::LeviCivita[i][2][j] * theta0[2];
             C[i][j] = cos(thetaNorm) * solidmech::I[i][j] + c1 * theta0Mat_ij + c2 * theta0[i] * theta0[j];
         }
     }
@@ -128,11 +128,12 @@ void RigidBodyMpc::update() {
                 break;
             default:
                 LOG(FATAL) << "which degree of freedom?";
+                continue;
             }
             for (uint16 j = 0; j < 3; j++) {
                 for (uint16 l = 0; l < 3; l++) {
                     cDeriv[j][l] =
-                        solidmech::I[i][j] * (-c1) * theta0[l] +
+                        solidmech::I[i][j] * -c1 * theta0[l] +
                         c3 * theta0[l] *
                             (solidmech::LeviCivita[i][0][j] * theta0[0] + solidmech::LeviCivita[i][1][j] * theta0[1] +
                              solidmech::LeviCivita[i][2][j] * theta0[2]) +
@@ -144,14 +145,14 @@ void RigidBodyMpc::update() {
                 w0[i] + (C[i][0] - solidmech::I[i][0]) * pqVec[0] + (C[i][1] - solidmech::I[i][1]) * pqVec[1] +
                 (C[i][2] - solidmech::I[i][2]) * pqVec[2] - storage->getNodeDofSolution(slaveNodes[n], dofs[d]);
             auto token = collection[n * dofs.size() + d]->eq.begin();
-            token++;
-            token++;
+            ++token;
+            ++token;
             // masterNode::ROTX coef
             token->coef = -(cDeriv[0][0] * pqVec[0] + cDeriv[1][0] * pqVec[1] + cDeriv[2][0] * pqVec[2]);
-            token++;
+            ++token;
             // masterNode::ROTY coef
             token->coef = -(cDeriv[0][1] * pqVec[0] + cDeriv[1][1] * pqVec[1] + cDeriv[2][1] * pqVec[2]);
-            token++;
+            ++token;
             // masterNode::ROTZ coef
             token->coef = -(cDeriv[0][2] * pqVec[0] + cDeriv[1][2] * pqVec[1] + cDeriv[2][2] * pqVec[2]);
         }

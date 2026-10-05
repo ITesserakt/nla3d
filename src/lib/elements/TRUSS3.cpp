@@ -1,8 +1,9 @@
 #include "elements/TRUSS3.h"
+#include "Node.h"
 
 namespace nla3d {
 
-ElementTRUSS3::ElementTRUSS3() { type = ElementType::TRUSS3; }
+ElementTRUSS3::ElementTRUSS3() : S(0) { type = ElementType::TRUSS3; }
 
 void ElementTRUSS3::pre() {
     for (uint16 i = 0; i < getNNodes(); i++) {
@@ -31,7 +32,7 @@ void ElementTRUSS3::buildK() {
     // as long as we need 1.0/length instead of length itself it's useful to store this value in the
     // variable inv_length. Such kind of code optimization is quite useful in massively computational
     // expensive procedures.
-    double inv_length = 1.0 / deltaPos.length();
+    const double inv_length = 1.0 / deltaPos.length();
 
     // filling transformation matrix T (see reference theretical material to get it clear. The link to
     // theoretical material could be found in TRUSS3.h file). Here Eigen library matrix and its
@@ -68,7 +69,7 @@ void ElementTRUSS3::update() {
     B.setZero();
 
     math::Vec<3> deltaPos = storage->getNode(getNodeNumber(1)).pos - storage->getNode(getNodeNumber(0)).pos;
-    double inv_length = 1.0 / deltaPos.length();
+    const double inv_length = 1.0 / deltaPos.length();
 
     T(0, 0) = deltaPos[0] * inv_length;
     T(0, 1) = deltaPos[1] * inv_length;

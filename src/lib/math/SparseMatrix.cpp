@@ -4,33 +4,33 @@
 
 #include "SparseMatrix.h"
 
+#include <memory>
+
 namespace nla3d {
 namespace math {
 
 const uint32 SparsityInfo::invalid = 0xFFFFFFFF;
 
-SparsityInfo::SparsityInfo() {}
+SparsityInfo::SparsityInfo() = default;
 
-SparsityInfo::SparsityInfo(uint32 _nrows, uint32 _ncols, uint32 _max_in_row) { reinit(_nrows, _ncols, _max_in_row); }
+SparsityInfo::SparsityInfo(const uint32 _nrows, const uint32 _ncols, const uint32 _max_in_row) {
+    reinit(_nrows, _ncols, _max_in_row);
+}
 
 SparsityInfo::~SparsityInfo() { clear(); }
 
 void SparsityInfo::clear() {
-    if (iofeir) {
-        delete[] iofeir;
-    }
+    delete[] iofeir;
     iofeir = nullptr;
 
-    if (columns) {
-        delete[] columns;
-    }
+    delete[] columns;
     columns = nullptr;
 
     compressed = false;
     numberOfValues = 0;
 }
 
-void SparsityInfo::reinit(uint32 _nrows, uint32 _ncols, uint32 _max_in_row) {
+void SparsityInfo::reinit(const uint32 _nrows, const uint32 _ncols, const uint32 _max_in_row) {
     assert(_max_in_row > 0);
     clear();
 
@@ -49,7 +49,7 @@ void SparsityInfo::reinit(uint32 _nrows, uint32 _ncols, uint32 _max_in_row) {
 }
 
 // row and column positions are started from 1
-void SparsityInfo::addEntry(uint32 _i, uint32 _j) {
+void SparsityInfo::addEntry(const uint32 _i, const uint32 _j) {
     assert(iofeir != nullptr);
     assert(columns != nullptr);
     assert(_i > 0 && _i <= nRows);
@@ -103,13 +103,12 @@ void SparsityInfo::compress() {
     compressed = true;
 }
 
-uint32 SparsityInfo::getIndex(uint32 _i, uint32 _j) {
+uint32 SparsityInfo::getIndex(const uint32 _i, const uint32 _j) const {
     assert(columns);
     assert(iofeir);
     assert(_i > 0 && _i <= nRows);
     assert(_j > 0 && _j <= nColumns);
 
-    uint32 ind;
     uint32 st = iofeir[_i - 1] - 1;
     uint32 en = iofeir[_i] - 1;
 
@@ -118,7 +117,7 @@ uint32 SparsityInfo::getIndex(uint32 _i, uint32 _j) {
 
     en--;
 
-    while (1) {
+    while (true) {
         if (en - st == 1) {
             if (columns[st] == _j)
                 return st;
@@ -126,7 +125,7 @@ uint32 SparsityInfo::getIndex(uint32 _i, uint32 _j) {
                 return en;
             return invalid;
         }
-        ind = (uint32)((en + st) * 0.5);
+        const auto ind = static_cast<uint32>((en + st) * 0.5);
 
         if (columns[ind] == _j)
             return ind;
@@ -143,7 +142,7 @@ uint32 SparsityInfo::getIndex(uint32 _i, uint32 _j) {
     LOG(FATAL) << "What i'm doing here..?";
 }
 
-void BaseSparseMatrix::printInternalData(std::ostream& out) {
+void BaseSparseMatrix::printInternalData(std::ostream& out) const {
     assert(si);
     assert(values);
     assert(si->compressed);
@@ -169,13 +168,13 @@ void BaseSparseMatrix::printInternalData(std::ostream& out) {
     out << "}" << std::endl;
 }
 
-void BaseSparseMatrix::writeCoordinateTextFormat(std::ostream& out) {
+void BaseSparseMatrix::writeCoordinateTextFormat(std::ostream& out) const {
     assert(si);
     assert(values);
     assert(si->compressed);
     // we need to return back old preferences after usage
-    auto old_precision = out.precision(15);
-    auto old_flags = out.setf(std::ios_base::scientific, std::ios_base::floatfield);
+    const auto old_precision = out.precision(15);
+    const auto old_flags = out.setf(std::ios_base::scientific, std::ios_base::floatfield);
     // write header: nRows, nColumns, numberOfValues
     out << si->nRows << ' ' << si->nColumns << ' ' << si->numberOfValues << std::endl;
     uint32 total = 0;
@@ -198,14 +197,14 @@ void BaseSparseMatrix::readCoordinateTextFormat(std::istream& in) {
     in >> _nrows >> _ncols >> _nvalues;
     entries.reserve(_nvalues);
     for (uint32 i = 1; i <= _nvalues; i++) {
-        SparseEntry entry;
+        SparseEntry entry{};
         in >> entry.i >> entry.j >> entry.v;
         entries.push_back(entry);
     }
     reinit(_nrows, _ncols, entries);
 }
 
-bool BaseSparseMatrix::compare(const BaseSparseMatrix& op2, double th) {
+bool BaseSparseMatrix::compare(const BaseSparseMatrix& op2, const double th) {
     // this function conduct strict comparison: matrices should have the same sparsity and the same
     // non-zero values
     BaseSparseMatrix& op1 = *this;
@@ -246,14 +245,14 @@ bool BaseSparseMatrix::compare(const BaseSparseMatrix& op2, double th) {
     return true;
 }
 
-BaseSparseMatrix::BaseSparseMatrix() {}
+BaseSparseMatrix::BaseSparseMatrix() = default;
 
-BaseSparseMatrix::BaseSparseMatrix(uint32 _nrows, uint32 _ncolumns, uint32 _max_in_row) {
+BaseSparseMatrix::BaseSparseMatrix(const uint32 _nrows, const uint32 _ncolumns, const uint32 _max_in_row) {
     // create it's own SparsityInfo instance
-    si = std::shared_ptr<SparsityInfo>(new SparsityInfo(_nrows, _ncolumns, _max_in_row));
+    si = std::make_shared<SparsityInfo>(_nrows, _ncolumns, _max_in_row);
 }
 
-BaseSparseMatrix::BaseSparseMatrix(std::shared_ptr<SparsityInfo> spar_info) { setSparsityInfo(spar_info); }
+BaseSparseMatrix::BaseSparseMatrix(const std::shared_ptr<SparsityInfo>& spar_info) { setSparsityInfo(spar_info); }
 
 BaseSparseMatrix::~BaseSparseMatrix() {
     if (values) {
@@ -262,15 +261,15 @@ BaseSparseMatrix::~BaseSparseMatrix() {
     }
 }
 
-void BaseSparseMatrix::reinit(uint32 _nrows, uint32 _ncols, const std::vector<SparseEntry>& entries) {
+void BaseSparseMatrix::reinit(const uint32 _nrows, const uint32 _ncols, const std::vector<SparseEntry>& entries) {
     // after this procedure we will obtain matrix in already compressed state
     // TODO: this is not optimal way to fill new Sparse Matrix, actually we can allocate exactly
     // number of non-zeros at once, as far as we know all entries before initialization
     // NOTE: For SparseSymMatrix the caller should be sure that all entries are in upper triangle.
     //
     // in case of all zeros matrix
-    if (entries.size() == 0) {
-        si = std::shared_ptr<SparsityInfo>(new SparsityInfo(_nrows, _ncols, 1));
+    if (entries.empty()) {
+        si = std::make_shared<SparsityInfo>(_nrows, _ncols, 1);
         compress();
         return;
     }
@@ -279,9 +278,9 @@ void BaseSparseMatrix::reinit(uint32 _nrows, uint32 _ncols, const std::vector<Sp
     for (auto& v : entries) {
         entriesInRow[v.i - 1] += 1;
     }
-    uint32 _max_in_row = *std::max_element(entriesInRow.begin(), entriesInRow.end());
+    const uint32 _max_in_row = *std::max_element(entriesInRow.begin(), entriesInRow.end());
     // init new SparsityInfo
-    si = std::shared_ptr<SparsityInfo>(new SparsityInfo(_nrows, _ncols, _max_in_row));
+    si = std::make_shared<SparsityInfo>(_nrows, _ncols, _max_in_row);
 
     // add non-zero entries into SparsityInfo
     for (auto& v : entries) {
@@ -294,7 +293,7 @@ void BaseSparseMatrix::reinit(uint32 _nrows, uint32 _ncols, const std::vector<Sp
     // write non-zero values into matrix
     for (auto& v : entries) {
         // addValue(v.i, v.j, v.v);
-        uint32 index = si->getIndex(v.i, v.j);
+        const uint32 index = si->getIndex(v.i, v.j);
         if (index == SparsityInfo::invalid) {
             LOG(FATAL) << "The position(" << v.i << ", " << v.j << ") is absent in the matrix";
         }
@@ -312,13 +311,12 @@ void BaseSparseMatrix::compress() {
         si->compress();
     }
 
-    if (values)
-        delete[] values;
+    delete[] values;
     values = new double[si->numberOfValues];
     zero();
 }
 
-void BaseSparseMatrix::setSparsityInfo(std::shared_ptr<SparsityInfo> spar_info) {
+void BaseSparseMatrix::setSparsityInfo(const std::shared_ptr<SparsityInfo>& spar_info) {
     assert(spar_info);
     // use already exist SparsityInfo instance. It can in compressed = false state or already
     // compressed = true state
@@ -328,27 +326,26 @@ void BaseSparseMatrix::setSparsityInfo(std::shared_ptr<SparsityInfo> spar_info) 
         compress();
 }
 
-SparseMatrix::SparseMatrix() {}
+SparseMatrix::SparseMatrix() = default;
 
-SparseMatrix::SparseMatrix(uint32 _nrows, uint32 _ncolumns, uint32 _max_in_row)
-    : BaseSparseMatrix(_nrows, _ncolumns, _max_in_row) {}
+SparseMatrix::SparseMatrix(const uint32 nrows, const uint32 ncolumns, const uint32 max_in_row)
+    : BaseSparseMatrix(nrows, ncolumns, max_in_row) {}
 
-SparseMatrix::SparseMatrix(std::shared_ptr<SparsityInfo> spar_info) : BaseSparseMatrix(spar_info) {}
+SparseMatrix::SparseMatrix(const std::shared_ptr<SparsityInfo>& spar_info) : BaseSparseMatrix(spar_info) {}
 
-void SparseMatrix::reinit(uint32 _nrows, uint32 _ncols, uint32 _max_in_row) {
-    si = std::shared_ptr<SparsityInfo>(new SparsityInfo(_nrows, _ncols, _max_in_row));
+void SparseMatrix::reinit(const uint32 _nrows, const uint32 _ncols, const uint32 _max_in_row) {
+    si = std::make_shared<SparsityInfo>(_nrows, _ncols, _max_in_row);
     if (values) {
         delete[] values;
         values = nullptr;
     }
 }
 
-void SparseMatrix::print(std::ostream& out) {
+void SparseMatrix::print(std::ostream& out) const {
     assert(si);
     assert(si->compressed);
     assert(values);
 
-    uint32 ind;
     for (uint32 i = 1; i <= si->nRows; i++) {
         out << "[";
         for (uint32 j = 1; j <= si->nColumns; j++) {
@@ -358,7 +355,7 @@ void SparseMatrix::print(std::ostream& out) {
     }
 }
 
-double& SparseMatrix::operator()(uint32 _i, uint32 _j) {
+double& SparseMatrix::operator()(const uint32 _i, const uint32 _j) const {
     assert(values);
     assert(si);
 
@@ -369,7 +366,7 @@ double& SparseMatrix::operator()(uint32 _i, uint32 _j) {
     return values[index];
 }
 
-double SparseMatrix::value(uint32 _i, uint32 _j) const {
+double SparseMatrix::value(const uint32 _i, const uint32 _j) const {
     assert(values);
     assert(si);
 
@@ -380,9 +377,10 @@ double SparseMatrix::value(uint32 _i, uint32 _j) const {
     return values[index];
 }
 
-SparseSymMatrix::SparseSymMatrix() {}
+SparseSymMatrix::SparseSymMatrix() = default;
 
-SparseSymMatrix::SparseSymMatrix(uint32 _nrows, uint32 _max_in_row) : BaseSparseMatrix(_nrows, _nrows, _max_in_row) {
+SparseSymMatrix::SparseSymMatrix(const uint32 nrows, const uint32 max_in_row)
+    : BaseSparseMatrix(nrows, nrows, max_in_row) {
     assert(si);
     // NOTE: need to add diagonal elements because MKL PARDISO need it anyway
     for (uint32 i = 1; i <= si->nRows; i++) {
@@ -390,27 +388,26 @@ SparseSymMatrix::SparseSymMatrix(uint32 _nrows, uint32 _max_in_row) : BaseSparse
     }
 }
 
-SparseSymMatrix::SparseSymMatrix(std::shared_ptr<SparsityInfo> spar_info) : BaseSparseMatrix(spar_info) {
+SparseSymMatrix::SparseSymMatrix(const std::shared_ptr<SparsityInfo>& spar_info) : BaseSparseMatrix(spar_info) {
     // TODO: we need to check that spar_info meets symmetry requirements
     // Let's at least check that is is rectangular
 
     assert(spar_info->nRows == spar_info->nColumns);
 }
 
-void SparseSymMatrix::reinit(uint32 _nrows, uint32 _max_in_row) {
-    si = std::shared_ptr<SparsityInfo>(new SparsityInfo(_nrows, _nrows, _max_in_row));
+void SparseSymMatrix::reinit(const uint32 _nrows, const uint32 _max_in_row) {
+    si = std::make_shared<SparsityInfo>(_nrows, _nrows, _max_in_row);
     if (values) {
         delete[] values;
         values = nullptr;
     }
 }
 
-void SparseSymMatrix::print(std::ostream& out) {
+void SparseSymMatrix::print(std::ostream& out) const {
     assert(si);
     assert(si->compressed);
     assert(values);
 
-    uint32 ind;
     for (uint32 i = 1; i <= si->nRows; i++) {
         // out << "[";
         for (uint32 j = 1; j <= si->nColumns; j++) {
@@ -421,7 +418,7 @@ void SparseSymMatrix::print(std::ostream& out) {
     }
 }
 
-double& SparseSymMatrix::operator()(uint32 _i, uint32 _j) {
+double& SparseSymMatrix::operator()(uint32 _i, uint32 _j) const {
     assert(values);
     assert(si);
 
@@ -429,7 +426,7 @@ double& SparseSymMatrix::operator()(uint32 _i, uint32 _j) {
     if (_i > _j)
         std::swap(_i, _j);
 
-    uint32 index = si->getIndex(_i, _j);
+    const uint32 index = si->getIndex(_i, _j);
     if (index == SparsityInfo::invalid) {
         LOG(FATAL) << "The position(" << _i << ", " << _j << ") is absent in the matrix";
     }
@@ -444,14 +441,14 @@ double SparseSymMatrix::value(uint32 _i, uint32 _j) const {
     if (_i > _j)
         std::swap(_i, _j);
 
-    uint32 index = si->getIndex(_i, _j);
+    const uint32 index = si->getIndex(_i, _j);
     if (index == SparsityInfo::invalid) {
         return 0.0;
     }
     return values[index];
 }
 
-void matBVprod(SparseSymMatrix& B, const dVec& V, const double coef, dVec& R) {
+void matBVprod(const SparseSymMatrix& B, const dVec& V, const double coef, dVec& R) {
     assert(B.si);
     assert(B.si->compressed);
     assert(B.values);
@@ -459,9 +456,8 @@ void matBVprod(SparseSymMatrix& B, const dVec& V, const double coef, dVec& R) {
     assert(R.size() >= B.nRows());
     // TODO: Try to use BLAS routines and measure speedup
 
-    const double eps = 1e-20;
-
     for (uint32 i = 1; i <= B.nRows(); i++) {
+        constexpr double eps = 1e-20;
         // walk on lower triangle
         for (uint32 j = 1; j <= i; j++)
             if (fabs(V[j - 1]) > eps)
@@ -475,7 +471,7 @@ void matBVprod(SparseSymMatrix& B, const dVec& V, const double coef, dVec& R) {
     }
 }
 
-void matBVprod(SparseMatrix& B, const dVec& V, const double coef, dVec& R) {
+void matBVprod(const SparseMatrix& B, const dVec& V, const double coef, dVec& R) {
     assert(B.si);
     assert(B.si->compressed);
     assert(B.values);
@@ -489,15 +485,15 @@ void matBVprod(SparseMatrix& B, const dVec& V, const double coef, dVec& R) {
         if (B.si->iofeir[i] - B.si->iofeir[i - 1] == 0)
             continue;
 
-        uint32 st = B.si->iofeir[i - 1] - 1;
-        uint32 en = B.si->iofeir[i] - 2;
+        const uint32 st = B.si->iofeir[i - 1] - 1;
+        const uint32 en = B.si->iofeir[i] - 2;
 
         for (uint32 j = st; j <= en; j++)
             R[i - 1] += B.values[j] * V[B.si->columns[j] - 1] * coef;
     }
 }
 
-void matBTVprod(SparseMatrix& B, const dVec& V, const double coef, dVec& R) {
+void matBTVprod(const SparseMatrix& B, const dVec& V, const double coef, dVec& R) {
     assert(B.si);
     assert(B.si->compressed);
     assert(B.values);
@@ -509,8 +505,8 @@ void matBTVprod(SparseMatrix& B, const dVec& V, const double coef, dVec& R) {
         if (B.si->iofeir[i] - B.si->iofeir[i - 1] == 0) {
             continue;
         }
-        uint32 st = B.si->iofeir[i - 1] - 1;
-        uint32 en = B.si->iofeir[i] - 2;
+        const uint32 st = B.si->iofeir[i - 1] - 1;
+        const uint32 en = B.si->iofeir[i] - 2;
         for (uint32 j = st; j <= en; j++)
             R[B.si->columns[j] - 1] += B.values[j] * V[i - 1] * coef;
     }

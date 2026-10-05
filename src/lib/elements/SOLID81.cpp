@@ -9,7 +9,7 @@ using namespace math;
 using namespace solidmech;
 
 void ElementSOLID81::pre() {
-    if (det.size() == 0) {
+    if (det.empty()) {
         makeJacob();
     }
 
@@ -30,27 +30,27 @@ void ElementSOLID81::buildK() {
     double Fp = 0.0;
 
     Vec<24> Kup;
-    Vec<24> Fu;    // вектор узловых сил элемента
-    Vec<24> F_ext; // вектор внешних сил (пока не подсчитывается)
-    Mat_Hyper_Isotrop_General* mat = CHECK_NOTNULL(dynamic_cast<Mat_Hyper_Isotrop_General*>(storage->getMaterial()));
-    double k = mat->getK();
+    Vec<24> Fu; // вектор узловых сил элемента
+    // Vec<24> F_ext; // вектор внешних сил (пока не подсчитывается)
+    const auto mat = CHECK_NOTNULL(dynamic_cast<Mat_Hyper_Isotrop_General*>(storage->getMaterial()));
+    const double k = mat->getK();
     MatSym<6> matD_d;
     Vec<6> vecD_p;
-    Vec<6> vecC;
+    // Vec<6> vecC;
 
     Mat<6, 24> matB;
     MatSym<9> matS;
     Mat<6, 9> matO;
     Mat<9, 24> matB_NL;
     MatSym<24> Kuu; // матрица жесткости перед вектором перемещений
-    double p_e = storage->getElementDofSolution(getElNum(), Dof::HYDRO_PRESSURE);
-    double dWt; // множитель при суммировании квадратур Гаусса
+    const double p_e = storage->getElementDofSolution(getElNum(), Dof::HYDRO_PRESSURE);
+    // множитель при суммировании квадратур Гаусса
     Kuu.zero();
     for (uint16 np = 0; np < nOfIntPoints(); np++) {
-        dWt = intWeight(np);
+        const double dWt = intWeight(np);
 
         mat->getDdDp_UP(6, solidmech::defaultTensorComponents, C[np].ptr(), p_e, matD_d.ptr(), vecD_p.ptr());
-        double J = solidmech::J_C(C[np].ptr());
+        const double J = solidmech::J_C(C[np].ptr());
         matB.zero();
         matS.zero();
         matO.zero();
@@ -88,10 +88,10 @@ void ElementSOLID81::update() {
         U[i * 3 + 2] = storage->getNodeDofSolution(getNodeNumber(i), Dof::UZ);
     }
     Mat<9, 24> B_NL;
-    Vec<6> vecC;
-    double p_e = storage->getElementDofSolution(getElNum(), Dof::HYDRO_PRESSURE);
+    // Vec<6> vecC;
+    const double p_e = storage->getElementDofSolution(getElNum(), Dof::HYDRO_PRESSURE);
 
-    Mat_Hyper_Isotrop_General* mat = CHECK_NOTNULL(dynamic_cast<Mat_Hyper_Isotrop_General*>(storage->getMaterial()));
+    auto* mat = CHECK_NOTNULL(dynamic_cast<Mat_Hyper_Isotrop_General*>(storage->getMaterial()));
     for (uint16 np = 0; np < nOfIntPoints(); np++) {
         B_NL.zero();
         make_B_NL(np, B_NL);
@@ -110,7 +110,7 @@ void ElementSOLID81::update() {
     }
 }
 
-void ElementSOLID81::make_B_L(uint16 np, Mat<6, 24>& B) {
+void ElementSOLID81::make_B_L(const uint16 np, Mat<6, 24>& B) {
     double* B_L = B.ptr();
     for (uint16 i = 0; i < 8; i++) {
         B_L[0 * 24 + (i * 3 + 0)] += 2 * NiXj[np][i][0]; // exx
@@ -125,7 +125,7 @@ void ElementSOLID81::make_B_L(uint16 np, Mat<6, 24>& B) {
     }
 }
 
-void ElementSOLID81::make_B_NL(uint16 np, Mat<9, 24>& B) {
+void ElementSOLID81::make_B_NL(const uint16 np, Mat<9, 24>& B) {
     double* B_NL = B.ptr();
     for (uint16 i = 0; i < 8; i++) {
         B_NL[0 * 24 + (i * 3 + 0)] += NiXj[np][i][0];
@@ -140,7 +140,7 @@ void ElementSOLID81::make_B_NL(uint16 np, Mat<9, 24>& B) {
     }
 }
 
-void ElementSOLID81::make_S(uint16 np, MatSym<9>& B) {
+void ElementSOLID81::make_S(const uint16 np, MatSym<9>& B) {
     double* Sp = B.ptr();
     Sp[0] += S[np][M_XX];
     Sp[1] += S[np][M_XY];
@@ -164,7 +164,7 @@ void ElementSOLID81::make_S(uint16 np, MatSym<9>& B) {
     Sp[44] += S[np][M_ZZ];
 }
 
-void ElementSOLID81::make_Omega(uint16 np, Mat<6, 9>& B) {
+void ElementSOLID81::make_Omega(const uint16 np, Mat<6, 9>& B) {
     double* Omega = B.ptr();
     for (uint16 i = 0; i < 3; i++) {
         Omega[0 * 9 + (i * 3 + 0)] = O[np][0 + i * 3]; // exx
@@ -179,15 +179,14 @@ void ElementSOLID81::make_Omega(uint16 np, Mat<6, 9>& B) {
     }
 }
 
-bool ElementSOLID81::getScalar(double* scalar, scalarQuery query, uint16 gp, const double scale) {
+bool ElementSOLID81::getScalar(double* scalar, const scalarQuery query, const uint16 gp, const double scale) {
     // see queries in query.h
     // gp - needed gauss point
     if (gp == GP_MEAN) { // need to average result over the element
-        double dWtSum = volume();
-        double dWt;
+        const double dWtSum = volume();
         for (uint16 np = 0; np < nOfIntPoints(); np++) {
-            dWt = intWeight(np);
-            bool ret = getScalar(scalar, query, np, dWt / dWtSum * scale);
+            const double dWt = intWeight(np);
+            const bool ret = getScalar(scalar, query, np, dWt / dWtSum * scale);
             if (ret == false)
                 return false;
         }
@@ -220,17 +219,17 @@ bool ElementSOLID81::getScalar(double* scalar, scalarQuery query, uint16 gp, con
     case scalarQuery::VOL:
         *scalar += volume() * scale;
         return true;
+    default:
+        return false;
     }
-    return false;
 }
 
-bool ElementSOLID81::getVector(Vec<3>& vector, vectorQuery query, uint16 gp, const double scale) {
+bool ElementSOLID81::getVector(Vec<3>& vector, const vectorQuery query, const uint16 gp, const double scale) {
     if (gp == GP_MEAN) { // need to average result over the element
-        double dWtSum = volume();
-        double dWt;
+        const double dWtSum = volume();
         for (uint16 np = 0; np < nOfIntPoints(); np++) {
-            dWt = intWeight(np);
-            bool ret = getVector(vector, query, np, dWt / dWtSum * scale);
+            const double dWt = intWeight(np);
+            const bool ret = getVector(vector, query, np, dWt / dWtSum * scale);
             if (ret == false)
                 return false;
         }
@@ -248,18 +247,18 @@ bool ElementSOLID81::getVector(Vec<3>& vector, vectorQuery query, uint16 gp, con
         vector[1] += IC[1] * scale;
         vector[2] += IC[2] * scale;
         return true;
+    default:
+        return false;
     }
-    return false;
 }
 
 // return a tensor in a global coordinate system
-bool ElementSOLID81::getTensor(MatSym<3>& tensor, tensorQuery query, uint16 gp, const double scale) {
+bool ElementSOLID81::getTensor(MatSym<3>& tensor, const tensorQuery query, const uint16 gp, const double scale) {
     if (gp == GP_MEAN) { // need to average result over the element
-        double dWtSum = volume();
-        double dWt;
+        const double dWtSum = volume();
         for (uint16 np = 0; np < nOfIntPoints(); np++) {
-            dWt = intWeight(np);
-            bool ret = getTensor(tensor, query, np, dWt / dWtSum * scale);
+            const double dWt = intWeight(np);
+            const bool ret = getTensor(tensor, query, np, dWt / dWtSum * scale);
             if (ret == false)
                 return false;
         }
@@ -329,8 +328,9 @@ bool ElementSOLID81::getTensor(MatSym<3>& tensor, tensorQuery query, uint16 gp, 
         tensor.data[4] += C[gp][M_YZ] * 0.5 * scale;
         tensor.data[5] += (C[gp][M_ZZ] - 1.0) * 0.5 * scale;
         return true;
+    default:
+        return false;
     }
-    return false;
 }
 
 } // namespace nla3d

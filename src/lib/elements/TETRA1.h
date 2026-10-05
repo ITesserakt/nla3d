@@ -11,15 +11,15 @@ class ElementTETRA1 : public ElementTETRA {
   public:
     ElementTETRA1();
 
-    void pre();
+    void pre() override;
 
-    void buildK();
+    void buildK() override;
 
-    void update();
+    void update() override;
 
     void makeB(math::Mat<3, 4>& B);
 
-    void makeC(math::MatSym<3>& C);
+    void makeC(math::MatSym<3>& C) const;
 
     // conductivity coef ( W/(K m), for example)
     double k = 0.0;
@@ -30,9 +30,9 @@ class ElementTETRA1 : public ElementTETRA {
     double vol = 0.0;
 
     // postproc procedures
-    bool getScalar(double* scalar, scalarQuery code, uint16 gp, const double scale);
+    bool getScalar(double* scalar, scalarQuery code, uint16 gp, double scale) override;
 
-    bool getVector(math::Vec<3>& vector, vectorQuery code, uint16 gp, const double scale);
+    bool getVector(math::Vec<3>& vector, vectorQuery code, uint16 gp, double scale) override;
 };
 
 } // namespace nla3d

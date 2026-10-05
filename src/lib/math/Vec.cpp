@@ -7,11 +7,9 @@
 namespace nla3d {
 namespace math {
 
-dVec::dVec() {}
-
 dVec::dVec(dVec const& rhs) {
     if (rhs.isInit()) {
-        double* ptr = new double[rhs.size()];
+        const auto ptr = new double[rhs.size()];
         memcpy(ptr, rhs.data, sizeof(double) * rhs.size());
         data = ptr;
         memory_owner = true;
@@ -19,17 +17,17 @@ dVec::dVec(dVec const& rhs) {
     }
 }
 
-dVec::dVec(dVec&& rhs) : data(rhs.data), memory_owner(rhs.memory_owner), _size(rhs.size()) {
+dVec::dVec(dVec&& rhs) noexcept : memory_owner(rhs.memory_owner), data(rhs.data), _size(rhs.size()) {
     rhs._size = 0;
     rhs.data = nullptr;
     rhs.memory_owner = false;
 }
 
-dVec::dVec(uint32 _n, double _val) { reinit(_n, _val); }
+dVec::dVec(const uint32 _n, const double _val) { reinit(_n, _val); }
 
-dVec::dVec(dVec& _ref, uint32 _start, uint32 _size) { reinit(_ref, _start, _size); }
+dVec::dVec(dVec& _ref, const uint32 _start, const uint32 _size) { reinit(_ref, _start, _size); }
 
-void dVec::reinit(uint32 _n, double _val) {
+void dVec::reinit(const uint32 _n, const double _val) {
     clear();
     data = new double[_n];
     memory_owner = true;
@@ -37,13 +35,13 @@ void dVec::reinit(uint32 _n, double _val) {
     fill(_val);
 }
 
-void dVec::reinit(dVec& _ref, uint32 _start, uint32 _size) {
+void dVec::reinit(const dVec& _ref, const uint32 _start, const uint32 size) {
     clear();
 
     assert(_ref.data);
-    assert(_start + _size <= _ref.size());
+    assert(_start + size <= _ref.size());
     data = _ref.data + _start;
-    this->_size = _size;
+    this->_size = size;
     memory_owner = false;
 }
 
@@ -53,7 +51,7 @@ uint32 dVec::size() const { return _size; }
 
 void dVec::zero() { fill(0.0); }
 
-double* dVec::ptr() {
+double* dVec::ptr() const {
     assert(data);
     return data;
 }
@@ -67,26 +65,26 @@ void dVec::clear() {
     _size = 0;
 }
 
-void dVec::fill(double val) {
+void dVec::fill(const double val) const {
     assert(data);
     std::fill_n(data, _size, val);
 }
 
 bool dVec::isInit() const { return (data != nullptr); }
 
-double& dVec::operator[](uint32 _n) {
+double& dVec::operator[](const uint32 _n) {
     assert(data);
     assert(_n < _size);
     return data[_n];
 }
 
-double dVec::operator[](uint32 _n) const {
+double dVec::operator[](const uint32 _n) const {
     assert(data);
     assert(_n < _size);
     return data[_n];
 }
 
-dVec dVec::operator-() {
+dVec dVec::operator-() const {
     assert(data);
     dVec p(size());
     for (uint32 i = 0; i < size(); i++) {
@@ -95,7 +93,7 @@ dVec dVec::operator-() {
     return p;
 }
 
-dVec dVec::operator+(const dVec& op) {
+dVec dVec::operator+(const dVec& op) const {
     assert(data);
     assert(op.data);
     assert(size() == op.size());
@@ -108,7 +106,7 @@ dVec dVec::operator+(const dVec& op) {
     return p;
 }
 
-dVec dVec::operator-(const dVec& op) {
+dVec dVec::operator-(const dVec& op) const {
     assert(data);
     assert(op.data);
     assert(size() == op.size());
@@ -121,7 +119,7 @@ dVec dVec::operator-(const dVec& op) {
     return p;
 }
 
-dVec dVec::operator*(const double op) {
+dVec dVec::operator*(const double op) const {
     assert(data);
 
     dVec p(size());
@@ -143,7 +141,7 @@ dVec operator*(const double op1, const dVec& op2) {
     return p;
 }
 
-dVec dVec::operator/(const double op) {
+dVec dVec::operator/(const double op) const {
     assert(data);
 
     dVec p(size());
@@ -189,8 +187,8 @@ dVec& dVec::operator=(const dVec& op) {
     return *this;
 }
 
-bool dVec::compare(const dVec& op2, double th) {
-    dVec& op1 = *this;
+bool dVec::compare(const dVec& op2, const double th) const {
+    const dVec& op1 = *this;
     assert(op1.data && op2.data);
 
     // first round. compare lengths
@@ -208,7 +206,7 @@ bool dVec::compare(const dVec& op2, double th) {
     return true;
 }
 
-void dVec::writeTextFormat(std::ostream& out) {
+void dVec::writeTextFormat(std::ostream& out) const {
     out << size() << std::endl;
     for (uint32 i = 0; i < size(); i++) {
         out << data[i] << std::endl;

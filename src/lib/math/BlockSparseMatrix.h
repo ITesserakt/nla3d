@@ -38,7 +38,7 @@ namespace math {
 template <uint16 nb> class BlockSparseSymMatrix {
   public:
     BlockSparseSymMatrix(std::initializer_list<uint32> _rows_in_block, uint32 max_in_row = 100);
-    BlockSparseSymMatrix(BlockSparseSymMatrix* ex);
+    explicit BlockSparseSymMatrix(BlockSparseSymMatrix* ex);
 
     // add non-zero entry to sparse matrix. This should be called before compress().
     void addEntry(uint32 _i, uint32 _j);
@@ -51,12 +51,12 @@ template <uint16 nb> class BlockSparseSymMatrix {
 
     void zero();
     void compress();
-    bool isCompressed();
+    bool isCompressed() const;
 
-    uint32 nRows();
+    uint32 nRows() const;
 
   private:
-    void getBlockAndPosition(uint32 _i, uint16* block, uint32* pos);
+    void getBlockAndPosition(uint32 _i, uint16* block, uint32* pos) const;
 
     SparseSymMatrix diag[nb];
     SparseMatrix upper[nb * (nb + 1) / 2 - nb];
@@ -67,21 +67,22 @@ template <uint16 nb> class BlockSparseSymMatrix {
 };
 
 template <uint16 nb>
-BlockSparseSymMatrix<nb>::BlockSparseSymMatrix(std::initializer_list<uint32> _rows_in_block, uint32 _mat_in_row) {
+BlockSparseSymMatrix<nb>::BlockSparseSymMatrix(const std::initializer_list<uint32> _rows_in_block,
+                                               const uint32 max_in_row) {
     rows_in_block = std::vector<uint32>(_rows_in_block);
 
     assert(rows_in_block.size() == nb);
 
     for (uint16 i = 0; i < nb; i++) {
-        block(i + 1)->reinit(rows_in_block[i], _mat_in_row);
+        block(i + 1)->reinit(rows_in_block[i], max_in_row);
         for (uint16 j = i + 1; j < nb; j++) {
-            block(i + 1, j + 1)->reinit(rows_in_block[i], rows_in_block[j], _mat_in_row);
+            block(i + 1, j + 1)->reinit(rows_in_block[i], rows_in_block[j], max_in_row);
         }
         total_rows += rows_in_block[i];
     }
 }
 
-template <uint16 nb> BlockSparseSymMatrix<nb>::BlockSparseSymMatrix(BlockSparseSymMatrix<nb>* ex) {
+template <uint16 nb> BlockSparseSymMatrix<nb>::BlockSparseSymMatrix(BlockSparseSymMatrix* ex) {
     // assign sparsity to all underlying matrices
     rows_in_block = ex->rows_in_block; // TODO: need copy here..
     assert(rows_in_block.size() == nb);
@@ -98,23 +99,23 @@ template <uint16 nb> BlockSparseSymMatrix<nb>::BlockSparseSymMatrix(BlockSparseS
     }
 }
 
-template <uint16 nb> inline SparseSymMatrix* BlockSparseSymMatrix<nb>::block(uint16 _i) {
+template <uint16 nb> SparseSymMatrix* BlockSparseSymMatrix<nb>::block(const uint16 _i) {
     assert(_i > 0 && _i <= nb);
     return &diag[_i - 1];
 }
 
-template <uint16 nb> inline SparseMatrix* BlockSparseSymMatrix<nb>::block(uint16 _i, uint16 _j) {
+template <uint16 nb> SparseMatrix* BlockSparseSymMatrix<nb>::block(uint16 _i, uint16 _j) {
     CHECK(_i != _j);
     if (_i > _j)
         std::swap(_i, _j);
 
     uint16 ind = nb * (_i - 1) - (_i - 2) * (_i - 1) / 2 + (_j - _i) - _i;
-    assert(ind >= 0 && ind < nb * (nb + 1) / 2 - nb);
+    assert(ind < nb * (nb + 1) / 2 - nb);
 
     return &upper[ind];
 }
 
-template <uint16 nb> inline void BlockSparseSymMatrix<nb>::getBlockAndPosition(uint32 _i, uint16* block, uint32* pos) {
+template <uint16 nb> void BlockSparseSymMatrix<nb>::getBlockAndPosition(const uint32 _i, uint16* block, uint32* pos) const {
     assert(_i > 0 && _i <= total_rows);
     *block = 1;
     *pos = _i;
@@ -141,7 +142,7 @@ template <uint16 nb> void BlockSparseSymMatrix<nb>::addEntry(uint32 _i, uint32 _
     }
 }
 
-template <uint16 nb> void BlockSparseSymMatrix<nb>::addValue(uint32 _i, uint32 _j, double value) {
+template <uint16 nb> void BlockSparseSymMatrix<nb>::addValue(uint32 _i, uint32 _j, const double value) {
     uint16 block_i, block_j;
     uint32 pos_i, pos_j;
     if (_i > _j)
@@ -180,9 +181,9 @@ template <uint16 nb> void BlockSparseSymMatrix<nb>::compress() {
     compressed = true;
 }
 
-template <uint16 nb> inline bool BlockSparseSymMatrix<nb>::isCompressed() { return compressed; }
+template <uint16 nb> bool BlockSparseSymMatrix<nb>::isCompressed() const { return compressed; }
 
-template <uint16 nb> uint32 BlockSparseSymMatrix<nb>::nRows() { return total_rows; }
+template <uint16 nb> uint32 BlockSparseSymMatrix<nb>::nRows() const { return total_rows; }
 
 } // namespace math
 } // namespace nla3d

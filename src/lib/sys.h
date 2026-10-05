@@ -7,18 +7,12 @@
 #ifdef WIN32
 #define NOMINMAX
 #endif
-#include <algorithm>
-#include <assert.h>
+
+#include <cassert>
 #include <fstream>
-#include <iostream>
-#include <list>
-#include <set>
 #include <sstream>
-#include <stdarg.h>
-#include <stdlib.h>
 #include <string>
-#include <strstream>
-#include <time.h>
+#include <ctime>
 #include <vector>
 
 #define ELPP_STL_LOGGING
@@ -48,14 +42,14 @@
 // usefull macros to check floats with threshold
 #define CHECK_EQTH(a, b, th) CHECK(fabs((a) - (b)) < (th))
 
-typedef char int8;                 //-127 to +127
-typedef unsigned char uint8;       // 0 to +255
-typedef short int16;               //-32 767 to +32 767
-typedef unsigned short uint16;     // 0 to +65 535
-typedef int int32;                 //-2 147 483 647 to +2 147 483 647
-typedef unsigned int uint32;       // 0 to +4 294 967 295
-typedef long long int64;           //-9 223 372 036 854 775 807 to +9 223 372 036 854 775 807
-typedef unsigned long long uint64; // 0 to +18 446 744 073 709 551 615
+using int8 = char;                 //-127 to +127
+using uint8 = unsigned char;       // 0 to +255
+using int16 = short;               //-32 767 to +32 767
+using uint16 = unsigned short;     // 0 to +65 535
+using int32 = int;                 //-2 147 483 647 to +2 147 483 647
+using uint32 = unsigned int;       // 0 to +4 294 967 295
+using int64 = long long;           //-9 223 372 036 854 775 807 to +9 223 372 036 854 775 807
+using uint64 = unsigned long long; // 0 to +18 446 744 073 709 551 615
 
 namespace nla3d {
 
@@ -109,7 +103,7 @@ void del_spaces(std::string& str);
 
 class Timer {
   public:
-    Timer(bool _start = false) : start_time(0), end_time(0) {
+    explicit Timer(const bool _start = false) : start_time(0), end_time(0) {
         if (_start) {
             start();
         }
@@ -125,7 +119,7 @@ class Timer {
         return time();
     }
 
-    double time() { return ((double)end_time - start_time) / CLOCKS_PER_SEC; }
+    double time() const { return static_cast<double>(end_time - start_time) / CLOCKS_PER_SEC; }
 
   private:
     clock_t start_time;
@@ -137,10 +131,10 @@ bool cmdOptionExists(char** begin, char** end, const std::string& option);
 std::vector<char*> getCmdManyOptions(char** begin, char** end, const std::string& option);
 
 struct MatchPathSeparator {
-    bool operator()(char ch) const { return ch == '\\' || ch == '/'; }
+    bool operator()(const char ch) const { return ch == '\\' || ch == '/'; }
 };
 
-std::string getFileNameFromPath(const std::string filename);
+std::string getFileNameFromPath(const std::string& filename);
 
 enum class ElementType {
     TRUSS3 = 0,

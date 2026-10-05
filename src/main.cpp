@@ -5,8 +5,10 @@
 #include "FEReaders.h"
 #include "FESolver.h"
 #include "FEStorage.h"
+#include "Node.h"
 #include "ReactionProcessor.h"
 #include "VtkProcessor.h"
+#include "elements/ElementFactory.h"
 #include "materials/MaterialFactory.h"
 #include "sys.h"
 

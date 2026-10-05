@@ -9,8 +9,6 @@
 #include "math/Vec.h"
 #include "sys.h"
 
-#include <Eigen/Dense>
-
 namespace nla3d {
 
 using namespace math;
@@ -26,21 +24,21 @@ class PostProcessor;
 // equilibriumSteps.
 class TimeControl {
   public:
-    uint16 getCurrentStep();
-    uint16 getNumberOfConvergedSteps();
+    uint16 getCurrentStep() const;
+    uint16 getNumberOfConvergedSteps() const;
 
-    uint16 getCurrentEquilibriumStep();
-    uint16 getTotalNumberOfEquilibriumSteps();
+    uint16 getCurrentEquilibriumStep() const;
+    uint16 getTotalNumberOfEquilibriumSteps() const;
 
     bool nextStep(double delta);
     void nextEquilibriumStep();
 
-    double getCurrentTime();
-    double getCurrentNormalizedTime();
-    double getEndTime();
-    double getStartTime();
-    double getCurrentTimeDelta();
-    double getCurrentNormalizedTimeDelta();
+    double getCurrentTime() const;
+    double getCurrentNormalizedTime() const;
+    double getEndTime() const;
+    double getStartTime() const;
+    double getCurrentTimeDelta() const;
+    double getCurrentNormalizedTimeDelta() const;
 
     void setEndTime(double _endTime);
     void setStartTime(double _startTime);
@@ -98,10 +96,10 @@ class FESolver {
     // main method were all solution scheme specific routines are performed
     virtual void solve() = 0;
 
-    size_t getNumberOfPostProcessors();
+    size_t getNumberOfPostProcessors() const;
     // get an instance of PostProcessor by its number
     // _np >= 0
-    PostProcessor& getPostProcessor(size_t _np);
+    PostProcessor& getPostProcessor(size_t _np) const;
     // The function stores PostProcessor pointer in FESolver. FESovler will free the memory by itself.
     uint16 addPostProcessor(PostProcessor* pp);
     void deletePostProcessors();
@@ -117,12 +115,12 @@ class FESolver {
     // constrained DoFs has special treatment in FEStorage, that's why before initialization of
     // solution data we need to tell FEStorage which DoFs is constrained. setConstrainedDofs() does
     // this work based on `fixs` array.
-    void setConstrainedDofs();
+    void setConstrainedDofs() const;
 
     // add DoF fixation (constraint) boundary condition
-    void addFix(int32 n, Dof::dofType dof, const double value = 0.0);
+    void addFix(int32 n, Dof::dofType dof, double value = 0.0);
     // add DoF load (force) boundary condition
-    void addLoad(int32 n, Dof::dofType dof, const double value = 0.0);
+    void addLoad(int32 n, Dof::dofType dof, double value = 0.0);
 
     // for debug purpose:
     // dump matrices matK, matC, matM and vectors vecF, vecR
@@ -197,15 +195,15 @@ class FESolver {
 // particular realization of FESolver for linear tasks
 class LinearFESolver : public FESolver {
   public:
-    LinearFESolver();
-    virtual void solve();
+    LinearFESolver() = default;
+    void solve() override;
 };
 
 // Iterative solver for Full Newton-Raphson procedure
 // The convergence is controlled by mean increment of DoF values
 class NonlinearFESolver : public FESolver {
   public:
-    NonlinearFESolver();
+    NonlinearFESolver() = default;
 
     TimeControl timeControl;
     uint16 numberOfIterations = 20;
@@ -213,17 +211,17 @@ class NonlinearFESolver : public FESolver {
 
     double convergenceCriteria = 1.0e-3;
 
-    virtual void solve();
+    void solve() override;
 
   protected:
-    double calculateCriteria(dVec& delta);
+    double calculateCriteria(dVec& delta) const;
 };
 
 // Solver for time integration of linear systems: M * DDU + C * DU + K * U = F + R
 // use Newmark scheme (based on section 9.2.4. Bathe K.J., Finite Element Procedures, 1997)
 class LinearTransientFESolver : public FESolver {
   public:
-    LinearTransientFESolver();
+    LinearTransientFESolver() = default;
 
     uint16 numberOfTimesteps = 100;
 
@@ -237,7 +235,7 @@ class LinearTransientFESolver : public FESolver {
     // initial values for vecUc
     double initValue = 0.0;
 
-    virtual void solve();
+    void solve() override;
 
     double a0, a1, a2, a3, a4, a5, a6, a7;
 };

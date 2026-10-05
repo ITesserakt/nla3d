@@ -6,10 +6,9 @@
 #include "sys.h"
 #include <Eigen/Dense>
 #include <initializer_list>
-#include <math.h>
 #include <vector>
 
-#include "Node.h"
+#include "Dof.h"
 #include "math/Mat.h"
 #include "math/Vec.h"
 #include "query.h"
@@ -86,21 +85,21 @@ class Element {
     virtual ~Element();
 
     // get element number, as it is stored in FEStorage. Numbers start from 1.
-    uint32 getElNum();
+    uint32 getElNum() const;
     // return number of nodes for the element
-    uint16 getNNodes();
+    uint16 getNNodes() const;
     // return number of dimensions (0D, 1D, 2D, 3D) occupied by element shape.
-    uint16 getDim();
+    uint16 getDim() const;
     // return element shape
-    ElementShape getShape();
+    ElementShape getShape() const;
     // return element type
-    ElementType getType();
+    ElementType getType() const;
     // return node number (as it stored in FEStorage) of the i-th node in the element
-    uint32& getNodeNumber(uint16 num);
+    uint32& getNodeNumber(uint16 num) const;
     // return the FEStorage to which element belongs
-    FEStorage& getStorage();
+    FEStorage& getStorage() const;
     // return order of integration scheme used in the particular element for integration over volume
-    uint16 getIntegrationOrder();
+    uint16 getIntegrationOrder() const;
     // set the integration order for the element
     void setIntegrationOrder(uint16 _nint); // нельзя вызывать после выполнения функции pre() (начало решения)
 
@@ -120,14 +119,14 @@ class Element {
     // result will be averaged over the element based on current integration scheme.
     // The methods return true if the query is relevant for the element and false if the element
     // can't return asked query code.
-    virtual bool getScalar(double* scalar, scalarQuery query, uint16 gp = GP_MEAN, const double scale = 1.0);
-    virtual bool getVector(math::Vec<3>& vector, vectorQuery query, uint16 gp = GP_MEAN, const double scale = 1.0);
-    virtual bool getTensor(math::MatSym<3>& tensor, tensorQuery query, uint16 gp = GP_MEAN, const double scale = 1.0);
+    virtual bool getScalar(double* scalar, scalarQuery query, uint16 gp = GP_MEAN, double scale = 1.0);
+    virtual bool getVector(math::Vec<3>& vector, vectorQuery query, uint16 gp = GP_MEAN, double scale = 1.0);
+    virtual bool getTensor(math::MatSym<3>& tensor, tensorQuery query, uint16 gp = GP_MEAN, double scale = 1.0);
 
     Element& operator=(const Element& from);
 
     // in-out operation:
-    void print(std::ostream& out);
+    void print(std::ostream& out) const;
 
     // some general purpose assemble procedures. Particular element realization could have it own
     // assembly procedure.
@@ -138,13 +137,13 @@ class Element {
     template <uint16 dimM>
     void assembleK(math::MatSym<dimM>& Ke, math::Vec<dimM>& Fe, std::initializer_list<Dof::dofType> _nodeDofs);
 
-    void assembleK(Eigen::Ref<Eigen::MatrixXd> Ke, std::initializer_list<Dof::dofType> _nodeDofs);
+    void assembleK(Eigen::Ref<Eigen::MatrixXd> Ke, std::initializer_list<Dof::dofType> _nodeDofs) const;
 
     friend class FEStorage;
 
   protected:
     ElementType type = ElementType::UNDEFINED;
-    ElementShape shape = ElementShape::UNDEFINED;
+    ElementShape shape = UNDEFINED;
     uint16 intOrder = 0; // number of int points overall
     uint32 elNum = 0;
     uint32* nodes = nullptr;
@@ -155,105 +154,81 @@ class Element {
 class ElementVERTEX : public Element {
   public:
     ElementVERTEX() {
-        shape = ElementShape::VERTEX;
+        shape = VERTEX;
         nodes = new uint32[getNNodes()];
     }
 
-    ElementVERTEX& operator=(const ElementVERTEX& from) {
-        Element::operator=(from);
-        return *this;
-    }
+    ElementVERTEX& operator=(const ElementVERTEX& from) = default;
 };
 
 class ElementTWIN_VERTEX : public Element {
   public:
     ElementTWIN_VERTEX() {
-        shape = ElementShape::TWIN_VERTEX;
+        shape = TWIN_VERTEX;
         nodes = new uint32[getNNodes()];
     }
 
-    ElementTWIN_VERTEX& operator=(const ElementTWIN_VERTEX& from) {
-        Element::operator=(from);
-        return *this;
-    }
+    ElementTWIN_VERTEX& operator=(const ElementTWIN_VERTEX& from) = default;
 };
 
 class ElementLINE : public Element {
   public:
     ElementLINE() {
-        shape = ElementShape::LINE;
+        shape = LINE;
         nodes = new uint32[getNNodes()];
     }
 
-    ElementLINE& operator=(const ElementLINE& from) {
-        Element::operator=(from);
-        return *this;
-    }
+    ElementLINE& operator=(const ElementLINE& from) = default;
 };
 
 class ElementTRIANGLE : public Element {
   public:
     ElementTRIANGLE() {
-        shape = ElementShape::TRIANGLE;
+        shape = TRIANGLE;
         nodes = new uint32[getNNodes()];
     }
 
-    ElementTRIANGLE& operator=(const ElementTRIANGLE& from) {
-        Element::operator=(from);
-        return *this;
-    }
+    ElementTRIANGLE& operator=(const ElementTRIANGLE& from) = default;
 };
 
 class ElementQUAD : public Element {
   public:
     ElementQUAD() {
-        shape = ElementShape::QUAD;
+        shape = QUAD;
         nodes = new uint32[getNNodes()];
     }
 
-    ElementQUAD& operator=(const ElementQUAD& from) {
-        Element::operator=(from);
-        return *this;
-    }
+    ElementQUAD& operator=(const ElementQUAD& from) = default;
 };
 
 class ElementTETRA : public Element {
   public:
     ElementTETRA() {
-        shape = ElementShape::TETRA;
+        shape = TETRA;
         nodes = new uint32[getNNodes()];
     }
 
-    ElementTETRA& operator=(const ElementTETRA& from) {
-        Element::operator=(from);
-        return *this;
-    }
+    ElementTETRA& operator=(const ElementTETRA& from) = default;
 };
 
 class ElementHEXAHEDRON : public Element {
   public:
     ElementHEXAHEDRON() {
-        shape = ElementShape::HEXAHEDRON;
+        shape = HEXAHEDRON;
         nodes = new uint32[getNNodes()];
     }
 
-    ElementHEXAHEDRON& operator=(const ElementHEXAHEDRON& from) {
-        Element::operator=(from);
-        return *this;
-    }
+    ElementHEXAHEDRON& operator=(const ElementHEXAHEDRON& from) = default;
 };
 
 class ElementWEDGE : public Element {
   public:
     ElementWEDGE() {
-        shape = ElementShape::WEDGE;
+        shape = WEDGE;
         nodes = new uint32[getNNodes()];
     }
 
-    ElementWEDGE& operator=(const ElementWEDGE& from) {
-        Element::operator=(from);
-        return *this;
-    }
+    ElementWEDGE& operator=(const ElementWEDGE& from) = default;
 };
 
 } // namespace nla3d
@@ -263,69 +238,23 @@ class ElementWEDGE : public Element {
 
 namespace nla3d {
 
-template <uint16 dimM> void Element::assembleK(math::MatSym<dimM>& Ke, std::initializer_list<Dof::dofType> _nodeDofs) {
-    assert(nodes != NULL);
-    double* Ke_p = Ke.ptr();
-    std::vector<Dof::dofType> nodeDof(_nodeDofs);
-    uint16 dim = static_cast<uint16>(_nodeDofs.size());
+template <uint16 dimM>
+void Element::assembleK(math::MatSym<dimM>& Ke, const std::initializer_list<Dof::dofType> _nodeDofs) {
+    assert(nodes != nullptr);
+    const double* Ke_p = Ke.ptr();
+    const std::vector<Dof::dofType> nodeDof(_nodeDofs);
+    const auto dim = static_cast<uint16>(_nodeDofs.size());
     assert(getNNodes() * dim == dimM);
 
     for (uint16 i = 0; i < getNNodes(); i++) {
         for (uint16 di = 0; di < dim; di++) {
             for (uint16 j = i; j < getNNodes(); j++) {
                 for (uint16 dj = 0; dj < dim; dj++) {
-                    if ((i == j) && (dj < di)) {
+                    if (i == j && dj < di) {
                         continue;
-                    } else {
-                        storage->addValueK(nodes[i], nodeDof[di], nodes[j], nodeDof[dj], *Ke_p);
-                        Ke_p++;
                     }
-                }
-            }
-        }
-    }
-}
-
-template <uint16 dimM> void Element::assembleC(math::MatSym<dimM>& Ce, std::initializer_list<Dof::dofType> _nodeDofs) {
-    assert(nodes != NULL);
-    double* Ce_p = Ce.ptr();
-    std::vector<Dof::dofType> nodeDof(_nodeDofs);
-    uint16 dim = static_cast<uint16>(_nodeDofs.size());
-    assert(getNNodes() * dim == dimM);
-
-    for (uint16 i = 0; i < getNNodes(); i++) {
-        for (uint16 di = 0; di < dim; di++) {
-            for (uint16 j = i; j < getNNodes(); j++) {
-                for (uint16 dj = 0; dj < dim; dj++) {
-                    if ((i == j) && (dj < di)) {
-                        continue;
-                    } else {
-                        storage->addValueC(nodes[i], nodeDof[di], nodes[j], nodeDof[dj], *Ce_p);
-                        Ce_p++;
-                    }
-                }
-            }
-        }
-    }
-}
-
-template <uint16 dimM> void Element::assembleM(math::MatSym<dimM>& Me, std::initializer_list<Dof::dofType> _nodeDofs) {
-    assert(nodes != NULL);
-    double* Me_p = Me.ptr();
-    std::vector<Dof::dofType> nodeDof(_nodeDofs);
-    uint16 dim = static_cast<uint16>(_nodeDofs.size());
-    assert(getNNodes() * dim == dimM);
-
-    for (uint16 i = 0; i < getNNodes(); i++) {
-        for (uint16 di = 0; di < dim; di++) {
-            for (uint16 j = i; j < getNNodes(); j++) {
-                for (uint16 dj = 0; dj < dim; dj++) {
-                    if ((i == j) && (dj < di)) {
-                        continue;
-                    } else {
-                        storage->addValueC(nodes[i], nodeDof[di], nodes[j], nodeDof[dj], *Me_p);
-                        Me_p++;
-                    }
+                    storage->addValueK(nodes[i], nodeDof[di], nodes[j], nodeDof[dj], *Ke_p);
+                    ++Ke_p;
                 }
             }
         }
@@ -333,11 +262,11 @@ template <uint16 dimM> void Element::assembleM(math::MatSym<dimM>& Me, std::init
 }
 
 template <uint16 dimM>
-void Element::assembleK(math::MatSym<dimM>& Ke, math::Vec<dimM>& Fe, std::initializer_list<Dof::dofType> _nodeDofs) {
-    assert(nodes != NULL);
-    double* Ke_p = Ke.ptr();
-    std::vector<Dof::dofType> nodeDof(_nodeDofs);
-    uint16 dim = static_cast<uint16>(_nodeDofs.size());
+void Element::assembleC(math::MatSym<dimM>& Ce, const std::initializer_list<Dof::dofType> _nodeDofs) {
+    assert(nodes != nullptr);
+    const double* Ce_p = Ce.ptr();
+    const std::vector<Dof::dofType> nodeDof(_nodeDofs);
+    const auto dim = static_cast<uint16>(_nodeDofs.size());
     assert(getNNodes() * dim == dimM);
 
     for (uint16 i = 0; i < getNNodes(); i++) {
@@ -346,46 +275,92 @@ void Element::assembleK(math::MatSym<dimM>& Ke, math::Vec<dimM>& Fe, std::initia
                 for (uint16 dj = 0; dj < dim; dj++) {
                     if ((i == j) && (dj < di)) {
                         continue;
-                    } else {
-                        storage->addValueK(nodes[i], nodeDof[di], nodes[j], nodeDof[dj], *Ke_p);
-                        Ke_p++;
                     }
+                    storage->addValueC(nodes[i], nodeDof[di], nodes[j], nodeDof[dj], *Ce_p);
+                    ++Ce_p;
+                }
+            }
+        }
+    }
+}
+
+template <uint16 dimM>
+void Element::assembleM(math::MatSym<dimM>& Me, const std::initializer_list<Dof::dofType> _nodeDofs) {
+    assert(nodes != nullptr);
+    const double* Me_p = Me.ptr();
+    const std::vector<Dof::dofType> nodeDof(_nodeDofs);
+    const auto dim = static_cast<uint16>(_nodeDofs.size());
+    assert(getNNodes() * dim == dimM);
+
+    for (uint16 i = 0; i < getNNodes(); i++) {
+        for (uint16 di = 0; di < dim; di++) {
+            for (uint16 j = i; j < getNNodes(); j++) {
+                for (uint16 dj = 0; dj < dim; dj++) {
+                    if ((i == j) && (dj < di)) {
+                        continue;
+                    }
+                    storage->addValueC(nodes[i], nodeDof[di], nodes[j], nodeDof[dj], *Me_p);
+                    ++Me_p;
+                }
+            }
+        }
+    }
+}
+
+template <uint16 dimM>
+void Element::assembleK(math::MatSym<dimM>& Ke, math::Vec<dimM>& Fe,
+                        const std::initializer_list<Dof::dofType> _nodeDofs) {
+    assert(nodes != nullptr);
+    const double* Ke_p = Ke.ptr();
+    const std::vector<Dof::dofType> nodeDof(_nodeDofs);
+    const auto dim = static_cast<uint16>(_nodeDofs.size());
+    assert(getNNodes() * dim == dimM);
+
+    for (uint16 i = 0; i < getNNodes(); i++) {
+        for (uint16 di = 0; di < dim; di++) {
+            for (uint16 j = i; j < getNNodes(); j++) {
+                for (uint16 dj = 0; dj < dim; dj++) {
+                    if ((i == j) && (dj < di)) {
+                        continue;
+                    }
+                    storage->addValueK(nodes[i], nodeDof[di], nodes[j], nodeDof[dj], *Ke_p);
+                    ++Ke_p;
                 }
             }
         }
     }
 
-    double* Fe_p = Fe.ptr();
+    const double* Fe_p = Fe.ptr();
     for (uint16 i = 0; i < getNNodes(); i++) {
         for (uint16 di = 0; di < dim; di++) {
             storage->addValueF(nodes[i], nodeDof[di], *Fe_p);
-            Fe_p++;
+            ++Fe_p;
         }
     }
 }
 
-inline uint16 Element::getNNodes() { return _shape_nnodes[shape]; }
+inline uint16 Element::getNNodes() const { return _shape_nnodes[shape]; }
 
-inline uint16 Element::getDim() { return _shape_dim[shape]; }
+inline uint16 Element::getDim() const { return _shape_dim[shape]; }
 
-inline ElementShape Element::getShape() { return shape; }
+inline ElementShape Element::getShape() const { return shape; }
 
-inline ElementType Element::getType() { return type; }
+inline ElementType Element::getType() const { return type; }
 
 // & is used here because this function is called such this:
 // el->getNodeNumber(0) = 1234;
-inline uint32& Element::getNodeNumber(uint16 num) {
+inline uint32& Element::getNodeNumber(const uint16 num) const {
     assert(num < getNNodes());
     assert(nodes);
     return nodes[num];
 }
 
-inline uint16 Element::getIntegrationOrder() { return intOrder; }
+inline uint16 Element::getIntegrationOrder() const { return intOrder; }
 
-inline void Element::setIntegrationOrder(uint16 _nint) { intOrder = _nint; }
+inline void Element::setIntegrationOrder(const uint16 _nint) { intOrder = _nint; }
 
-inline FEStorage& Element::getStorage() { return *storage; }
+inline FEStorage& Element::getStorage() const { return *storage; }
 
-inline uint32 Element::getElNum() { return elNum; }
+inline uint32 Element::getElNum() const { return elNum; }
 
 } // namespace nla3d

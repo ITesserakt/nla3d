@@ -3,17 +3,17 @@
 // https://github.com/dmitryikh/nla3d
 
 #include "VtkProcessor.h"
+
 #include "elements/element.h"
+#include <utility>
 
 namespace nla3d {
 using namespace math;
 
 VtkProcessor::VtkProcessor(FEStorage& st, std::string _fileName) : PostProcessor(st) {
     name = "VtkProcessor";
-    file_name = _fileName;
+    file_name = std::move(_fileName);
 }
-
-VtkProcessor::~VtkProcessor() {}
 
 void VtkProcessor::pre() {
     useDisplacementsDofs = false;
@@ -104,7 +104,7 @@ void VtkProcessor::write_header(std::ofstream& file) {
     file << "DATASET UNSTRUCTURED_GRID" << std::endl;
 }
 
-void VtkProcessor::write_geometry(std::ofstream& file, bool def) {
+void VtkProcessor::write_geometry(std::ofstream& file, const bool def) const {
     Vec<3> xi;
     file << "POINTS " << storage.nNodes() << " float" << std::endl;
     for (uint32 i = 1; i <= storage.nNodes(); i++) {
@@ -158,13 +158,13 @@ void VtkProcessor::write_geometry(std::ofstream& file, bool def) {
     }
 }
 
-void VtkProcessor::write_point_data(std::ofstream& file) {
-    size_t nn = storage.nNodes();
+void VtkProcessor::write_point_data(std::ofstream& file) const {
+    const size_t nn = storage.nNodes();
     file << "POINT_DATA " << nn << std::endl;
-    std::vector<Vec<3>> dataVector;
     std::vector<double> dataScalar;
 
     if (useDisplacementsDofs) {
+        std::vector<Vec<3>> dataVector;
         dataVector.assign(nn, Vec<3>());
         for (uint32 j = 1; j <= nn; j++) {
             if (storage.isNodeDofUsed(j, Dof::UX)) {
@@ -204,15 +204,15 @@ void VtkProcessor::write_point_data(std::ofstream& file) {
 // Write cell data averaging from all integration points.
 // Use global coordinate system. all futher transformations
 // should be done on paraview side.
-void VtkProcessor::write_cell_data(std::ofstream& file) {
-    size_t en = storage.nElements();
+void VtkProcessor::write_cell_data(std::ofstream& file) const {
+    const size_t en = storage.nElements();
     std::vector<MatSym<3>> dataTensor;
     std::vector<Vec<3>> dataVector;
     std::vector<double> dataScalar;
 
     // if queries are empty - no cell data to be stored into VTK
-    if (cellScalarQueries.size() == 0 && cellVectorQueries.size() == 0 && cellTensorQueries.size() == 0 &&
-        elementDofTypes.size() == 0) {
+    if (cellScalarQueries.empty() && cellVectorQueries.empty() && cellTensorQueries.empty() &&
+        elementDofTypes.empty()) {
         return;
     }
 
@@ -261,30 +261,30 @@ void VtkProcessor::write_cell_data(std::ofstream& file) {
     }
 }
 
-void VtkProcessor::writeScalar(std::ofstream& file, const char* name, std::vector<double>& data) {
+void VtkProcessor::writeScalar(std::ofstream& file, const char* name, const std::vector<double>& data) {
     file << "SCALARS " << name << " float 1" << std::endl;
     file << "LOOKUP_TABLE default" << std::endl;
-    for (size_t i = 0; i < data.size(); i++) {
-        file << data[i] << std::endl;
+    for (double i : data) {
+        file << i << std::endl;
     }
     file << std::endl;
 }
 
-void VtkProcessor::writeTensor(std::ofstream& file, const char* name, std::vector<MatSym<3>>& data) {
+void VtkProcessor::writeTensor(std::ofstream& file, const char* name, const std::vector<MatSym<3>>& data) {
     for (size_t j = 0; j < 6; j++) {
         file << "SCALARS " << name << "_" << solidmech::labelsTensorComponent[j] << " float 1" << std::endl;
         file << "LOOKUP_TABLE default" << std::endl;
-        for (size_t i = 0; i < data.size(); i++) {
-            file << data[i].data[j] << std::endl;
+        for (const auto& i : data) {
+            file << i.data[j] << std::endl;
         }
         file << std::endl;
     }
 }
 
-void VtkProcessor::writeVector(std::ofstream& file, const char* name, std::vector<Vec<3>>& data) {
+void VtkProcessor::writeVector(std::ofstream& file, const char* name, const std::vector<Vec<3>>& data) {
     file << "VECTORS " << name << " float" << std::endl;
-    for (size_t i = 0; i < data.size(); i++) {
-        file << data[i] << std::endl;
+    for (const auto& i : data) {
+        file << i << std::endl;
     }
     file << std::endl;
 }

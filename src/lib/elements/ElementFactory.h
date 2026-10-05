@@ -10,8 +10,8 @@ class Element;
 
 class ElementFactory {
   public:
-    static ElementType elName2elType(std::string elName);
-    static void createElements(ElementType elId, const uint32 n, std::vector<Element*>& ptr);
+    static ElementType elName2elType(const std::string& elName);
+    static void createElements(ElementType elId, uint32 n, std::vector<Element*>& ptr);
 };
 
 } // namespace nla3d

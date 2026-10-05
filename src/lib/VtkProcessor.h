@@ -7,7 +7,6 @@
 #include "PostProcessor.h"
 #include "elements/query.h"
 #include "sys.h"
-#include <map>
 #include <set>
 
 namespace nla3d {
@@ -25,10 +24,10 @@ namespace nla3d {
 class VtkProcessor : public PostProcessor {
   public:
     VtkProcessor(FEStorage& st, std::string _fileName);
-    virtual ~VtkProcessor();
-    virtual void pre();
-    virtual void process(uint16 curLoadstep);
-    virtual void post(uint16 curLoadstep);
+    ~VtkProcessor() override = default;
+    void pre() override;
+    void process(uint16 curLoadstep) override;
+    void post(uint16 curLoadstep) override;
 
     // One can use writeAllResults(true) in order to ask VtkProcess to determine which query codes is
     // relevant to FEStorage's elements automatically. As results, all accessible element results will
@@ -44,16 +43,16 @@ class VtkProcessor : public PostProcessor {
   private:
     std::string file_name;
 
-    void write_header(std::ofstream& file);
+    static void write_header(std::ofstream& file);
     // write geometry(mesh) into the vtk's `file`. If `def == true` then write node coordinates in
     // deformed state
-    void write_geometry(std::ofstream& file, bool def = false);
-    void write_point_data(std::ofstream& file);
-    void write_cell_data(std::ofstream& file);
+    void write_geometry(std::ofstream& file, bool def = false) const;
+    void write_point_data(std::ofstream& file) const;
+    void write_cell_data(std::ofstream& file) const;
 
-    void writeScalar(std::ofstream& file, const char* name, std::vector<double>& data);
-    void writeTensor(std::ofstream& file, const char* name, std::vector<math::MatSym<3>>& data);
-    void writeVector(std::ofstream& file, const char* name, std::vector<math::Vec<3>>& data);
+    static void writeScalar(std::ofstream& file, const char* name, const std::vector<double>& data);
+    static void writeTensor(std::ofstream& file, const char* name, const std::vector<math::MatSym<3>>& data);
+    static void writeVector(std::ofstream& file, const char* name, const std::vector<math::Vec<3>>& data);
 
     void revealAllResults();
 

@@ -37,7 +37,7 @@ class ElementTRUSS3 : public ElementLINE {
     // step element alsoo need to initialize any variables that it is going to use in solution process
     // (strains and stresses in integration points in finite deformations analysis, for example).
     // ElementTRUSS3::pre () registers Dof::UX, Dof::UY, Dof::UZ as DoFs in every node.
-    void pre();
+    void pre() override;
     // 3. buildK() - a central point in element class. Here the element should build element stiffness
     // matrix (actually, tangential matrix, as soon as we make non-linear-ready elements). The element
     // also responsible for assembling its local stiffness matrix into global system of equations
@@ -45,12 +45,12 @@ class ElementTRUSS3 : public ElementLINE {
     // the element should assemble right hand side (rhs) of equations related to this element
     // (especially used in non-linear analysis).
     // see ElementTRUSS3::buildK() body for more comments on the particular realisation.
-    void buildK();
+    void buildK() override;
     // 4. update() - the function updates internal state of the element based on found solution of
     // global equation system. For example, here you can calculate stresses in the element which depends
     // on found DoFs solution.
     // see ElementTRUSS3::update() body for the insight of the particular realization.
-    void update();
+    void update() override;
     // stiffness module
     double E = 0.0;
     // cross-section area

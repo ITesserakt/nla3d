@@ -11,13 +11,13 @@ namespace nla3d {
 
 class ReactionProcessor : public PostProcessor {
   public:
-    ReactionProcessor(FEStorage& st);
+    explicit ReactionProcessor(FEStorage& st);
     ReactionProcessor(FEStorage& st, std::string _filename);
-    virtual ~ReactionProcessor() {};
+    ~ReactionProcessor() override = default;
 
-    virtual void pre();
-    virtual void process(uint16 curLoadstep);
-    virtual void post(uint16 curLoadstep);
+    void pre() override;
+    void process(uint16 curLoadstep) override;
+    void post(uint16 curLoadstep) override;
 
     std::vector<double> getReactions(Dof::dofType dof);
 

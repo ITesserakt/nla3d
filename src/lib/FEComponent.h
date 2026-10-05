@@ -21,11 +21,11 @@ class FEComponent {
     std::string name;
 
     static typeOfComponent typeFromString(const std::string& typeName);
-    void print();
+    // void print();
 };
 
 inline MAKE_LOGGABLE(FEComponent, obj, os) {
-    os << obj.name << ": " << obj.list.size() << " " << obj.labelsOfComponent[obj.type];
+    os << obj.name << ": " << obj.list.size() << " " << FEComponent::labelsOfComponent[obj.type];
     return os;
 }
 

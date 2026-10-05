@@ -23,7 +23,7 @@ void ElementINTER0::buildK() {
     // Произвольный линенйно независмый базис
     math::Vec<3> s1{n[0], n[1] + 1., n[2] + 1.};
     // ортогонализаця базиса
-    math::Vec<3> proj_s1_n = n * ((s1[0] * n[0] + s1[1] * n[1] + s1[2] * n[2]) / n.qlength());
+    const math::Vec<3> proj_s1_n = n * ((s1[0] * n[0] + s1[1] * n[1] + s1[2] * n[2]) / n.qlength());
     s1 = s1 - proj_s1_n;
     math::Vec<3> s2{n[1] * s1[2] - n[2] * s1[1], n[2] * s1[0] - n[0] * s1[2], n[0] * s1[1] - n[1] * s1[0]};
 
@@ -55,12 +55,11 @@ void ElementINTER0::update() {
     strains[0] = U(3) - U(0);
     strains[1] = U(4) - U(1);
     strains[2] = U(5) - U(2);
-    ;
 }
 
 bool ElementINTER0::getVector(math::Vec<3>& vector, vectorQuery query, uint16 gp, const double scale) { return false; }
 
-bool ElementINTER0::getTensor(math::MatSym<3>& tensor, tensorQuery query, uint16 gp, const double scale) {
+bool ElementINTER0::getTensor(math::MatSym<3>& tensor, const tensorQuery query, uint16 gp, const double scale) {
     if (query == tensorQuery::C) {
         tensor.comp(0, 0) += strains[0];
         tensor.comp(1, 1) += strains[1];

@@ -38,17 +38,17 @@ void MeshData::compressNumbers() {
     }
     std::map<uint32, uint32> old2new;
     uint32 nextNumber = 1;
-    for (uint32 i = 0; i < nodesNumbers.size(); i++) {
-        old2new[nodesNumbers[i]] = nextNumber;
-        nodesNumbers[i] = nextNumber;
+    for (unsigned int nodesNumber : nodesNumbers) {
+        old2new[nodesNumber] = nextNumber;
+        nodesNumber = nextNumber;
         nextNumber++;
     }
     assert(nextNumber - 1 == nodesNumbers.size());
 
     // go through elements and change element's node numbers
     for (auto& e : cellNodes) {
-        for (uint16 i = 0; i < e.size(); i++) {
-            e[i] = old2new[e[i]];
+        for (unsigned int i : e) {
+            i = old2new[i];
         }
     }
 
@@ -63,7 +63,7 @@ void MeshData::compressNumbers() {
     }
 
     // go through Mpcs
-    for (auto& mpc : mpcs) {
+    for (const auto mpc : mpcs) {
         for (auto& term : mpc->eq) {
             term.node = old2new[term.node];
         }
@@ -91,7 +91,7 @@ std::vector<uint32> MeshData::getDegeneratedCells() {
     return res;
 }
 
-std::vector<uint32> MeshData::getCellsByAttribute(std::string atr_name, uint32 atr_val) {
+std::vector<uint32> MeshData::getCellsByAttribute(std::string atr_name, const uint32 atr_val) {
     std::vector<uint32> res;
     for (size_t i = 0; i < cellNumbers.size(); i++) {
         if (cellIntData[atr_name][i] == atr_val) {
@@ -102,17 +102,17 @@ std::vector<uint32> MeshData::getCellsByAttribute(std::string atr_name, uint32 a
 }
 
 string&& strim(string&& str) {
-    size_t st = str.find_first_not_of(space_chars, 0);
+    const size_t st = str.find_first_not_of(space_chars, 0);
     str.erase(0, st);
-    size_t en = str.find_last_not_of(space_chars);
+    const size_t en = str.find_last_not_of(space_chars);
     str.erase(en + 1);
     return std::move(str);
 }
 
 string& strim(string& str) {
-    size_t st = str.find_first_not_of(space_chars, 0);
+    const size_t st = str.find_first_not_of(space_chars, 0);
     str.erase(0, st);
-    size_t en = str.find_last_not_of(space_chars);
+    const size_t en = str.find_last_not_of(space_chars);
     str.erase(en + 1);
     return str;
 }
@@ -128,14 +128,14 @@ string& stoupper(string& str) {
 }
 
 char sfirstNotBlank(const string& str) {
-    size_t st = str.find_first_not_of(space_chars, 0);
+    const size_t st = str.find_first_not_of(space_chars, 0);
     return str[st];
 }
 
-std::vector<std::string> ssplit(const std::string& line, const std::vector<int>& widths, bool strict) {
+std::vector<std::string> ssplit(const std::string& line, const std::vector<int>& widths, const bool strict) {
     int ind = 0;
     vector<string> vv;
-    for (int w : widths) {
+    for (const int w : widths) {
         if (line.length() - ind < w) {
             // no room for another field
             if (strict) {
@@ -154,7 +154,7 @@ std::vector<std::string> ssplit(const std::string& line, const std::vector<int>&
 }
 
 bool iequals(const string& a, const string& b) {
-    unsigned int sz = a.size();
+    const uint32 sz = a.size();
     if (b.size() != sz)
         return false;
     for (unsigned int i = 0; i < sz; ++i)
@@ -174,11 +174,10 @@ std::istream& getLine(std::istream& is, std::string& t) {
     // The sentry object performs various tasks,
     // such as thread synchronization and updating the stream state.
 
-    std::istream::sentry se(is, true);
     std::streambuf* sb = is.rdbuf();
 
     for (;;) {
-        int c = sb->sbumpc();
+        const int c = sb->sbumpc();
         switch (c) {
         case '\n':
             return is;
@@ -194,7 +193,7 @@ std::istream& getLine(std::istream& is, std::string& t) {
             }
             return is;
         default:
-            t += (char)c;
+            t += static_cast<char>(c);
         }
     }
 }
@@ -203,39 +202,37 @@ int Tokenizer::tokenize(const string& line) {
     tokens.clear();
     dtokens.clear();
 
-    string _delimiters(delimiters.begin(), delimiters.end());
+    const string _delimiters(delimiters.begin(), delimiters.end());
 
     int found = 0;
     size_t st = 0;
 
-    while (1) {
-        size_t ind = line.find_first_of(_delimiters, st);
+    while (true) {
+        const size_t ind = line.find_first_of(_delimiters, st);
         found++;
         if (ind == string::npos) {
             tokens.push_back(strim(line.substr(st, string::npos)));
             break;
-        } else {
-            tokens.push_back(strim(line.substr(st, ind - st)));
-            // if we want to store which exactly delimeter was used
-            dtokens.push_back(line[ind]);
         }
+        tokens.push_back(strim(line.substr(st, ind - st)));
+        // if we want to store which exactly delimeter was used
+        dtokens.push_back(line[ind]);
         st = ind + 1;
     }
 
     if (tolower) {
-        for (int i = 0; i < tokens.size(); i++) {
-            stolower(tokens[i]);
+        for (auto & token : tokens) {
+            stolower(token);
         }
     }
     return found;
 }
 
-int Tokenizer::tokenInt(size_t ind) { return std::stoi(tokens[ind]); }
+int Tokenizer::tokenInt(const size_t ind) const { return std::stoi(tokens[ind]); }
 
-double Tokenizer::tokenDouble(size_t ind) { return std::stod(tokens[ind]); }
+double Tokenizer::tokenDouble(const size_t ind) const { return std::stod(tokens[ind]); }
 
 bool readNeuFile(std::string filename, MeshData& md) {
-    uint32 n_number, en;
     ifstream file(filename);
     if (!file) {
         LOG(WARNING) << "Can't open neu file " << filename;
@@ -298,7 +295,6 @@ bool readNeuFile(std::string filename, MeshData& md) {
 }
 
 bool readCdbFile(std::string filename, MeshData& md) {
-    uint32 n_number, en;
     ifstream file(filename);
     if (!file) {
         LOG(WARNING) << "Can't open cdb file " << filename;
@@ -369,10 +365,12 @@ bool readCdbFile(std::string filename, MeshData& md) {
                 float_field = std::stoi(match[4]);
             } else {
                 LOG(FATAL) << "Don't understand nblock format string \"" << line << "\"";
+                continue;
             }
 
             // prepare array of field widths
             std::vector<int> widths;
+            widths.reserve(int_num + float_num);
             for (int i = 0; i < int_num; i++) {
                 widths.push_back(int_field);
             }
@@ -448,10 +446,12 @@ bool readCdbFile(std::string filename, MeshData& md) {
                 int_field = std::stoi(match[2]);
             } else {
                 LOG(FATAL) << "Don't understand eblock format string \"" << line << "\"";
+                continue;
             }
 
             // prepare array of field widths
             std::vector<int> widths;
+            widths.reserve(int_num);
             for (int i = 0; i < int_num; i++) {
                 widths.push_back(int_field);
             }
@@ -502,6 +502,7 @@ bool readCdbFile(std::string filename, MeshData& md) {
                     LOG(FATAL) << "Not enought fields to read element nodes";
                 }
                 // parse element nodes
+                enodes.reserve(nNodes);
                 for (int i = 0; i < nNodes; i++) {
                     enodes.push_back(static_cast<uint32>(std::stoi(v[st + i])));
                 }
@@ -524,7 +525,7 @@ bool readCdbFile(std::string filename, MeshData& md) {
                 bnd.node = t.tokenInt(1);
                 bnd.value = t.tokenDouble(3);
                 isNumeric = true;
-            } catch (const std::invalid_argument& ia) {
+            } catch (const std::invalid_argument&) {
                 isNumeric = false;
             }
             if (isNumeric) {
@@ -539,20 +540,20 @@ bool readCdbFile(std::string filename, MeshData& md) {
             // CE,R5.0,DEFI,       2,       1,  0.00000000
             // CE,R5.0,NODE,      1700,UX  ,  1.00000000    ,      1700,UZ  ,  1.00000000
             // TODO: Mpc is dynamicaly allocated, but MeshData won't free this memory (this should be done
-            // in FEStorage). This is potential memory leak
-            Mpc* mpc = new Mpc();
+            //       in FEStorage). This is potential memory leak
+            auto* mpc = new Mpc();
             mpc->b = t.tokenDouble(5);
             int n_terms = t.tokenInt(3);
             // read MPC terms. They are stored by 2 in a row
             while (n_terms > 0) {
                 getLine(file, line);
                 t.tokenize(line);
-                uint16 place = 6;
+                // uint16 place = 6;
                 for (int i = 0; i < std::max(n_terms, 2); i++) {
                     uint32 node = t.tokenInt(3 + 3 * i + 0);
                     Dof::dofType dof = Dof::label2dofType(t.tokens[3 + 3 * i + 1]);
                     double coef = t.tokenDouble(3 + 3 * i + 2);
-                    mpc->eq.push_back(MpcTerm(node, dof, coef));
+                    mpc->eq.emplace_back(node, dof, coef);
                     n_terms--;
                 }
             }
@@ -586,9 +587,11 @@ bool readCdbFile(std::string filename, MeshData& md) {
                     int_field = std::stoi(match[2]);
                 } else {
                     LOG(FATAL) << "Don't understand CMBLOCK format string \"" << line << "\"";
+                    continue;
                 }
                 // prepare array of field widths
                 std::vector<int> widths;
+                widths.reserve(int_num);
                 for (int i = 0; i < int_num; i++) {
                     widths.push_back(int_field);
                 }
@@ -647,7 +650,7 @@ bool readCdbFile(std::string filename, MeshData& md) {
             // future.
             try {
                 type = t.tokenInt(1);
-            } catch (const std::invalid_argument& ia) {
+            } catch (const std::invalid_argument&) {
                 type = static_cast<uint32>(apdlParameters[t.tokens[1]]);
             }
         } // ETYPE
@@ -657,7 +660,7 @@ bool readCdbFile(std::string filename, MeshData& md) {
             // future.
             try {
                 type = t.tokenInt(1);
-            } catch (const std::invalid_argument& ia) {
+            } catch (const std::invalid_argument&) {
                 type = 0;
             }
         } // ETYPE
@@ -670,7 +673,7 @@ bool readCdbFile(std::string filename, MeshData& md) {
                 bnd.node = t.tokenInt(1);
                 bnd.value = t.tokenDouble(3);
                 isNumeric = true;
-            } catch (const std::invalid_argument& ia) {
+            } catch (const std::invalid_argument&) {
                 isNumeric = false;
             }
             if (isNumeric) {
@@ -703,7 +706,7 @@ bool readCdbFile(std::string filename, MeshData& md) {
                 parName = t.tokens[1];
                 value = t.tokenDouble(2);
                 isNumeric = true;
-            } catch (const std::invalid_argument& ia) {
+            } catch (const std::invalid_argument&) {
                 isNumeric = false;
             }
             if (isNumeric) {

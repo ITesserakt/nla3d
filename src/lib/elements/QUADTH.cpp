@@ -8,7 +8,7 @@ namespace nla3d {
 using namespace math;
 
 void ElementQUADTH::pre() {
-    if (det.size() == 0) {
+    if (det.empty()) {
         makeJacob();
     }
 
@@ -31,9 +31,9 @@ void ElementQUADTH::buildK() {
     mat_k.comp(1, 1) = k;
 
     // build Ke
-    double dWt; // Gaussian quadrature weight
+    // Gaussian quadrature weight
     for (uint16 np = 0; np < nOfIntPoints(); np++) {
-        dWt = intWeight(np);
+        const double dWt = intWeight(np);
         Mat<2, 4> matB = make_B(np);
         matBTDBprod(matB, mat_k, dWt, Ke);
 
@@ -51,9 +51,9 @@ void ElementQUADTH::buildC() {
     Ce.zero();
 
     // build Ke
-    double dWt; // Gaussian quadrature weight
+    // Gaussian quadrature weight
     for (uint16 np = 0; np < nOfIntPoints(); np++) {
-        dWt = intWeight(np);
+        const double dWt = intWeight(np);
         Vec<4> ff = formFunc(np);
         for (uint16 i = 0; i < 4; i++)
             for (uint16 j = i; j < 4; j++)
@@ -63,7 +63,7 @@ void ElementQUADTH::buildC() {
     assembleC(Ce, {Dof::TEMP});
 }
 
-Mat<2, 4> ElementQUADTH::make_B(uint16 np) {
+Mat<2, 4> ElementQUADTH::make_B(const uint16 np) {
     return Mat<2, 4>{NiXj[np][0][0], NiXj[np][1][0], NiXj[np][2][0], NiXj[np][3][0], NiXj[np][0][1], NiXj[np][1][1],
                      NiXj[np][2][1], NiXj[np][3][1]};
 }

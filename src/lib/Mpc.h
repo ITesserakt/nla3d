@@ -13,9 +13,9 @@ class FEStorage;
 
 class MpcTerm {
   public:
-    MpcTerm() : node(0), node_dof(Dof::UNDEFINED), coef(1.0) {}
+    MpcTerm() : coef(1.0) {}
 
-    MpcTerm(int32 n, Dof::dofType dof, double coef = 1.0) : node(n), node_dof(dof), coef(coef) {}
+    MpcTerm(const int32 n, const Dof::dofType dof, const double coef = 1.0) : node(n), node_dof(dof), coef(coef) {}
 
     int32 node = 0;
     Dof::dofType node_dof = Dof::UNDEFINED;
@@ -32,10 +32,11 @@ class Mpc {
 
 class MpcCollection {
   public:
+    virtual ~MpcCollection() = default;
     virtual void update() = 0;
     virtual void pre() = 0;
-    void printEquations(std::ostream& out);
-    void registerMpcsInStorage();
+    void printEquations(std::ostream& out) const;
+    void registerMpcsInStorage() const;
     std::vector<Mpc*> collection;
     FEStorage* storage;
 };
@@ -43,19 +44,19 @@ class MpcCollection {
 class RigidBodyMpc : public MpcCollection {
   public:
     RigidBodyMpc();
-    ~RigidBodyMpc();
+    ~RigidBodyMpc() override;
     uint32 masterNode;
 
-    void pre();
-    void update();
+    void pre() override;
+    void update() override;
     std::vector<uint32> slaveNodes;
     std::vector<Dof::dofType> dofs;
 };
 
 class fixBC {
   public:
-    fixBC() {}
-    fixBC(int32 n, Dof::dofType dof, double val = 0.0) : node(n), node_dof(dof), value(val) {}
+    fixBC() = default;
+    fixBC(const int32 n, const Dof::dofType dof, const double val = 0.0) : node(n), node_dof(dof), value(val) {}
     int32 node = 0;
     Dof::dofType node_dof = Dof::UNDEFINED;
     double value = 0.0;
@@ -63,8 +64,8 @@ class fixBC {
 
 class loadBC {
   public:
-    loadBC() : node(0), node_dof(Dof::UNDEFINED), value(0.0) {}
-    loadBC(int32 n, Dof::dofType dof, double val = 0.0) : node(n), node_dof(dof), value(val) {}
+    loadBC() = default;
+    loadBC(const int32 n, const Dof::dofType dof, const double val = 0.0) : node(n), node_dof(dof), value(val) {}
     int32 node = 0;
     Dof::dofType node_dof = Dof::UNDEFINED;
     double value = 0.0;

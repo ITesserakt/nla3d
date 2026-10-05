@@ -1,10 +1,11 @@
 #include "elements/TETRA0.h"
+#include "Node.h"
 
 using namespace std;
 
 namespace nla3d {
 
-ElementTETRA0::ElementTETRA0() { type = ElementType::TETRA0; }
+ElementTETRA0::ElementTETRA0() : vol(0) { type = ElementType::TETRA0; }
 
 void ElementTETRA0::pre() {
     for (uint16 i = 0; i < getNNodes(); i++) {
@@ -48,21 +49,19 @@ void ElementTETRA0::buildK() {
         math::Vec<12> Fe;
         Fe.zero();
 
-        math::Mat<12, 6> matBTC;
-        matBTC = matB.transpose() * matC.toMat();
+        math::Mat<12, 6> matBTC = matB.transpose() * matC.toMat();
 
         // mechanical initial stress
         if (stress.qlength() != 0.) {
             strains.zero();
-            math::Mat<6, 6> matP;
-            matP = matC.toMat().inv(matC.toMat().det());
+            const math::Mat<6, 6> matP = matC.toMat().inv(matC.toMat().det());
             strains = matP * stress;
         }
 
         // termal initial strains
         if (alpha != 0. && T != 0.) {
             // temp node forces
-            math::Vec<6> tStrains = {alpha * T, alpha * T, alpha * T, 0., 0., 0.};
+            const math::Vec<6> tStrains = {alpha * T, alpha * T, alpha * T, 0., 0., 0.};
             strains = strains + tStrains;
         }
 
@@ -111,44 +110,44 @@ void ElementTETRA0::makeB(math::Mat<6, 12>& B) {
     // Eigen::MatrixXd mb(3,3), mc(3,3), md(3,3);
     int x = 0, y = 1, z = 2;
 
-    double x12 = storage->getNode(getNodeNumber(0)).pos[x] - storage->getNode(getNodeNumber(1)).pos[x];
-    double x13 = storage->getNode(getNodeNumber(0)).pos[x] - storage->getNode(getNodeNumber(2)).pos[x];
-    double x14 = storage->getNode(getNodeNumber(0)).pos[x] - storage->getNode(getNodeNumber(3)).pos[x];
-    double x23 = storage->getNode(getNodeNumber(1)).pos[x] - storage->getNode(getNodeNumber(2)).pos[x];
-    double x24 = storage->getNode(getNodeNumber(1)).pos[x] - storage->getNode(getNodeNumber(3)).pos[x];
-    double x34 = storage->getNode(getNodeNumber(2)).pos[x] - storage->getNode(getNodeNumber(3)).pos[x];
+    const double x12 = storage->getNode(getNodeNumber(0)).pos[x] - storage->getNode(getNodeNumber(1)).pos[x];
+    const double x13 = storage->getNode(getNodeNumber(0)).pos[x] - storage->getNode(getNodeNumber(2)).pos[x];
+    const double x14 = storage->getNode(getNodeNumber(0)).pos[x] - storage->getNode(getNodeNumber(3)).pos[x];
+    const double x23 = storage->getNode(getNodeNumber(1)).pos[x] - storage->getNode(getNodeNumber(2)).pos[x];
+    const double x24 = storage->getNode(getNodeNumber(1)).pos[x] - storage->getNode(getNodeNumber(3)).pos[x];
+    const double x34 = storage->getNode(getNodeNumber(2)).pos[x] - storage->getNode(getNodeNumber(3)).pos[x];
 
-    double x21 = -1. * x12;
-    double x31 = -1. * x13;
-    double x32 = -1. * x23;
-    double x42 = -1. * x24;
-    double x43 = -1. * x34;
+    const double x21 = -1. * x12;
+    const double x31 = -1. * x13;
+    const double x32 = -1. * x23;
+    const double x42 = -1. * x24;
+    const double x43 = -1. * x34;
 
-    double y12 = storage->getNode(getNodeNumber(0)).pos[y] - storage->getNode(getNodeNumber(1)).pos[y];
-    double y13 = storage->getNode(getNodeNumber(0)).pos[y] - storage->getNode(getNodeNumber(2)).pos[y];
-    double y14 = storage->getNode(getNodeNumber(0)).pos[y] - storage->getNode(getNodeNumber(3)).pos[y];
-    double y23 = storage->getNode(getNodeNumber(1)).pos[y] - storage->getNode(getNodeNumber(2)).pos[y];
-    double y24 = storage->getNode(getNodeNumber(1)).pos[y] - storage->getNode(getNodeNumber(3)).pos[y];
-    double y34 = storage->getNode(getNodeNumber(2)).pos[y] - storage->getNode(getNodeNumber(3)).pos[y];
+    const double y12 = storage->getNode(getNodeNumber(0)).pos[y] - storage->getNode(getNodeNumber(1)).pos[y];
+    const double y13 = storage->getNode(getNodeNumber(0)).pos[y] - storage->getNode(getNodeNumber(2)).pos[y];
+    const double y14 = storage->getNode(getNodeNumber(0)).pos[y] - storage->getNode(getNodeNumber(3)).pos[y];
+    const double y23 = storage->getNode(getNodeNumber(1)).pos[y] - storage->getNode(getNodeNumber(2)).pos[y];
+    const double y24 = storage->getNode(getNodeNumber(1)).pos[y] - storage->getNode(getNodeNumber(3)).pos[y];
+    const double y34 = storage->getNode(getNodeNumber(2)).pos[y] - storage->getNode(getNodeNumber(3)).pos[y];
 
-    double y21 = -1. * y12;
-    double y31 = -1. * y13;
-    double y32 = -1. * y23;
-    double y42 = -1. * y24;
-    double y43 = -1. * y34;
+    const double y21 = -1. * y12;
+    const double y31 = -1. * y13;
+    const double y32 = -1. * y23;
+    const double y42 = -1. * y24;
+    const double y43 = -1. * y34;
 
-    double z12 = storage->getNode(getNodeNumber(0)).pos[z] - storage->getNode(getNodeNumber(1)).pos[z];
-    double z13 = storage->getNode(getNodeNumber(0)).pos[z] - storage->getNode(getNodeNumber(2)).pos[z];
-    double z14 = storage->getNode(getNodeNumber(0)).pos[z] - storage->getNode(getNodeNumber(3)).pos[z];
-    double z23 = storage->getNode(getNodeNumber(1)).pos[z] - storage->getNode(getNodeNumber(2)).pos[z];
-    double z24 = storage->getNode(getNodeNumber(1)).pos[z] - storage->getNode(getNodeNumber(3)).pos[z];
-    double z34 = storage->getNode(getNodeNumber(2)).pos[z] - storage->getNode(getNodeNumber(3)).pos[z];
+    const double z12 = storage->getNode(getNodeNumber(0)).pos[z] - storage->getNode(getNodeNumber(1)).pos[z];
+    const double z13 = storage->getNode(getNodeNumber(0)).pos[z] - storage->getNode(getNodeNumber(2)).pos[z];
+    const double z14 = storage->getNode(getNodeNumber(0)).pos[z] - storage->getNode(getNodeNumber(3)).pos[z];
+    const double z23 = storage->getNode(getNodeNumber(1)).pos[z] - storage->getNode(getNodeNumber(2)).pos[z];
+    const double z24 = storage->getNode(getNodeNumber(1)).pos[z] - storage->getNode(getNodeNumber(3)).pos[z];
+    const double z34 = storage->getNode(getNodeNumber(2)).pos[z] - storage->getNode(getNodeNumber(3)).pos[z];
 
-    double z21 = -1. * z12;
-    double z31 = -1. * z13;
-    double z32 = -1. * z23;
-    double z42 = -1. * z24;
-    double z43 = -1. * z34;
+    const double z21 = -1. * z12;
+    const double z31 = -1. * z13;
+    const double z32 = -1. * z23;
+    const double z42 = -1. * z24;
+    const double z43 = -1. * z34;
 
     b[0] = y42 * z32 - y32 * z42;
     b[1] = y31 * z43 - y34 * z13;
@@ -179,7 +178,7 @@ void ElementTETRA0::makeB(math::Mat<6, 12>& B) {
     }
 }
 
-void ElementTETRA0::makeC(math::MatSym<6>& C) {
+void ElementTETRA0::makeC(math::MatSym<6>& C) const {
     const double A = E / ((1. + my) * (1. - 2. * my));
 
     C.comp(0, 0) = (1. - my) * A;
@@ -194,7 +193,7 @@ void ElementTETRA0::makeC(math::MatSym<6>& C) {
     C.comp(5, 5) = (1. / 2. - my) * A;
 }
 
-bool ElementTETRA0::getScalar(double* scalar, scalarQuery query, uint16 gp, const double scale) {
+bool ElementTETRA0::getScalar(double* scalar, const scalarQuery query, uint16 gp, const double scale) {
     if (query == scalarQuery::VOL) {
         *scalar += vol;
         return true;
@@ -202,7 +201,7 @@ bool ElementTETRA0::getScalar(double* scalar, scalarQuery query, uint16 gp, cons
     return false;
 }
 
-bool ElementTETRA0::getTensor(math::MatSym<3>& tensor, tensorQuery query, uint16 gp, const double scale) {
+bool ElementTETRA0::getTensor(math::MatSym<3>& tensor, const tensorQuery query, uint16 gp, const double scale) {
     if (query == tensorQuery::C) {
         tensor.comp(0, 0) += strains[0];
         tensor.comp(1, 1) += strains[1];

@@ -1,4 +1,5 @@
 #include "elements/INTER3.h"
+#include "Node.h"
 
 namespace nla3d {
 
@@ -20,18 +21,18 @@ void ElementINTER3::buildK() {
     makeJacob();
 
     // build Ke in local sys
-    double dWt; // Gaussian quadrature weight
+    // Gaussian quadrature weight
     for (uint16 np = 0; np < nOfIntPoints(); np++) {
         for (uint16 npj = 0; npj < nOfIntPoints(); npj++) {
-            dWt = radoIntWeight(np, npj);
+            const double dWt = radoIntWeight(np, npj);
             Eigen::MatrixXd matB = make_B(np, npj);
             Ke.triangularView<Eigen::Upper>() += dWt * matB.transpose() * D * matB;
         }
     } // loop over integration points
 
     Eigen::MatrixXd T_Ke(18, 18);
-    Eigen::MatrixXd T_trans = make_T().transpose();
-    Eigen::MatrixXd z = Eigen::MatrixXd::Zero(3, 3);
+    const Eigen::MatrixXd T_trans = make_T().transpose();
+    const Eigen::MatrixXd z = Eigen::MatrixXd::Zero(3, 3);
 
     T_Ke << T_trans, z, z, z, z, z, z, T_trans, z, z, z, z, z, z, T_trans, z, z, z, z, z, z, T_trans, z, z, z, z, z, z,
         T_trans, z, z, z, z, z, z, T_trans;
@@ -60,10 +61,10 @@ void ElementINTER3::update() {
         U2(i * 3 + 2) = storage->getNodeDofSolution(getNodeNumber(i + 3), Dof::UZ);
     }
 
-    Eigen::MatrixXd T = make_T();
-    Eigen::MatrixXd T_inv = T.inverse();
+    const Eigen::MatrixXd T = make_T();
+    const Eigen::MatrixXd T_inv = T.inverse();
     Eigen::MatrixXd T_U(9, 9);
-    Eigen::MatrixXd z = Eigen::MatrixXd::Zero(3, 3);
+    const Eigen::MatrixXd z = Eigen::MatrixXd::Zero(3, 3);
 
     T_U << T_inv, z, z, z, T_inv, z, z, z, T_inv;
     U1 = T_U * U1;
@@ -112,8 +113,8 @@ void ElementINTER3::makeJacob() {
 
     math::Vec<2> locX2{t1.length(), 0.};
     // Для координат третьего узла нужна ортогонолизация. Ищем угол треугольника при начале координат
-    double mult = t1[0] * t2[0] + t1[1] * t2[1] + t1[2] * t2[2];
-    double angle = acos(mult / t1.length() / t2.length());
+    const double mult = t1[0] * t2[0] + t1[1] * t2[1] + t1[2] * t2[2];
+    const double angle = acos(mult / t1.length() / t2.length());
     math::Vec<2> locX3{t2.length() * cos(angle), t2.length() * sin(angle)};
 
     math::Mat<2, 2> J{locX1[0] - locX3[0], locX1[1] - locX3[1], locX2[0] - locX3[0], locX2[1] - locX3[1]};
@@ -123,9 +124,9 @@ void ElementINTER3::makeJacob() {
         LOG(FATAL) << "Negative Jacobian value " << det;
 }
 
-void ElementINTER3::make_D(Eigen::MatrixXd& D) { D << ks, 0., 0., 0., ks, 0., 0., 0., kn; }
+void ElementINTER3::make_D(Eigen::MatrixXd& D) const { D << ks, 0., 0., 0., ks, 0., 0., 0., kn; }
 
-Eigen::MatrixXd ElementINTER3::make_subB(uint16 np, uint16 npj) {
+Eigen::MatrixXd ElementINTER3::make_subB(const uint16 np, const uint16 npj) {
 
     Eigen::MatrixXd N1(3, 3);
     Eigen::MatrixXd N2(3, 3);
@@ -141,7 +142,7 @@ Eigen::MatrixXd ElementINTER3::make_subB(uint16 np, uint16 npj) {
     return B;
 }
 
-Eigen::MatrixXd ElementINTER3::make_B(uint16 np, uint16 npj) {
+Eigen::MatrixXd ElementINTER3::make_B(const uint16 np, const uint16 npj) {
     // in local sys
     Eigen::MatrixXd N1(3, 3);
     Eigen::MatrixXd N2(3, 3);
@@ -182,7 +183,7 @@ Eigen::MatrixXd ElementINTER3::make_T() {
 
 bool ElementINTER3::getVector(math::Vec<3>& vector, vectorQuery query, uint16 gp, const double scale) { return false; }
 
-bool ElementINTER3::getTensor(math::MatSym<3>& tensor, tensorQuery query, uint16 gp, const double scale) {
+bool ElementINTER3::getTensor(math::MatSym<3>& tensor, const tensorQuery query, uint16 gp, const double scale) {
     if (query == tensorQuery::C) {
         tensor.comp(0, 0) += strains[0];
         tensor.comp(1, 1) += strains[1];
@@ -201,6 +202,7 @@ bool ElementINTER3::getTensor(math::MatSym<3>& tensor, tensorQuery query, uint16
         tensor.comp(0, 2) += 0.;
         return true;
     }
+    return false;
 }
 
 } // namespace nla3d

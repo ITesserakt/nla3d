@@ -13,7 +13,7 @@ const uint16 ElementPLANE41::num_components = 3;
 
 //------------------ElementPLANE41--------------------
 void ElementPLANE41::pre() {
-    if (det.size() == 0) {
+    if (det.empty()) {
         makeJacob();
     }
 
@@ -42,14 +42,14 @@ void ElementPLANE41::buildK() {
     CVec[M_ZZ] = 1.0;
     MatSym<3> matD_d;
     Vec<3> vecD_p;
-    double p_e = storage->getElementDofSolution(getElNum(), Dof::HYDRO_PRESSURE);
-    Mat_Hyper_Isotrop_General* mat = dynamic_cast<Mat_Hyper_Isotrop_General*>(storage->getMaterial());
+    const double p_e = storage->getElementDofSolution(getElNum(), Dof::HYDRO_PRESSURE);
+    auto* mat = dynamic_cast<Mat_Hyper_Isotrop_General*>(storage->getMaterial());
     CHECK_NOTNULL(mat);
 
-    double k = mat->getK();
-    double dWt; // Gaussian quadrature
+    const double k = mat->getK();
+    // Gaussian quadrature
     for (uint16 np = 0; np < nOfIntPoints(); np++) {
-        dWt = intWeight(np);
+        const double dWt = intWeight(np);
         // all meterial functions are waiting [C] for 3D case. So we need to use CVec here.
         CVec[M_XX] = C[np][0];
         CVec[M_YY] = C[np][1];
@@ -61,19 +61,19 @@ void ElementPLANE41::buildK() {
         matE_p[0][0] = vecD_p[0];
         matE_p[1][0] = vecD_p[1];
         matE_p[2][0] = vecD_p[2];
-        double J = solidmech::J_C(CVec.ptr());
+        const double J = solidmech::J_C(CVec.ptr());
 
         Mat<3, 8> matB = make_B(np);
         // матрица S для матричного умножения
-        Mat<4, 4> matS = Mat<4, 4>{S[np][0], S[np][2], 0.0,      0.0,      S[np][2], S[np][1], 0.0,      0.0,
-                                   0.0,      0.0,      S[np][0], S[np][2], 0.0,      0.0,      S[np][2], S[np][1]};
+        auto matS = Mat<4, 4>{S[np][0], S[np][2], 0.0,      0.0,      S[np][2], S[np][1], 0.0,      0.0,
+                              0.0,      0.0,      S[np][0], S[np][2], 0.0,      0.0,      S[np][2], S[np][1]};
         // матрица Омега.используется для составления
         // матр. накопленных линейных деформаций к текущему шагу
-        Mat<3, 4> matO = Mat<3, 4>{O[np][0], 0.0,      O[np][2], 0.0,      0.0,      O[np][1],
-                                   0.0,      O[np][3], O[np][1], O[np][0], O[np][3], O[np][2]};
+        auto matO = Mat<3, 4>{O[np][0], 0.0,      O[np][2], 0.0,      0.0,      O[np][1],
+                              0.0,      O[np][3], O[np][1], O[np][0], O[np][3], O[np][2]};
 
         Mat<4, 8> matBomega = make_Bomega(np);
-        Mat<3, 8> matBl = matO * matBomega;
+        const Mat<3, 8> matBl = matO * matBomega;
         matB += matBl;
         Kuu += (matB.transpose() * matE_c * matB * 2.0 + matBomega.transpose() * matS * matBomega) * dWt;
         Fp += (J - 1 - p_e / k) * dWt;
@@ -99,7 +99,7 @@ void ElementPLANE41::buildK() {
     assembleK(Ke, Fe);
 }
 //
-inline Mat<3, 8> ElementPLANE41::make_B(uint16 np) {
+inline Mat<3, 8> ElementPLANE41::make_B(const uint16 np) {
     Mat<3, 8> B{NiXj[np][0][0], 0.0f,           NiXj[np][1][0], 0.0f,           NiXj[np][2][0], 0.0f,
                 NiXj[np][3][0], 0.0f,           0.0f,           NiXj[np][0][1], 0.0f,           NiXj[np][1][1],
                 0.0f,           NiXj[np][2][1], 0.0f,           NiXj[np][3][1], NiXj[np][0][1], NiXj[np][0][0],
@@ -107,7 +107,7 @@ inline Mat<3, 8> ElementPLANE41::make_B(uint16 np) {
     return B;
 }
 //
-Mat<4, 8> ElementPLANE41::make_Bomega(uint16 np) {
+Mat<4, 8> ElementPLANE41::make_Bomega(const uint16 np) {
     Mat<4, 8> Bomega{NiXj[np][0][0], 0.0f,           NiXj[np][1][0], 0.0f,           NiXj[np][2][0], 0.0f,
                      NiXj[np][3][0], 0.0f,           NiXj[np][0][1], 0.0f,           NiXj[np][1][1], 0.0f,
                      NiXj[np][2][1], 0.0f,           NiXj[np][3][1], 0.0f,           0.0f,           NiXj[np][0][0],
@@ -124,14 +124,14 @@ void ElementPLANE41::update() {
         U[i * 2 + 0] = storage->getNodeDofSolution(getNodeNumber(i), Dof::UX);
         U[i * 2 + 1] = storage->getNodeDofSolution(getNodeNumber(i), Dof::UY);
     }
-    Mat_Hyper_Isotrop_General* mat = dynamic_cast<Mat_Hyper_Isotrop_General*>(storage->getMaterial());
+    auto* mat = dynamic_cast<Mat_Hyper_Isotrop_General*>(storage->getMaterial());
     CHECK_NOTNULL(mat);
     Vec<6> CVec;
     CVec[M_XZ] = 0.0;
     CVec[M_YZ] = 0.0;
     CVec[M_ZZ] = 1.0;
     // восстанавливаем преращение давления
-    double p_e = storage->getElementDofSolution(getElNum(), Dof::HYDRO_PRESSURE);
+    const double p_e = storage->getElementDofSolution(getElNum(), Dof::HYDRO_PRESSURE);
 
     for (uint16 np = 0; np < nOfIntPoints(); np++) {
         Mat<4, 8> matBomega = make_Bomega(np);
@@ -148,17 +148,16 @@ void ElementPLANE41::update() {
     }
 }
 
-bool ElementPLANE41::getScalar(double* scalar, scalarQuery query, uint16 gp, const double scale) {
+bool ElementPLANE41::getScalar(double* scalar, const scalarQuery query, const uint16 gp, const double scale) {
     // see queries in query.h
     // gp - needed gauss point
     assert(scalar != nullptr);
 
     if (gp == GP_MEAN) { // need to average result over the element
-        double dWtSum = volume();
-        double dWt;
+        const double dWtSum = volume();
         for (uint16 np = 0; np < nOfIntPoints(); np++) {
-            dWt = intWeight(np);
-            bool ret = getScalar(scalar, query, np, dWt / dWtSum * scale);
+            const double dWt = intWeight(np);
+            const bool ret = getScalar(scalar, query, np, dWt / dWtSum * scale);
             if (ret == false)
                 return false;
         }
@@ -169,19 +168,17 @@ bool ElementPLANE41::getScalar(double* scalar, scalarQuery query, uint16 gp, con
     case scalarQuery::SP:
         *scalar += storage->getElementDofSolution(getElNum(), Dof::HYDRO_PRESSURE) * scale;
         return true;
+    default:
+        return false;
     }
-    return false;
 }
 
-bool ElementPLANE41::getVector(Vec<3>& vector, vectorQuery query, uint16 gp, const double scale) {
-    assert(&vector != nullptr);
-
+bool ElementPLANE41::getVector(Vec<3>& vector, const vectorQuery query, const uint16 gp, const double scale) {
     if (gp == GP_MEAN) { // need to average result over the element
-        double dWtSum = volume();
-        double dWt;
+        const double dWtSum = volume();
         for (uint16 np = 0; np < nOfIntPoints(); np++) {
-            dWt = intWeight(np);
-            bool ret = getVector(vector, query, np, dWt / dWtSum * scale);
+            const double dWt = intWeight(np);
+            const bool ret = getVector(vector, query, np, dWt / dWtSum * scale);
             if (ret == false)
                 return false;
         }
@@ -203,19 +200,18 @@ bool ElementPLANE41::getVector(Vec<3>& vector, vectorQuery query, uint16 gp, con
         vector[1] += IC[1] * scale;
         vector[2] += IC[2] * scale;
         return true;
+    default:
+        return false;
     }
-    return false;
 }
 
 // return a tensor in a global coordinate system
-bool ElementPLANE41::getTensor(MatSym<3>& tensor, tensorQuery query, uint16 gp, const double scale) {
-    assert(&tensor != nullptr);
+bool ElementPLANE41::getTensor(MatSym<3>& tensor, const tensorQuery query, const uint16 gp, const double scale) {
     if (gp == GP_MEAN) { // need to average result over the element
-        double dWtSum = volume();
-        double dWt;
+        const double dWtSum = volume();
         for (uint16 np = 0; np < nOfIntPoints(); np++) {
-            dWt = intWeight(np);
-            bool ret = getTensor(tensor, query, np, dWt / dWtSum * scale);
+            const double dWt = intWeight(np);
+            const bool ret = getTensor(tensor, query, np, dWt / dWtSum * scale);
             if (ret == false)
                 return false;
         }
@@ -296,8 +292,9 @@ bool ElementPLANE41::getTensor(MatSym<3>& tensor, tensorQuery query, uint16 gp, 
         tensor.data[4] += CVec[M_YZ] * 0.5 * scale;
         tensor.data[5] += (CVec[M_ZZ] - 1.0) * 0.5 * scale;
         return true;
+    default:
+        return false;
     }
-    return false;
 }
 
 } // namespace nla3d

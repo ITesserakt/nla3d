@@ -15,10 +15,10 @@
 
 namespace nla3d {
 
-ElementType ElementFactory::elName2elType(std::string elName) {
-    for (uint16 i = 0; i < (uint16)ElementType::UNDEFINED; i++) {
-        if (elName.compare(elTypeLabels[i]) == 0) {
-            return (ElementType)i;
+ElementType ElementFactory::elName2elType(const std::string& elName) {
+    for (uint16 i = 0; i < static_cast<uint16>(ElementType::UNDEFINED); i++) {
+        if (elName == elTypeLabels[i]) {
+            return static_cast<ElementType>(i);
         }
     }
     return ElementType::UNDEFINED;
@@ -86,7 +86,7 @@ void ElementFactory::createElements(ElementType elId, const uint32 n, std::vecto
         }
         break;
     default:
-        LOG(ERROR) << "Don't have an element with id " << (uint16)elId;
+        LOG(ERROR) << "Don't have an element with id " << static_cast<uint16>(elId);
     }
 }
 
