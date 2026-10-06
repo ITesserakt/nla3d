@@ -3,6 +3,7 @@
 // https://github.com/dmitryikh/nla3d
 
 #pragma once
+
 #include "math/Mat.h"
 #include "math/SparseMatrix.h"
 #include "sys.h"
@@ -46,14 +47,26 @@ class GaussDenseEquationSolver : public EquationSolver {
     dMat matA = dMat(1, 1);
 };
 
-class ConjugateGradientEquationSolver : public EquationSolver {
-  public:
+struct ConjugateGradientEquationSolver : EquationSolver {
     ~ConjugateGradientEquationSolver() override = default;
     void solveEquations(math::SparseSymMatrix* matrix, double* rhs, double* unknowns) override;
     void factorizeEquations(math::SparseSymMatrix* matrix) override;
     void substituteEquations(math::SparseSymMatrix* matrix, double* rhs, double* unknowns) override;
 
+    explicit ConjugateGradientEquationSolver(const double tolerance = 2.220446049250313e-16, const uint32 max_iters = 0)
+        : tolerance(tolerance), maxIters(max_iters) {}
 
+    double tolerance;
+    /// Specifies maximum iterations of CG; value `0` means auto
+    uint32 maxIters;
+};
+
+class BiCGSTAB_EquationSolver : public EquationSolver {
+  public:
+    ~BiCGSTAB_EquationSolver() override = default;
+    void solveEquations(math::SparseSymMatrix* matrix, double* rhs, double* unknowns) override;
+    void factorizeEquations(math::SparseSymMatrix* matrix) override;
+    void substituteEquations(math::SparseSymMatrix* matrix, double* rhs, double* unknowns) override;
 };
 
 #ifdef NLA3D_USE_MKL

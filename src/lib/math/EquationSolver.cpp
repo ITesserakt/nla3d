@@ -5,17 +5,45 @@
 #include <Eigen/IterativeLinearSolvers>
 
 #include "math/EquationSolver.h"
+
+#include "Eigen/src/Core/arch/CUDA/Complex.h"
 #include "math/eigen_support.h"
 
 #ifdef NLA3D_USE_MKL
 #include <mkl.h>
 #endif // NLA3D_USE_MKL
 
+using EMat = Eigen::Map<Eigen::SparseMatrix<double, Eigen::RowMajor>>;
+
+class UpperSymView;
+
+template <> struct Eigen::internal::traits<UpperSymView> : traits<EMat> {};
+
+class UpperSymView : public Eigen::EigenBase<UpperSymView> {
+  public:
+    using Scalar = EMat::Scalar;
+    using RealScalar = EMat::RealScalar;
+    using StorageIndex = EMat::StorageIndex;
+    enum { ColsAtCompileTime = EMat::ColsAtCompileTime, MaxColsAtCompileTime = EMat::MaxColsAtCompileTime };
+
+    explicit UpperSymView(const Eigen::SparseSelfAdjointView<EMat, Eigen::Upper>& matrix) : inner(matrix) {}
+
+    Eigen::Index rows() const { return inner.rows(); }
+    Eigen::Index cols() const { return inner.cols(); }
+
+    template <typename Rhs>
+    Eigen::Product<Eigen::SparseSelfAdjointView<EMat, Eigen::Upper>, Rhs, Eigen::AliasFreeProduct>
+    operator*(const Eigen::MatrixBase<Rhs>& rhs) const {
+        return {inner, rhs.derived()};
+    }
+
+  private:
+    const Eigen::SparseSelfAdjointView<EMat, Eigen::Upper>& inner;
+};
+
 namespace nla3d {
 
 namespace math {
-
-EquationSolver* defaultEquationSolver = new ConjugateGradientEquationSolver{};
 
 void EquationSolver::setSymmetric(const bool symmetric) { isSymmetric = symmetric; }
 
@@ -126,6 +154,7 @@ bool GaussDenseEquationSolver::_solve(double* X, double* A, double* B, const uin
 
 void ConjugateGradientEquationSolver::solveEquations(SparseSymMatrix* matrix, double* rhs, double* unknowns) {
     TIMED_SCOPE(t, "solveEquations");
+    LOG_IF(!(this->isSymmetric && this->isPositive), WARNING) << "ConjugateGradient solver works only with SPD systems";
     this->factorizeEquations(matrix);
     this->substituteEquations(matrix, rhs, unknowns);
 }
@@ -134,23 +163,48 @@ void ConjugateGradientEquationSolver::factorizeEquations(SparseSymMatrix*) {
     // ...noop
 }
 
-void ConjugateGradientEquationSolver::substituteEquations(SparseSymMatrix* matrix, double* rhs,
-                                                          double* unknowns) {
+void ConjugateGradientEquationSolver::substituteEquations(SparseSymMatrix* matrix, double* rhs, double* unknowns) {
     const auto size = matrix->nRows();
-    useSparseMat(*matrix, [rhs, unknowns, size](const traits<SparseSymMatrix>::MappedEigenEquivalent& view) {
-        const Eigen::ConjugateGradient<Eigen::SparseMatrix<double, Eigen::RowMajor>, Eigen::Upper> factorization{view.matrix()};
+    useSparseMat(*matrix, [this, rhs, unknowns, size](const traits<SparseSymMatrix>::MappedEigenEquivalent& view) {
+        Eigen::ConjugateGradient<Eigen::SparseMatrix<double, Eigen::RowMajor>, Eigen::Upper> factorization{
+            view.matrix()};
+        factorization.setTolerance(this->tolerance);
+        if (this->maxIters != 0)
+            factorization.setMaxIterations(this->maxIters);
 
-        // FIXME: this does not work :(
-        //        solution is lazy, so no items are copied to unknowns
-        // const auto solution = factorization.solve(Eigen::Map<Eigen::VectorXd>{rhs, size});
-        // Eigen::Map<Eigen::VectorXd>{unknowns, size} = solution;
+        const Eigen::Map<Eigen::VectorXd> rhs_mapping{rhs, size};
+        const auto solution = factorization.solve(rhs_mapping);
 
-        // This works, but requires additional allocation
-        const Eigen::MatrixXd solution = factorization.solve(Eigen::Map<Eigen::VectorXd>(rhs, size));
-        CHECK(factorization.info() == Eigen::Success) << "Cannot solve system: " << factorization.info();
         Eigen::Map<Eigen::VectorXd>{unknowns, size} = solution;
+        CHECK(factorization.info() == Eigen::Success) << "Cannot solve system: " << factorization.info();
     });
 }
+
+void BiCGSTAB_EquationSolver::solveEquations(math::SparseSymMatrix* matrix, double* rhs, double* unknowns) {
+    TIMED_SCOPE(t, "solveEquations");
+    this->factorizeEquations(matrix);
+    this->substituteEquations(matrix, rhs, unknowns);
+}
+
+void BiCGSTAB_EquationSolver::factorizeEquations(math::SparseSymMatrix*) {
+    // ...noop
+}
+
+void BiCGSTAB_EquationSolver::substituteEquations(math::SparseSymMatrix* matrix, double* rhs, double* unknowns) {
+    const auto size = matrix->nRows();
+    useSparseMat(*matrix, [rhs, unknowns, size](const traits<SparseSymMatrix>::MappedEigenEquivalent& view) {
+        const UpperSymView custom_view{view};
+        const Eigen::BiCGSTAB<UpperSymView, Eigen::IdentityPreconditioner> factorization{custom_view};
+        const Eigen::Map<Eigen::VectorXd> rhs_mapping{rhs, size};
+        const auto solution = factorization.solve(rhs_mapping);
+
+        Eigen::Map<Eigen::VectorXd>{unknowns, size} = solution;
+        CHECK(factorization.info() == Eigen::Success) << "Cannot solve system: " << factorization.info();
+    });
+}
+
+EquationSolver* defaultEquationSolver =
+    new ConjugateGradientEquationSolver{std::sqrt(Eigen::NumTraits<double>::epsilon())};
 
 #ifdef NLA3D_USE_MKL
 PARDISO_equationSolver::~PARDISO_equationSolver() { releasePARDISO(); }
