@@ -140,12 +140,18 @@ IF (NLA3D_PYTHON)
         MESSAGE(WARNING "swig isn't found, you can't build nla3d_py")
     ENDIF ()
     IF (PYTHONLIBS_FOUND AND SWIG_EXECUTABLE)
-        MAKE_DIRECTORY(${CMAKE_BINARY_DIR}/python)
+        file(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/python)
         ADD_CUSTOM_COMMAND(OUTPUT ${CMAKE_BINARY_DIR}/python/nla3d_wrapper.cxx
                 COMMAND ${SWIG_EXECUTABLE} -python -c++ -I${CMAKE_SOURCE_DIR}/src
                 -I${CMAKE_SOURCE_DIR}/src/lib -outdir ${CMAKE_BINARY_DIR}/python
                 -o python/nla3d_wrapper.cxx ${CMAKE_SOURCE_DIR}/python/nla3d.swg
                 DEPENDS ${CMAKE_SOURCE_DIR}/python/nla3d.swg)
+
+        EXECUTE_PROCESS(
+                COMMAND ${PYTHON_EXECUTABLE} -c "import sysconfig; print(sysconfig.get_config_var('EXT_SUFFIX'))"
+                OUTPUT_VARIABLE PYTHON_EXTENSION_SUFFIX
+                OUTPUT_STRIP_TRAILING_WHITESPACE
+        )
 
         ADD_CUSTOM_TARGET(swig DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/python/nla3d_wrapper.cxx)
 
@@ -154,19 +160,12 @@ IF (NLA3D_PYTHON)
 
         ADD_LIBRARY(nla3d_py SHARED EXCLUDE_FROM_ALL "${CMAKE_BINARY_DIR}/python/nla3d_wrapper.cxx")
         TARGET_LINK_LIBRARIES(nla3d_py ${PYTHON_LIBRARIES} nla3d_static_lib math)
-        SET_TARGET_PROPERTIES(nla3d_py PROPERTIES OUTPUT_NAME "_nla3d"
+        SET_TARGET_PROPERTIES(
+                nla3d_py PROPERTIES
+                OUTPUT_NAME "_nla3d"
                 PREFIX ""
+                SUFFIX ${PYTHON_EXTENSION_SUFFIX}
                 LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/python")
-        if (MSVC)
-            SET_TARGET_PROPERTIES(nla3d_py PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/python"
-                    RUNTIME_OUTPUT_DIRECTORY_DEBUG "${CMAKE_BINARY_DIR}/python"
-                    RUNTIME_OUTPUT_DIRECTORY_RELEASE "${CMAKE_BINARY_DIR}/python"
-                    SUFFIX ".pyd")
-            # etc for the other available configuration types (MinSizeRel, RelWithDebInfo)
-        endif (MSVC)
-        if (APPLE)
-            SET_TARGET_PROPERTIES(nla3d_py PROPERTIES SUFFIX ".so")
-        endif (APPLE)
         ADD_DEPENDENCIES(nla3d_py swig)
 
         # run python tests with `checkpy`

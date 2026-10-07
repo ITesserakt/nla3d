@@ -8,6 +8,7 @@
 #include "VtkProcessor.h"
 #include "FESolver.h"
 #include "FEReaders.h"
+#include "Node.h"
 #include "elements/query.h"
 #include "elements/TRUSS3.h"
 #include "elements/TETRA0.h"
