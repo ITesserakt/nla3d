@@ -8,8 +8,6 @@ project(NLA3D)
 
 include(GNUInstallDirs)
 
-# Use mine findFoo.cmake modules
-set(CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake/modules ${CMAKE_MODULE_PATH})
 
 #options
 set(NLA3D_USE_MKL OFF
@@ -30,70 +28,63 @@ set(NLA3D_BLAS OFF
 
 # TODO: this should depend on compiler
 if (UNIX)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC")
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC")
 endif ()
 
-# Linking on Mac Os was not working without this, see `cmake  --help-policy CMP0042`
-if (APPLE)
-    set(CMAKE_MACOSX_RPATH ON)
-endif (APPLE)
+# --------------------------- Third party libraries search ---------------------
+if(USE_PKG_CONFIG)
+  find_package(PkgConfig REQUIRED)
 
-if (nla3d_multithreaded)
-    if (UNIX)
-        find_package(Threads)
-    endif ()
-    set(MKL_MULTI_THREADED ON)
-    find_package(OpenMP)
-    if (OPENMP_FOUND)
-        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
-    endif ()
-else ()
-    set(MKL_MULTI_THREADED OFF)
-endif () #nla3d_multithreaded
+  pkg_check_modules(EASYLOGGINGPP REQUIRED easyloggingpp=9.96.7)
+  # Need this definition to use TIMED_SCOPE macro
+  add_definitions(-DELPP_FEATURE_PERFORMANCE_TRACKING)
+  include_directories(${EASYLOGGINGPP_INCLUDE_DIRS})
 
+  pkg_check_modules(EIGEN REQUIRED eigen3=3.3.9)
+  include_directories(${EIGEN_INCLUDE_DIRS})
 
-if (NLA3D_USE_MKL)
+  if (NLA3D_USE_MKL)
+    add_definitions(-DNLA3D_USE_MKL)
+    pkg_search_module(MKL
+      mkl-dynamic-lp64-iomp
+      mkl-dynamic-lp64-gomp
+      mkl-dynamic-lp64-tbb
+      mkl-dynamic-lp64-seq)
+    pkg_check_modules(MKL REQUIRED ${MKL_MODULE_NAME})
+  endif()
+else()
+  # Use mine findFoo.cmake modules
+  set(CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake/modules ${CMAKE_MODULE_PATH})
+
+  find_package(EASYLOGGINGPP REQUIRED)
+  # Need this definition to use TIMED_SCOPE macro
+  add_definitions(-DELPP_FEATURE_PERFORMANCE_TRACKING)
+  include_directories(${EASYLOGGINGPP_INCLUDE_DIRS})
+
+  find_package(EIGEN REQUIRED)
+  include_directories(${EIGEN_INCLUDE_DIRS})
+
+  if (NLA3D_USE_MKL)
     add_definitions(-DNLA3D_USE_MKL)
     # we can use blas procedures only if MKL library is used
     if (NLA3D_BLAS)
-        add_definitions(-DNLA3D_USE_BLAS)
+      add_definitions(-DNLA3D_USE_BLAS)
     endif ()
 
-    find_package(MKL)
-    if (MKL_FOUND)
-        include_directories(${MKL_INCLUDE_DIR})
+    find_package(MKL REQUIRED)
+    include_directories(${MKL_INCLUDE_DIRS})
+    SET(MKL_LINKER_ARGS "${MKL_LINKER_FLAGS} -lmkl_intel_lp64 -lmkl_sequential -lmkl_core -lmkl_rt -lmkl_def -lpthread -lm -ldl")
+    SET(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${MKL_LINKER_ARGS}")
+    SET(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} ${MKL_LINKER_ARGS}")
+  endif()
+endif()
 
-        # below code works fine only on UNIX systems..
-        if (MKL_MULTI_THREADED)
-            SET(MKL_LINKER_ARGS "${MKL_LINKER_FLAGS} -lmkl_intel_lp64 -lmkl_intel_thread -lmkl_core -lmkl_rt -lmkl_def -liomp5 -lpthread -lm -ldl")
-        else ()
-            SET(MKL_LINKER_ARGS "${MKL_LINKER_FLAGS} -lmkl_intel_lp64 -lmkl_sequential -lmkl_core -lmkl_rt -lmkl_def -lpthread -lm -ldl")
-        endif ()
-        SET(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${MKL_LINKER_ARGS}")
-        SET(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} ${MKL_LINKER_ARGS}")
+# ------------------------------------------------------------------------------
 
-    else ()
-        message(WARNING "Can't find MKL")
-    endif ()
-endif () # NLA3D_USE_MKL
-
-
-find_package(EASYLOGGINGPP)
-if (EASYLOGGINGPP_FOUND)
-    # Need this definition to use TIMED_SCOPE macro
-    add_definitions(-DELPP_FEATURE_PERFORMANCE_TRACKING)
-    include_directories(${EASYLOGGINGPP_INCLUDE_DIR})
-else ()
-    message(WARNING "Can't find Easylogging++")
-endif ()
-
-find_package(EIGEN)
-if (EIGEN_FOUND)
-    include_directories(${EIGEN_INCLUDE_DIR})
-else ()
-    message(WARNING "Can't find Eigen")
-endif ()
-
+# Linking on Mac Os was not working without this, see `cmake  --help-policy CMP0042`
+if (APPLE)
+  set(CMAKE_MACOSX_RPATH ON)
+endif (APPLE)
 
 SET(CMAKE_COLOR_MAKEFILE ON)
 enable_testing()
@@ -130,48 +121,48 @@ install(DIRECTORY "src/" DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/nla3d"
 
 # generate python wrapper by SWIG. `swig` rule to generate wrapper sources, `nla3d_py` - to build library
 IF (NLA3D_PYTHON)
-    set(Python_ADDITIONAL_VERSIONS 3)
-    FIND_PACKAGE(PythonInterp)
-    FIND_PACKAGE(PythonLibs)
-    FIND_PROGRAM(SWIG_EXECUTABLE NAMES swig3.0 swig)
-    IF (SWIG_EXECUTABLE)
-        MESSAGE("-- Found swig on \"${SWIG_EXECUTABLE}\"")
-    ELSE ()
-        MESSAGE(WARNING "swig isn't found, you can't build nla3d_py")
-    ENDIF ()
-    IF (PYTHONLIBS_FOUND AND SWIG_EXECUTABLE)
-        file(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/python)
-        ADD_CUSTOM_COMMAND(OUTPUT ${CMAKE_BINARY_DIR}/python/nla3d_wrapper.cxx
+  set(Python_ADDITIONAL_VERSIONS 3)
+  FIND_PACKAGE(PythonInterp)
+  FIND_PACKAGE(PythonLibs)
+  FIND_PROGRAM(SWIG_EXECUTABLE NAMES swig3.0 swig)
+  IF (SWIG_EXECUTABLE)
+    MESSAGE("-- Found swig on \"${SWIG_EXECUTABLE}\"")
+  ELSE ()
+    MESSAGE(WARNING "swig isn't found, you can't build nla3d_py")
+  ENDIF ()
+  IF (PYTHONLIBS_FOUND AND SWIG_EXECUTABLE)
+    file(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/python)
+    ADD_CUSTOM_COMMAND(OUTPUT ${CMAKE_BINARY_DIR}/python/nla3d_wrapper.cxx
                 COMMAND ${SWIG_EXECUTABLE} -python -c++ -I${CMAKE_SOURCE_DIR}/src
                 -I${CMAKE_SOURCE_DIR}/src/lib -outdir ${CMAKE_BINARY_DIR}/python
                 -o python/nla3d_wrapper.cxx ${CMAKE_SOURCE_DIR}/python/nla3d.swg
                 DEPENDS ${CMAKE_SOURCE_DIR}/python/nla3d.swg)
 
-        EXECUTE_PROCESS(
+    EXECUTE_PROCESS(
                 COMMAND ${PYTHON_EXECUTABLE} -c "import sysconfig; print(sysconfig.get_config_var('EXT_SUFFIX'))"
                 OUTPUT_VARIABLE PYTHON_EXTENSION_SUFFIX
                 OUTPUT_STRIP_TRAILING_WHITESPACE
         )
 
-        ADD_CUSTOM_TARGET(swig DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/python/nla3d_wrapper.cxx)
+    ADD_CUSTOM_TARGET(swig DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/python/nla3d_wrapper.cxx)
 
-        INCLUDE_DIRECTORIES(${PYTHON_INCLUDE_DIRS})
-        LINK_DIRECTORIES(${PYTHON_LIBRARIES})
+    INCLUDE_DIRECTORIES(${PYTHON_INCLUDE_DIRS})
+    LINK_DIRECTORIES(${PYTHON_LIBRARIES})
 
-        ADD_LIBRARY(nla3d_py SHARED EXCLUDE_FROM_ALL "${CMAKE_BINARY_DIR}/python/nla3d_wrapper.cxx")
-        TARGET_LINK_LIBRARIES(nla3d_py ${PYTHON_LIBRARIES} nla3d_static_lib math)
-        SET_TARGET_PROPERTIES(
+    ADD_LIBRARY(nla3d_py SHARED EXCLUDE_FROM_ALL "${CMAKE_BINARY_DIR}/python/nla3d_wrapper.cxx")
+    TARGET_LINK_LIBRARIES(nla3d_py ${PYTHON_LIBRARIES} nla3d_static_lib math)
+    SET_TARGET_PROPERTIES(
                 nla3d_py PROPERTIES
                 OUTPUT_NAME "_nla3d"
                 PREFIX ""
                 SUFFIX ${PYTHON_EXTENSION_SUFFIX}
                 LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/python")
-        ADD_DEPENDENCIES(nla3d_py swig)
+    ADD_DEPENDENCIES(nla3d_py swig)
 
-        # run python tests with `checkpy`
-        ADD_CUSTOM_TARGET(checkpy COMMAND ${CMAKE_CTEST_COMMAND} -L PYTHON --output-on-failure)
-        ADD_DEPENDENCIES(checkpy nla3d_py)
-    ENDIF ()
+    # run python tests with `checkpy`
+    ADD_CUSTOM_TARGET(checkpy COMMAND ${CMAKE_CTEST_COMMAND} -L PYTHON --output-on-failure)
+    ADD_DEPENDENCIES(checkpy nla3d_py)
+  ENDIF ()
 ENDIF ()
 
 add_subdirectory(test EXCLUDE_FROM_ALL)
@@ -180,4 +171,3 @@ add_subdirectory(test EXCLUDE_FROM_ALL)
 #  COMMAND ${CMAKE_COMMAND} -E copy_if_different
 #  ${MKL_IOMP5_RUNTIME_LIB}
 #  $<TARGET_FILE_DIR:nla3d>)
-

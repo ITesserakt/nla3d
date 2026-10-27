@@ -3,6 +3,7 @@
 
   inputs = {
     nixpkgs.url = "https://channels.nixos.org/nixpkgs-unstable/nixexprs.tar.zst";
+    site-deps-nixpkgs.url = "github:NixOS/nixpkgs/14aef06d9b3ad1d07626bdbb16083b83f92dc6c1";
   };
 
   inputs.self.submodules = true;
@@ -54,11 +55,13 @@
             let
               site-packages = python.sitePackages;
               extension_suffix = builtins.readFile (
-                pkgs.runCommandNoCC "python-extension-suffix" {
-                  nativeBuildInputs = [ python ];
-                } ''
-                  python -c 'import sysconfig; print(sysconfig.get_config_var("EXT_SUFFIX"), end="")' > $out
-                ''
+                pkgs.runCommandNoCC "python-extension-suffix"
+                  {
+                    nativeBuildInputs = [ python ];
+                  }
+                  ''
+                    python -c 'import sysconfig; print(sysconfig.get_config_var("EXT_SUFFIX"), end="")' > $out
+                  ''
               );
             in
             ''
@@ -91,14 +94,21 @@
 
     devShells = builtins.mapAttrs (system: pkgs: {
       default = pkgs.mkShellNoCC {
-        packages = with pkgs; [
-          llvmPackages.clang
-          llvmPackages.openmp
-          gdb
-          cmake
-          swig
-          (python3.withPackages (p: [ inputs.self.packages.${system}.nla3d_py ]))
-        ];
+        packages =
+          with pkgs;
+          [
+            llvmPackages.clang
+            llvmPackages.openmp
+            gdb
+            cmake
+            swig
+            pkg-config
+          ]
+          ++ pkgs.lib.optional (pkgs.stdenv.hostPlatform.is64bit && pkgs.stdenv.hostPlatform.isLinux) pkgs.mkl
+          ++ (with import inputs.site-deps-nixpkgs { inherit system; }; [
+            easyloggingpp
+            eigen
+          ]);
       };
     }) inputs.nixpkgs.legacyPackages;
   };

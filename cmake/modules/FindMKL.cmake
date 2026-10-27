@@ -22,7 +22,7 @@ find_package_handle_standard_args(MKL DEFAULT_MSG
 
 
 if(MKL_FOUND)
-    set(MKL_INCLUDE_DIR ${_MKL_INCLUDE_DIR})
+    set(MKL_INCLUDE_DIRS ${_MKL_INCLUDE_DIR})
     set(MKL_LIBS_DIR ${_MKL_LIBS_DIR})
     set(INTEL_ROOT ${_INTEL_ROOT})
     set(MKL_ROOT ${_MKL_ROOT})

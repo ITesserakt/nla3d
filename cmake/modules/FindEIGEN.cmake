@@ -3,7 +3,7 @@
 
 include(FindPackageHandleStandardArgs)
 # Find include dir
-find_path(EIGEN_INCLUDE_DIR "Eigen/Core"
+find_path(EIGEN_INCLUDE_DIRS "Eigen/Core"
     NO_CMAKE_PATH
     NO_CMAKE_ENVIRONMENT_PATH
     NO_SYSTEM_ENVIRONMENT_PATH
@@ -12,4 +12,4 @@ find_path(EIGEN_INCLUDE_DIR "Eigen/Core"
     DOC "The path the the directory that contains Core, Eigen and others")
 
 find_package_handle_standard_args(EIGEN DEFAULT_MSG
-    EIGEN_INCLUDE_DIR)
+    EIGEN_INCLUDE_DIRS)
