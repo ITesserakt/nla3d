@@ -15,20 +15,20 @@
         version = "0.0.0";
         src = ./.;
         python = pkgs.python3;
-        site-deps-pkgs = import inputs.site-deps-nixpkgs { 
+        site-deps-pkgs = import inputs.site-deps-nixpkgs {
           inherit system;
         };
       in
       {
         nla3d = pkgs.stdenv.mkDerivation {
           inherit pname version src;
-          nativeBuildInputs = [ 
-            pkgs.cmake 
-            pkgs.pkg-config 
+          nativeBuildInputs = [
+            pkgs.cmake
+            pkgs.pkg-config
           ];
-          buildInputs = with site-deps-pkgs; [ 
-            easyloggingpp 
-            eigen 
+          buildInputs = with site-deps-pkgs; [
+            easyloggingpp
+            eigen
           ];
 
           cmakeFlags = [
@@ -38,16 +38,15 @@
         };
 
         nla3d_py = python.pkgs.buildPythonPackage {
-          pname = "nla3d";
-          inherit version src;
+          inherit pname version src;
 
           nativeBuildInputs = [
             pkgs.cmake
             pkgs.swig
             pkgs.pkg-config
           ];
-          buildInputs = with site-deps-pkgs; [ 
-            python 
+          buildInputs = with site-deps-pkgs; [
+            python
             easyloggingpp
             eigen
           ];
@@ -82,11 +81,8 @@
             in
             ''
               runHook preInstall
-
               mkdir -p $out/${site-packages}
-
               cp python/_nla3d${extension_suffix} python/nla3d.py $out/${site-packages}/
-
               runHook postInstall
             '';
         };
@@ -97,7 +93,7 @@
             pkgs.cmake
             pkgs.pkg-config
           ];
-          buildInputs = with site-deps-pkgs; [ 
+          buildInputs = with site-deps-pkgs; [
             mkl
             easyloggingpp
             eigen
@@ -132,6 +128,14 @@
             easyloggingpp
             eigen
           ]);
+      };
+
+      python = pkgs.mkShellNoCC {
+        packages = with pkgs; [
+          (python3.withPackages (p: [
+            inputs.self.packages.${system}.nla3d_py
+          ]))
+        ];
       };
     }) inputs.nixpkgs.legacyPackages;
   };
