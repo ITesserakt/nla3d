@@ -3,10 +3,9 @@
 
   inputs = {
     nixpkgs.url = "https://channels.nixos.org/nixpkgs-unstable/nixexprs.tar.zst";
+    # This is old nixpkgs with correct deps versions
     site-deps-nixpkgs.url = "github:NixOS/nixpkgs/14aef06d9b3ad1d07626bdbb16083b83f92dc6c1";
   };
-
-  inputs.self.submodules = true;
 
   outputs = inputs: {
     packages = builtins.mapAttrs (
@@ -16,14 +15,25 @@
         version = "0.0.0";
         src = ./.;
         python = pkgs.python3;
+        site-deps-pkgs = import inputs.site-deps-nixpkgs { 
+          inherit system;
+        };
       in
       {
         nla3d = pkgs.stdenv.mkDerivation {
           inherit pname version src;
-          nativeBuildInputs = [ pkgs.cmake ];
+          nativeBuildInputs = [ 
+            pkgs.cmake 
+            pkgs.pkg-config 
+          ];
+          buildInputs = with site-deps-pkgs; [ 
+            easyloggingpp 
+            eigen 
+          ];
 
           cmakeFlags = [
             "-DCMAKE_BUILD_TYPE=RelWithDebInfo"
+            "-DUSE_PKG_CONFIG=ON"
           ];
         };
 
@@ -34,8 +44,13 @@
           nativeBuildInputs = [
             pkgs.cmake
             pkgs.swig
+            pkgs.pkg-config
           ];
-          buildInputs = [ python ];
+          buildInputs = with site-deps-pkgs; [ 
+            python 
+            easyloggingpp
+            eigen
+          ];
           propagatedBuildInputs = [ python ];
 
           pyproject = false;
@@ -43,6 +58,7 @@
           cmakeFlags = [
             "-DCMAKE_BUILD_TYPE=RelWithDebInfo"
             "-DNLA3D_PYTHON=ON"
+            "-DUSE_PKG_CONFIG=ON"
           ];
 
           buildPhase = ''
@@ -79,12 +95,18 @@
           inherit pname version src;
           nativeBuildInputs = [
             pkgs.cmake
+            pkgs.pkg-config
           ];
-          buildInputs = [ pkgs.mkl ];
+          buildInputs = with site-deps-pkgs; [ 
+            mkl
+            easyloggingpp
+            eigen
+          ];
 
           cmakeFlags = [
             "-DCMAKE_BUILD_TYPE=RelWithDebInfo"
             "-DNLA3D_USE_MKL=ON"
+            "-DUSE_PKG_CONFIG=ON"
           ];
         };
 
@@ -103,6 +125,7 @@
             cmake
             swig
             pkg-config
+            python3
           ]
           ++ pkgs.lib.optional (pkgs.stdenv.hostPlatform.is64bit && pkgs.stdenv.hostPlatform.isLinux) pkgs.mkl
           ++ (with import inputs.site-deps-nixpkgs { inherit system; }; [
