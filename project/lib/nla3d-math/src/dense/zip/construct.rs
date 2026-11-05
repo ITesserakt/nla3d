@@ -4,12 +4,14 @@ use core::{marker::PhantomData, mem::ManuallyDrop};
 use faer::{Shape, utils::bound::Idx};
 use generic_array::typenum::Const;
 
+use crate::dense::zip::{Any, Dynamic, Static, Symmetric};
 use crate::dense::{Mat, MatSym, MatSymLength, SymKind};
 
 /// # Safety
 /// `uninit(shape)` must panic unless `shape` is exactly the shape of `Self`;
 /// `set` is sound for every `(i, j)` within that shape.
 pub unsafe trait ElementwiseConstructible {
+    type Layout;
     type Item;
     type Uninit;
 
@@ -25,6 +27,7 @@ pub unsafe trait ElementwiseConstructible {
 }
 
 unsafe impl<const N: usize, const M: usize, T> ElementwiseConstructible for Mat<N, M, T> {
+    type Layout = Static<N, M>;
     type Item = T;
     type Uninit = Mat<N, M, MaybeUninit<T>>;
 
@@ -50,6 +53,7 @@ where
     Const<N>: MatSymLength,
     Kind: SymKind,
 {
+    type Layout = Symmetric<N, Kind>;
     type Item = T;
     type Uninit = MatSym<N, MaybeUninit<T>, Kind>;
 
@@ -75,6 +79,7 @@ pub enum Nothing<T> {
 }
 
 unsafe impl<T> ElementwiseConstructible for Nothing<T> {
+    type Layout = Any;
     type Item = T;
     type Uninit = !;
 
@@ -96,6 +101,7 @@ where
     Rows: Shape,
     Cols: Shape,
 {
+    type Layout = Dynamic;
     type Item = T;
     type Uninit = faer::Mat<MaybeUninit<T>, Rows, Cols>;
 

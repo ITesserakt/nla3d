@@ -3,11 +3,11 @@ use faer::{
     utils::bound::{Dim, Idx},
 };
 
-use super::{ElementwiseConstructible, Producer, ReducedToCommonMatrix, RemoveRef, Zip};
+use super::{ElementwiseConstructible, Fits, Layout, Producer, Zip};
 
 macro_rules! impl_zip {
     ($($n:ident: $t:ident$(,)?)+) => {
-        impl<$($t: Producer,)+> Zip<($($t,)+)> {
+        impl<$($t: Producer,)+ L: Layout> Zip<($($t,)+), L> {
             /// Visits every (i, j) exactly once, column-major.
             #[inline(always)]
             fn drive(self, mut f: impl FnMut(Idx, Idx, ($($t::Item,)+))) {
@@ -44,11 +44,9 @@ macro_rules! impl_zip {
             }
 
             #[inline]
-            pub fn map<R, M>(self, mut f: impl FnMut($($t::Item,)+) -> R) -> M
+            fn map_into_inner<M>(self, mut f: impl FnMut($($t::Item,)+) -> M::Item) -> M
             where
-                $($t: RemoveRef,)+
-                ($(<$t as RemoveRef>::Output,)+): ReducedToCommonMatrix<R, Output = M>,
-                M: ElementwiseConstructible<Item = R>,
+                M: ElementwiseConstructible,
             {
                 let mut matrix = M::uninit(self.0.0.shape());
                 self.drive(|i, j, ($($n,)+)| {
@@ -56,6 +54,20 @@ macro_rules! impl_zip {
                     unsafe { M::set(&mut matrix, i, j, value) };
                 });
                 unsafe { M::assume_init(matrix) }
+            }
+
+            #[inline(always)]
+            pub fn map<R>(self, f: impl FnMut($($t::Item, )+) -> R) -> L::Matrix<R> {
+                self.map_into_inner(f)
+            }
+
+            #[inline(always)]
+            pub fn map_into<M>(self, f: impl FnMut($($t::Item, )+) -> M::Item) -> M
+            where
+                M: ElementwiseConstructible,
+                L: Fits<M::Layout>
+            {
+                self.map_into_inner(f)
             }
         }
     };

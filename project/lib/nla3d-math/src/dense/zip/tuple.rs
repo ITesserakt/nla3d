@@ -1,6 +1,3 @@
-use super::construct::ElementwiseConstructible;
-use super::reduce::{ReduceToCommonMatrix, ReducedToCommonMatrix};
-
 pub trait Tuple {
     type Body: Tuple;
     type Tail;
@@ -26,15 +23,6 @@ macro_rules! impl_tuple {
                 (($($n, )*), $last_n)
             }
         }
-
-        impl<$($t, )* $last, Item, M1, M2> ReducedToCommonMatrix<Item> for ($($t, )* $last)
-        where
-            <Self as Tuple>::Body: ReducedToCommonMatrix<Item, Output = M1>,
-            <Self as Tuple>::Tail: ReduceToCommonMatrix<M1, Output<Item> = M2>,
-            M2: ElementwiseConstructible<Item = Item>
-        {
-            type Output = M2;
-        }
     };
     ($($n: ident: $t:ident$(,)?)*; $last_n:ident: $last:ident) => {
         impl<$($t, )* $last> Tuple for ($($t, )* $last) {
@@ -46,15 +34,6 @@ macro_rules! impl_tuple {
                 let ($($n, )* $last_n) = self;
                 (($($n, )*), $last_n)
             }
-        }
-
-        impl<$($t, )* $last, Item, M1, M2> ReducedToCommonMatrix<Item> for ($($t, )* $last)
-        where
-            <Self as Tuple>::Body: ReducedToCommonMatrix<Item, Output = M1>,
-            <Self as Tuple>::Tail: ReduceToCommonMatrix<M1, Output<Item> = M2>,
-            M2: ElementwiseConstructible<Item = Item>
-        {
-            type Output = M2;
         }
 
         impl<$($t, )* $last, T> Push<T> for ($($t, )* $last) {
@@ -105,14 +84,6 @@ impl<T1, T> Push<T> for (T1,) {
     fn push(self, value: T) -> Self::Output {
         (self.0, value)
     }
-}
-
-impl<T1, Item> ReducedToCommonMatrix<Item> for (T1,)
-where
-    T1: ReduceToCommonMatrix<T1>,
-    T1::Output<Item>: ElementwiseConstructible<Item = Item>,
-{
-    type Output = T1::Output<Item>;
 }
 
 impl_tuple!(a: T1; b: T2);

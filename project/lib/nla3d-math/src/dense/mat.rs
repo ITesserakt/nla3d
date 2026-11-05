@@ -3,7 +3,7 @@ use faer::{MatMut, MatRef};
 use std::mem::MaybeUninit;
 use std::ops::*;
 
-use crate::dense::zip::{Consume, Zip};
+use crate::dense::zip::{Consume, FillStatic, Zip};
 use crate::dense::{DMat, Mat, Vec};
 use crate::num_traits::{ConstOne, ConstZero, One, Zero};
 
@@ -37,21 +37,7 @@ impl<const N: usize, const M: usize, T> Mat<N, M, T> {
 
     #[inline]
     pub fn into_dyn(self) -> DMat<T> {
-        let mut array = self.0.0.map(MaybeUninit::new);
-        let mut out = DMat::from_fn(N, M, |_, _| const { MaybeUninit::uninit() });
-
-        for i in 0..M {
-            let col = &mut array[i];
-            let col: &mut [_] = col.as_mut();
-
-            for j in 0..N {
-                let slot = &mut col[j];
-                let value = unsafe { slot.assume_init_read() };
-                out[(j, i)].write(value);
-            }
-        }
-
-        unsafe { std::mem::transmute(out) }
+        Zip::from(Consume(self)).map_into(|it| it)
     }
 
     #[inline]
@@ -201,21 +187,9 @@ macro_rules! impl_operator {
 
             #[inline]
             fn $trait_fn(self, rhs: T) -> Self::Output {
-                let mut array = MaybeUninit::uninit();
-                let col: &mut [_] = array.as_mut();
-
-                for i in 0..M {
-                    let mut array = MaybeUninit::uninit();
-                    let row: &mut [_] = array.as_mut();
-
-                    for j in 0..N {
-                        row[j].write(self.0.0[i][j].clone().$trait_fn(rhs.clone()));
-                    }
-
-                    col[i].write(unsafe { array.assume_init() });
-                }
-
-                Mat(ArrayStorage(unsafe { array.assume_init() }))
+                Zip::from(Consume(self))
+                    .and(FillStatic(rhs))
+                    .map(|x, y| x.$trait_fn(y))
             }
         }
 
@@ -227,21 +201,9 @@ macro_rules! impl_operator {
 
             #[inline]
             fn $trait_fn(self, rhs: &'a T) -> Self::Output {
-                let mut array = MaybeUninit::uninit();
-                let col: &mut [_] = array.as_mut();
-
-                for i in 0..M {
-                    let mut array = MaybeUninit::uninit();
-                    let row: &mut [_] = array.as_mut();
-
-                    for j in 0..N {
-                        row[j].write(self.0.0[i][j].clone().$trait_fn(rhs));
-                    }
-
-                    col[i].write(unsafe { array.assume_init() });
-                }
-
-                Mat(ArrayStorage(unsafe { array.assume_init() }))
+                Zip::from(Consume(self))
+                    .and(FillStatic(rhs))
+                    .map(|x, y| x.$trait_fn(y))
             }
         }
 
@@ -254,21 +216,9 @@ macro_rules! impl_operator {
 
             #[inline]
             fn $trait_fn(self, rhs: T) -> Self::Output {
-                let mut array = MaybeUninit::uninit();
-                let col: &mut [_] = array.as_mut();
-
-                for i in 0..M {
-                    let mut array = MaybeUninit::uninit();
-                    let row: &mut [_] = array.as_mut();
-
-                    for j in 0..N {
-                        row[j].write(self.0.0[i][j].$trait_fn(rhs.clone()));
-                    }
-
-                    col[i].write(unsafe { array.assume_init() });
-                }
-
-                Mat(ArrayStorage(unsafe { array.assume_init() }))
+                Zip::from(self)
+                    .and(FillStatic(rhs))
+                    .map(|x, y| x.$trait_fn(y))
             }
         }
 
@@ -280,21 +230,9 @@ macro_rules! impl_operator {
 
             #[inline]
             fn $trait_fn(self, rhs: &'a T) -> Self::Output {
-                let mut array = MaybeUninit::uninit();
-                let col: &mut [_] = array.as_mut();
-
-                for i in 0..M {
-                    let mut array = MaybeUninit::uninit();
-                    let row: &mut [_] = array.as_mut();
-
-                    for j in 0..N {
-                        row[j].write(self.0.0[i][j].$trait_fn(rhs));
-                    }
-
-                    col[i].write(unsafe { array.assume_init() });
-                }
-
-                Mat(ArrayStorage(unsafe { array.assume_init() }))
+                Zip::from(self)
+                    .and(FillStatic(rhs))
+                    .map(|x, y| x.$trait_fn(y))
             }
         }
     };
@@ -320,9 +258,7 @@ macro_rules! impl_assign_operator {
         {
             #[inline]
             fn $trait_fn(&mut self, rhs: &Mat<N, M, T>) {
-                Zip::from(self)
-                    .and(rhs)
-                    .for_each(|y, x| y.$trait_fn(x))
+                Zip::from(self).and(rhs).for_each(|y, x| y.$trait_fn(x))
             }
         }
 
@@ -332,11 +268,9 @@ macro_rules! impl_assign_operator {
         {
             #[inline]
             fn $trait_fn(&mut self, rhs: T) {
-                for j in 0..N {
-                    for i in 0..M {
-                        self.0.0[i][j].$trait_fn(rhs.clone());
-                    }
-                }
+                Zip::from(self)
+                    .and(FillStatic(rhs))
+                    .for_each(|y, x| y.$trait_fn(x));
             }
         }
 
@@ -346,11 +280,9 @@ macro_rules! impl_assign_operator {
         {
             #[inline]
             fn $trait_fn(&mut self, rhs: &T) {
-                for j in 0..N {
-                    for i in 0..M {
-                        self.0.0[i][j].$trait_fn(rhs);
-                    }
-                }
+                Zip::from(self)
+                    .and(FillStatic(rhs))
+                    .for_each(|y, x| y.$trait_fn(x));
             }
         }
     };

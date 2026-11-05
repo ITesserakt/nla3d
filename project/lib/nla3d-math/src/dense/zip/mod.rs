@@ -1,33 +1,35 @@
 mod construct;
 mod drive;
+mod layout;
 mod producer;
-mod reduce;
 mod tuple;
 
+use core::marker::PhantomData;
+
 pub use construct::{ElementwiseConstructible, Nothing};
-pub use producer::{Consume, Fill, Producer, RawMut};
-pub use reduce::{ReduceToCommonMatrix, ReducedToCommonMatrix, RemoveRef, Zippable};
-pub use tuple::{Push, Tuple};
+pub use layout::{Any, Join, Layout, Static, Symmetric, Dynamic, Fits};
+pub use producer::{Consume, Fill, Producer, RawMut, FillStatic};
+pub use tuple::Push;
 
-pub struct Zip<T>(T);
+pub struct Zip<T, L>(T, PhantomData<L>);
 
-impl<T> Zip<(T,)> {
-    pub const fn from(value: T) -> Self
-    where
-        T: Producer,
-    {
-        Self((value,))
+impl<T> Zip<(T,), T::Layout>
+where
+    T: Producer,
+{
+    pub const fn from(value: T) -> Self {
+        Self((value,), PhantomData)
     }
 }
 
-impl<T> Zip<T> {
-    pub fn and<U>(self, value: U) -> Zip<T::Output>
+impl<T, L: Layout> Zip<T, L> {
+    pub fn and<U>(self, value: U) -> Zip<T::Output, L::Out>
     where
-        T: Tuple<Tail: RemoveRef> + Push<U>,
-        U: Producer + RemoveRef,
-        <T::Tail as RemoveRef>::Output: Zippable<U::Output>,
+        T: Push<U>,
+        L: Join<U::Layout>,
+        U: Producer,
     {
-        Zip(self.0.push(value))
+        Zip(self.0.push(value), PhantomData)
     }
 }
 
@@ -35,7 +37,7 @@ impl<T> Zip<T> {
 mod tests {
     use core::mem::ManuallyDrop;
 
-use matrixcompare::assert_matrix_eq;
+    use matrixcompare::assert_matrix_eq;
 
     use crate::dense::Mat;
     use crate::dense::zip::Zip;
@@ -111,7 +113,7 @@ use matrixcompare::assert_matrix_eq;
                 COUNTER.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
             }
         }
-        
+
         let a = m![[IncOnDrop(1), IncOnDrop(2)], [IncOnDrop(3), IncOnDrop(4)]];
 
         let result = std::panic::catch_unwind(|| {

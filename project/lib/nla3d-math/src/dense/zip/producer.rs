@@ -1,11 +1,12 @@
+use core::marker::PhantomData;
 use core::mem::ManuallyDrop;
 use core::ptr::NonNull;
-use core::{marker::PhantomData, mem::MaybeUninit};
 
 use faer::{MatMut, MatRef, Shape, Stride, utils::bound::Idx};
 use generic_array::typenum::Const;
 
-use crate::dense::mat::ArrayStorage;
+use crate::dense::zip::{Any, Static, Symmetric};
+use crate::dense::zip::layout::{Dynamic, Layout};
 use crate::dense::{Mat, MatSym, MatSymLength, SymKind};
 
 /// # Safety
@@ -15,6 +16,7 @@ use crate::dense::{Mat, MatSym, MatSymLength, SymKind};
 /// - `get_unchecked` must not create a reference covering memory other than
 ///   the returned item (it would invalidate items returned earlier).
 pub unsafe trait Producer: Sized {
+    type Layout: Layout;
     type Item;
     type Cursor;
 
@@ -38,6 +40,8 @@ pub struct Fill<T> {
     pub shape: (usize, usize),
 }
 
+pub struct FillStatic<const N: usize, const M: usize, T>(pub T);
+
 /// Raw pointer to a mutably borrowed container; made once, never re-borrowed.
 pub struct RawMut<'a, X> {
     ptr: NonNull<X>,
@@ -55,6 +59,7 @@ impl<'a, X> RawMut<'a, X> {
 }
 
 unsafe impl<'a, const N: usize, const M: usize, T> Producer for &'a Mat<N, M, T> {
+    type Layout = Static<N, M>;
     type Item = &'a T;
     type Cursor = Self;
 
@@ -77,6 +82,7 @@ unsafe impl<'a, const N: usize, const M: usize, T> Producer for &'a Mat<N, M, T>
 }
 
 unsafe impl<'a, const N: usize, const M: usize, T> Producer for &'a mut Mat<N, M, T> {
+    type Layout = Static<N, M>;
     type Item = &'a mut T;
     type Cursor = RawMut<'a, Mat<N, M, T>>;
 
@@ -105,6 +111,7 @@ where
     Const<N>: MatSymLength,
     Kind: SymKind,
 {
+    type Layout = Symmetric<N, Kind>;
     type Item = &'a T;
     type Cursor = Self;
 
@@ -134,6 +141,7 @@ where
     CStride: Stride,
     T: 'a,
 {
+    type Layout = Dynamic;
     type Item = &'a T;
     type Cursor = Self;
 
@@ -163,6 +171,7 @@ where
     RStride: Stride,
     CStride: Stride,
 {
+    type Layout = Dynamic;
     type Item = &'a mut T;
     type Cursor = Self;
 
@@ -185,6 +194,7 @@ where
 }
 
 unsafe impl<const N: usize, const M: usize, T> Producer for Consume<Mat<N, M, T>> {
+    type Layout = Static<N, M>;
     type Item = T;
     type Cursor = ConsumeCursor<N, M, T>;
 
@@ -221,18 +231,43 @@ impl<const N: usize, const M: usize, T> Drop for ConsumeCursor<N, M, T> {
 }
 
 unsafe impl<T: Clone> Producer for Fill<T> {
+    type Layout = Any;
     type Item = T;
     type Cursor = Self;
 
+    #[inline(always)]
     fn shape(&self) -> (usize, usize) {
         self.shape
     }
 
+    #[inline(always)]
     fn into_cursor(self) -> Self::Cursor {
         self
     }
 
+    #[inline(always)]
     unsafe fn get_unchecked(cursor: &mut Self::Cursor, _: Idx, _: Idx) -> Self::Item {
         cursor.element.clone()
+    }
+}
+
+unsafe impl<const N: usize, const M: usize, T: Clone> Producer for FillStatic<N, M, T> {
+    type Layout = Static<N, M>;
+    type Item = T;
+    type Cursor = Self;
+
+    #[inline(always)]
+    fn shape(&self) -> (usize, usize) {
+        (N, M)
+    }
+
+    #[inline(always)]
+    fn into_cursor(self) -> Self::Cursor {
+        self
+    }
+
+    #[inline(always)]
+    unsafe fn get_unchecked(cursor: &mut Self::Cursor, _: Idx, _: Idx) -> Self::Item {
+        cursor.0.clone()
     }
 }
