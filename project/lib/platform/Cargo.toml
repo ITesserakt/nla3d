@@ -1,0 +1,16 @@
+[package]
+name = "platform"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+foldhash = { version = "0.2.0", default-features = false }
+hashbrown = { version = "0.17.1", default-features = false }
+libc = "0.2"
+libc_alloc = { version = "1", default-features = false }
+log = { version = "0.4", default-features = false }
+mimalloc = { version = "0.1.52", optional = true }
+
+[features]
+std = ["log/std"]
+mimalloc = ["dep:mimalloc"]

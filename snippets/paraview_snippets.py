@@ -2,7 +2,7 @@ import os
 import sys
 from paraview.simple import *
 if len(sys.argv) != 3:
-	print "usage: dir = sys.argv[1], filename = sys.argv[2]\n"
+	print "usage: dir = platform.argv[1], filename = platform.argv[2]\n"
 	exit()
 	
 dir = sys.argv[1]

@@ -137,6 +137,12 @@
           ]))
         ];
       };
+
+      rust = pkgs.mkShell {
+        packages = with pkgs; [
+            rustup
+        ];
+      };
     }) inputs.nixpkgs.legacyPackages;
   };
 }

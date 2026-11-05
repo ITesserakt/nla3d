@@ -1,0 +1,35 @@
+[workspace]
+members = [
+    "lib/nla3d-math",
+    "lib/platform"
+]
+
+[package]
+name = "nla3d"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+crate-type = ["rlib", "cdylib"]
+
+[dependencies]
+nla3d-math = { path = "lib/nla3d-math" }
+platform = { path = "lib/platform", default-features = false }
+strum = { version = "0.28.0", default-features = false, features = ["derive"] }
+
+[dev-dependencies]
+matrixcompare = "0.3.0"
+nla3d = { path = ".", features = ["std"] }
+
+[features]
+std = ["nla3d-math/std", "platform/std"]
+
+[profile.no_std]
+inherits = "dev"
+panic = "abort"
+
+[profile.no_std-release]
+inherits = "release"
+panic = "abort"
+lto = true
+strip = true

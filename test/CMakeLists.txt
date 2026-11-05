@@ -4,7 +4,7 @@
 
 
 # FUNC tests
-# ${CMAKE_SOURCE_DIR}/src/lib/sys.cpp
+# ${CMAKE_SOURCE_DIR}/src/lib/platform.cpp
 set(TEST_SOURCES "mat_math.cpp")
 set(TEST_NAME "mat_math")
 add_executable(${TEST_NAME} ${TEST_SOURCES})
@@ -15,7 +15,7 @@ add_dependencies(check ${TEST_NAME})
 
 
 # TODO: undone! (see commented lines in the source code)
-# add_executable(mat_sparse_pardiso_test_exe mat_sparse_pardiso.cpp ${CMAKE_SOURCE_DIR}/src/lib/sys.cpp)
+# add_executable(mat_sparse_pardiso_test_exe mat_sparse_pardiso.cpp ${CMAKE_SOURCE_DIR}/src/lib/platform.cpp)
 # target_link_libraries(mat_sparse_pardiso_test_exe math ${MKL_LIBRARIES})
 # add_test(NAME mat_sparse_pardiso_test COMMAND mat_sparse_pardiso_test_exe)
 # set_tests_properties(mat_sparse_pardiso_test PROPERTIES LABELS "FUNC")

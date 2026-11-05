@@ -1,7 +1,7 @@
 
 import sys
 if len(sys.argv) != 4:
-	print "usage: loadsteps = sys.argv[1], max_disp = sys.argv[2], filename = sys.argv[3]\n"
+	print "usage: loadsteps = platform.argv[1], max_disp = platform.argv[2], filename = platform.argv[3]\n"
 	exit()
 	
 loadsteps= int(sys.argv[1])
