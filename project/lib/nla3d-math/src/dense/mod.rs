@@ -1,11 +1,12 @@
-mod mat_sym;
+mod accessor;
 mod mat;
-pub mod zip;
+mod mat_sym;
 
-use generic_array::typenum::Const;
+pub use accessor::*;
 pub use mat_sym::*;
 
-use crate::dense::mat::{ArrayStorage};
+use crate::dense::mat::ArrayStorage;
+use generic_array::typenum::Const;
 
 pub type Vec<const N: usize, T = f64> = Mat<N, 1, T>;
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -16,6 +17,17 @@ where
 
 pub type DMat<T = f64, Rows = usize, Cols = usize> = faer::Mat<T, Rows, Cols>;
 
+#[derive(Debug, Clone, Copy)]
+pub struct SingularMatrix;
+
+impl std::fmt::Display for SingularMatrix {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        write!(f, "Matrix is singular")
+    }
+}
+
+impl std::error::Error for SingularMatrix {}
+
 pub trait MatMul<Rhs> {
     type Output;
 
@@ -24,14 +36,19 @@ pub trait MatMul<Rhs> {
 
 pub trait MatMulAssign<Rhs> {
     type Output;
-    
+
     fn matmul_assign(self, rhs: Rhs, out: Self::Output);
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::dense::{Lower, Mat, MatSym, SymKind, Upper};
+    use generic_array::typenum::Const;
+    use matrixcompare::assert_scalar_eq;
+    use rand::SeedableRng;
+
+    use crate::dense::{Lower, Mat, MatSym, MatSymLength, SymKind, Upper};
     use crate::num_traits::Zero;
+    use crate::zip::RandomConstructible;
 
     type M = MatSym<3>;
 
@@ -41,7 +58,6 @@ mod tests {
     }
 
     #[test]
-    #[cfg(feature = "std")]
     fn test_sym_mat_new() {
         let mut mat = MatSym::<3>::zero();
         mat[(1, 0)] = 3.0;
@@ -87,5 +103,46 @@ mod tests {
                 assert!(i == i_ && j == j_ || i == j_ && j == i_);
             }
         }
+    }
+
+    fn test_determinants<const N: usize>(expected: f64)
+    where
+        Const<N>: MatSymLength,
+    {
+        let mut rng = rand::rngs::SmallRng::seed_from_u64(42);
+        let m = MatSym::<_, f64, Lower>::random_uniform((N, N), &mut rng).to_mat();
+        let mu = MatSym::<_, _, Upper>::from_mat(m);
+        let ml = MatSym::<_, _, Lower>::from_mat(m);
+
+        let det = m.determinant();
+        assert_scalar_eq!(det, expected, comp = abs, tol = 1e-7);
+        assert_scalar_eq!(det, mu.determinant(), comp = abs, tol = 1e-9);
+        assert_scalar_eq!(det, ml.determinant(), comp = abs, tol = 1e-9);
+    }
+
+    #[test]
+    fn test_determinant_0() {
+        test_determinants::<0>(1.0);
+    }
+
+    #[test]
+    fn test_determinant_1() {
+        test_determinants::<1>(0.52655740);
+    }
+
+    #[test]
+    fn test_determinant_2() {
+        test_determinants::<2>(-0.1913572443045799);
+    }
+
+    #[test]
+    fn test_determinant_3() {
+        test_determinants::<3>(0.0907005773019399);
+    }
+
+    #[test]
+    #[should_panic(expected = "not yet implemented")]
+    fn test_determinant_4() {
+        test_determinants::<4>(-0.05985309703547821);
     }
 }

@@ -2,6 +2,7 @@
 
 pub mod dense;
 pub mod sparse;
+pub mod zip;
 
 #[cfg(feature = "std")]
 extern crate std;

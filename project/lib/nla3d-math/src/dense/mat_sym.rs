@@ -1,4 +1,5 @@
 use core::mem::MaybeUninit;
+use core::ptr::NonNull;
 use std::fmt::Debug;
 use std::fmt::Write;
 use std::marker::PhantomData;
@@ -9,20 +10,54 @@ use std::ops::DerefMut;
 use std::ops::Index;
 use std::ops::IndexMut;
 
+use faer::traits::ComplexField;
+use faer::traits::RealField;
+use faer::traits::ext::ComplexFieldExt;
 use generic_array::sequence::GenericSequence;
 use generic_array::typenum::Const;
 use generic_array::{ArrayLength, GenericArray};
 
 use crate::dense::Mat;
 use crate::dense::MatSym;
+use crate::dense::SingularMatrix;
 use crate::num_traits::Zero;
+use crate::zip::Zip;
 
+#[derive(Debug, Clone, Copy)]
 pub struct Upper;
+#[derive(Debug, Clone, Copy)]
 pub struct Lower;
 
 pub struct SymArrayStorage<T, N: MatSymLength, Kind> {
     data: GenericArray<T, N::Length>,
     _phantom: PhantomData<Kind>,
+}
+
+impl<T: Debug, N: MatSymLength, K> Debug for SymArrayStorage<T, N, K> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("SymArrayStorage")
+            .field("data", &self.data)
+            .field("_phantom", &self._phantom)
+            .finish()
+    }
+}
+
+impl<T: Clone, N: MatSymLength, K> Clone for SymArrayStorage<T, N, K> {
+    fn clone(&self) -> Self {
+        Self {
+            data: self.data.clone(),
+            _phantom: self._phantom.clone(),
+        }
+    }
+}
+
+impl<T: Clone, const N: usize, K> Clone for MatSym<N, T, K>
+where
+    Const<N>: MatSymLength,
+{
+    fn clone(&self) -> Self {
+        Self(self.0.clone())
+    }
 }
 
 pub trait MatSymLength {
@@ -126,15 +161,7 @@ where
         T: Clone,
         Kind: SymKind,
     {
-        let mut matrix = Mat::uninit();
-
-        for (k, item) in self.0.iter().enumerate() {
-            let (i, j) = Kind::wide_index(N, k);
-            matrix[(i, j)].write(item.clone());
-            matrix[(j, i)].write(item.clone());
-        }
-
-        unsafe { matrix.assume_init() }
+        Zip::from(self).map_into(|x| x.clone())
     }
 
     #[inline]
@@ -175,6 +202,129 @@ where
             slot.write(matrix[(i, j)].clone());
         }
         unsafe { out.assume_init() }
+    }
+
+    pub fn determinant(&self) -> T
+    where
+        T: ComplexField,
+        Kind: SymKind,
+    {
+        match N {
+            0 => T::one_impl(),
+            1 => self[(0, 0)].clone(),
+            2 => {
+                self[(0, 0)].clone() * self[(1, 1)].clone()
+                    - self[(0, 1)].clone() * self[(1, 0)].clone()
+            }
+            3 => {
+                self[(0, 0)].clone()
+                    * (self[(1, 1)].clone() * self[(2, 2)].clone()
+                        - self[(1, 2)].clone() * self[(2, 1)].clone())
+                    - self[(0, 1)].clone()
+                        * (self[(1, 0)].clone() * self[(2, 2)].clone()
+                            - self[(1, 2)].clone() * self[(2, 0)].clone())
+                    + self[(0, 2)].clone()
+                        * (self[(1, 0)].clone() * self[(2, 1)].clone()
+                            - self[(1, 1)].clone() * self[(2, 0)].clone())
+            }
+            _ => todo!(),
+        }
+    }
+
+    #[inline]
+    pub fn as_mut_ptr(&mut self) -> NonNull<[T]> {
+        NonNull::from_mut(&mut self.0.data)
+    }
+}
+
+impl<T, Kind> MatSym<0, T, Kind> {
+    #[inline]
+    pub const fn inv(&self) -> Self {
+        Self(SymArrayStorage {
+            data: GenericArray::from_array([]),
+            _phantom: PhantomData,
+        })
+    }
+}
+
+impl<T: RealField, Kind: SymKind> MatSym<1, T, Kind> {
+    #[inline]
+    pub fn inv(&self) -> Self {
+        self.try_inv().unwrap()
+    }
+
+    #[inline]
+    pub fn try_inv(&self) -> Result<Self, SingularMatrix> {
+        let det = self.determinant();
+        if det.is_zero() {
+            return Err(SingularMatrix);
+        }
+        Ok(Self(SymArrayStorage {
+            data: GenericArray::from_array([det.recip()]),
+            _phantom: PhantomData,
+        }))
+    }
+}
+
+impl<T: RealField, Kind: SymKind> MatSym<2, T, Kind> {
+    #[inline]
+    pub fn inv(&self) -> Self {
+        self.try_inv().unwrap()
+    }
+
+    #[inline]
+    pub fn try_inv(&self) -> Result<Self, SingularMatrix> {
+        let det = self.determinant();
+        if det.is_zero() {
+            return Err(SingularMatrix);
+        }
+        let inv_det = det.recip();
+        let (a, b, d) = (
+            self[(0, 0)].clone(),
+            self[(0, 1)].clone(),
+            self[(1, 1)].clone(),
+        );
+
+        let mut out = Self::uninit();
+        out[(0, 0)].write(d * inv_det.clone());
+        out[(0, 1)].write(-b * inv_det.clone());
+        out[(1, 1)].write(a * inv_det);
+
+        Ok(unsafe { out.assume_init() })
+    }
+}
+
+impl<T: RealField, Kind: SymKind> MatSym<3, T, Kind> {
+    #[inline]
+    pub fn inv(&self) -> Self {
+        self.try_inv().unwrap()
+    }
+
+    #[inline]
+    pub fn try_inv(&self) -> Result<Self, SingularMatrix> {
+        let det = self.determinant();
+        if det.is_zero() {
+            return Err(SingularMatrix);
+        }
+        let inv_det = det.recip();
+
+        let a = self[(0, 0)].clone();
+        let b = self[(0, 1)].clone();
+        let c = self[(0, 2)].clone();
+        let d = self[(1, 1)].clone();
+        let e = self[(1, 2)].clone();
+        let f = self[(2, 2)].clone();
+
+        let mut out = Self::uninit();
+
+        out[(0, 0)].write((d.clone() * f.clone() - e.clone() * e.clone()) * inv_det.clone());
+        out[(0, 1)].write((c.clone() * e.clone() - b.clone() * f.clone()) * inv_det.clone());
+        out[(0, 2)].write((b.clone() * e.clone() - c.clone() * d.clone()) * inv_det.clone());
+        out[(1, 1)].write((a.clone() * f - c.clone() * c.clone()) * inv_det.clone());
+        out[(1, 2)].write((b.clone() * c - a.clone() * e) * inv_det.clone());
+        out[(2, 2)].write((a * d - b.clone() * b) * inv_det);
+
+        Ok(unsafe { out.assume_init() })
     }
 }
 

@@ -4,14 +4,14 @@ use core::{marker::PhantomData, mem::ManuallyDrop};
 use faer::{Shape, utils::bound::Idx};
 use generic_array::typenum::Const;
 
-use crate::dense::zip::{Any, Dynamic, Static, Symmetric};
 use crate::dense::{Mat, MatSym, MatSymLength, SymKind};
+use crate::zip::{Any, Dynamic, Layout, Static, Symmetric};
 
 /// # Safety
 /// `uninit(shape)` must panic unless `shape` is exactly the shape of `Self`;
 /// `set` is sound for every `(i, j)` within that shape.
 pub unsafe trait ElementwiseConstructible {
-    type Layout;
+    type Layout: Layout;
     type Item;
     type Uninit;
 

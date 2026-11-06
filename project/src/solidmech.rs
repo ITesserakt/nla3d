@@ -1,23 +1,13 @@
+use nla3d_math::{
+    dense::{Mat, MatSym, Vec},
+    m,
+};
 use std::ops::{Deref, DerefMut};
-use nla3d_math::dense::{Mat, MatSym, Vec};
-use nla3d_math::mat;
 
-static LEVI_CIVITA: Vec<3, Mat<3, 3>> = mat![[
-    mat![
-        [0.0, 0.0, 0.0],
-        [0.0, 0.0, -1.0],
-        [0.0, 1.0, 0.0]
-    ],
-    mat![
-        [0.0, 0.0, 1.0],
-        [0.0, 0.0, 0.0],
-        [-1.0, 0.0, 0.0],
-    ],
-    mat![
-        [0.0, -1.0, 0.0],
-        [1.0, 0.0, 0.0],
-        [0.0, 0.0, 0.0]
-    ]
+static LEVI_CIVITA: Vec<3, Mat<3, 3>> = m![[
+    m![[0.0, 0.0, 0.0], [0.0, 0.0, -1.0], [0.0, 1.0, 0.0]],
+    m![[0.0, 0.0, 1.0], [0.0, 0.0, 0.0], [-1.0, 0.0, 0.0],],
+    m![[0.0, -1.0, 0.0], [1.0, 0.0, 0.0], [0.0, 0.0, 0.0]]
 ]];
 
 #[derive(Debug)]
@@ -40,9 +30,12 @@ impl DerefMut for CauchyStrainTensor {
 }
 
 impl CauchyStrainTensor {
+    #[allow(non_snake_case)]
     #[inline]
-    #[must_use]
-    pub fn j(&self) -> f64 {
-        self.0
+    pub fn J(&self) -> f64 {
+        #[cfg(not(feature = "std"))]
+        use nla3d_math::num_traits::Float;
+        
+        self.0.determinant().sqrt()
     }
 }

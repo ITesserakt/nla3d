@@ -2,7 +2,10 @@ use core::marker::PhantomData;
 
 use generic_array::typenum::Const;
 
-use crate::dense::{DMat, Mat, MatSym, MatSymLength, SymKind, zip::ElementwiseConstructible};
+use crate::{
+    dense::{DMat, Mat, MatSym, MatSymLength, SymKind},
+    zip::ElementwiseConstructible,
+};
 
 pub trait Layout {
     type Matrix<V>: ElementwiseConstructible<Item = V>;
@@ -12,6 +15,9 @@ pub trait Join<R: Layout>: Layout {
     type Out: Layout;
 }
 
+#[diagnostic::on_unimplemented(
+    message = "a zip with layout `{Self}` cannot be collected into layout `{Rhs}`"
+)]
 pub trait Fits<Rhs = Self>: Layout {}
 
 pub struct Any;

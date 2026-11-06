@@ -4,7 +4,11 @@ use core::{
 };
 
 use nla3d_math::{
-    dense::{Mat, Vec, zip::Zip}, m, num_traits::{MulAddAssign, One, Zero}, v,
+    dense::{Mat, Vec},
+    m,
+    num_traits::{MulAddAssign, One, Zero},
+    v,
+    zip::Zip,
 };
 
 const fn cos_approx_newton(x: f64, max_iterations: usize) -> f64 {
@@ -156,13 +160,14 @@ where
     T: Clone + Zero + Sub<Output = T> + One + Div<Output = T> + MulAddAssign,
 {
     fn integrate(&self, mut f: impl FnMut(Mat<1, D, T>) -> T) -> T {
-        Zip::from(&self.weights)
-            .and(&self.xs)
-            .fold(T::zero(), move |acc, w, xs| {
-                let mut f = f(v![xs.clone()]);
-                f.mul_add_assign(w.clone(), acc);
-                f
-            })
+        // Zip::from(&self.weights)
+        //     .and(&self.xs)
+        //     .fold(T::zero(), move |acc, w, xs| {
+        //         let mut f = f(xs);
+        //         f.mul_add_assign(w.clone(), acc);
+        //         f
+        //     })
+        todo!()
     }
 }
 
@@ -201,19 +206,20 @@ where
         + Mul<Output = T>,
 {
     fn integrate(&self, mut f: impl FnMut(Mat<1, D, T>) -> T) -> T {
-        let two = T::one() + T::one();
-        let factor = self.from.zip_fold(&self.to, T::one(), |acc, a, b| {
-            let half_len = (b - a) / two.clone();
-            acc * half_len
-        });
+        // let two = T::one() + T::one();
+        // let factor = self.from.zip_fold(&self.to, T::one(), |acc, a, b| {
+        //     let half_len = (b - a) / two.clone();
+        //     acc * half_len
+        // });
 
-        factor
-            * self.inner.integrate(move |mut xs| {
-                for (d, x) in xs.iter_mut().enumerate() {
-                    self.map(x, d)
-                }
-                f(xs)
-            })
+        // factor
+        //     * self.inner.integrate(move |mut xs| {
+        //         for (d, x) in xs.iter_mut().enumerate() {
+        //             self.map(x, d)
+        //         }
+        //         f(xs)
+        //     })
+        todo!()
     }
 }
 
@@ -222,6 +228,7 @@ mod tests {
     use core::{f64::consts::PI, ops::Neg};
 
     use matrixcompare::assert_scalar_eq;
+    use nla3d_math::v;
 
     use crate::element::quadrature::{
         GaussQuadrature, LinearMap, Quadrature, TensorGaussQuadrature, cos_approx_newton,
@@ -230,7 +237,7 @@ mod tests {
     #[test]
     fn test_1d_integration() {
         static QUAD: GaussQuadrature<19> = GaussQuadrature::<19>::new(10);
-        let area = LinearMap::new(&QUAD, [0.0], [10.0]).integrate(|xs| {
+        let area = LinearMap::new(&QUAD, v![0.0], v![10.0]).integrate(|xs| {
             let x = xs.x;
             2.0 / PI.sqrt() * (-x * x).exp()
         });
@@ -241,7 +248,7 @@ mod tests {
     fn test_2d_integration() {
         static QUAD: TensorGaussQuadrature<2, 361> = TensorGaussQuadrature::new::<19>(10);
 
-        let area = LinearMap::new(&QUAD, [0.0, 0.0], [10.0, 10.0])
+        let area = LinearMap::new(&QUAD, v![0.0, 0.0], v![10.0, 10.0])
             .integrate(|xs| 2.0 / PI.sqrt() * (xs.x + xs.y).powi(2).neg().exp());
 
         assert_scalar_eq!(area, 0.56418958, comp = abs, tol = 1e-7);

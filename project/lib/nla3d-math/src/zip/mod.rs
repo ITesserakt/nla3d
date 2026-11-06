@@ -1,5 +1,6 @@
 mod construct;
 mod drive;
+mod ext;
 mod layout;
 mod producer;
 mod tuple;
@@ -7,9 +8,13 @@ mod tuple;
 use core::marker::PhantomData;
 
 pub use construct::{ElementwiseConstructible, Nothing};
-pub use layout::{Any, Join, Layout, Static, Symmetric, Dynamic, Fits};
-pub use producer::{Consume, Fill, Producer, RawMut, FillStatic};
+pub use ext::{CollectIntoExt, OwnedExt, TriExt};
+pub use layout::{Any, Dynamic, Fits, Join, Layout, Static, Symmetric};
+pub use producer::{Consume, Fill, FillStatic, Producer, RawMut, ToOwnedProducer, Tri};
 pub use tuple::Push;
+
+#[cfg(feature = "rand")]
+pub use ext::RandomConstructible;
 
 pub struct Zip<T, L>(T, PhantomData<L>);
 
@@ -38,10 +43,13 @@ mod tests {
     use core::mem::ManuallyDrop;
 
     use matrixcompare::assert_matrix_eq;
+    use rand::SeedableRng;
 
     use crate::dense::Mat;
-    use crate::dense::zip::Zip;
-    use crate::dense::zip::producer::Consume;
+    use crate::zip::RandomConstructible;
+    use crate::zip::TriExt;
+    use crate::zip::Zip;
+    use crate::zip::producer::Consume;
     use crate::{dense::MatSym, m};
 
     const A: Mat<3, 3, usize> = m![[1, 2, 3], [2, 3, 4], [5, 6, 7]];
@@ -87,7 +95,7 @@ mod tests {
 
     #[test]
     fn for_each_mut_items_can_be_retained() {
-        let mut a = m![[1, 2], [3, 4]];
+        let mut a = m![[1, 2], [3, 4]].into_dyn();
         let mut v = Vec::new();
         Zip::from(&mut a).for_each(|x| v.push(x));
         for x in v {
@@ -127,5 +135,26 @@ mod tests {
 
         assert_eq!(COUNTER.load(std::sync::atomic::Ordering::SeqCst), 1);
         assert!(matches!(result, Err(_)));
+    }
+
+    #[test]
+    fn test_triangular_traverse() {
+        let mut rng = rand::rngs::SmallRng::seed_from_u64(42);
+        let mut m = MatSym::<3>::random_uniform((3, 3), &mut rng);
+
+        let mut visited = 0;
+        Zip::from(&mut m).for_each(|x| {
+            visited += 1;
+            *x = match *x > 0.5 {
+                true => 2.0,
+                false => -1.0,
+            };
+        });
+
+        let product = Zip::from(&m).fold(1.0, std::ops::Mul::mul);
+        let product_lower = Zip::from(m.lower()).fold(1.0, std::ops::Mul::mul);
+        assert_eq!(visited, 6);
+        assert_eq!(product, 32.0);
+        assert_eq!(product_lower, -8.0);
     }
 }
