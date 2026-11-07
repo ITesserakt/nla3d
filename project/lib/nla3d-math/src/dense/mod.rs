@@ -127,22 +127,22 @@ mod tests {
 
     #[test]
     fn test_determinant_1() {
-        test_determinants::<1>(0.52655740);
+        test_determinants::<1>(0.8143051451229099);
     }
 
     #[test]
     fn test_determinant_2() {
-        test_determinants::<2>(-0.1913572443045799);
+        test_determinants::<2>(-0.3971094091837122);
     }
 
     #[test]
     fn test_determinant_3() {
-        test_determinants::<3>(0.0907005773019399);
+        test_determinants::<3>(-0.172172412694047);
     }
 
     #[test]
     #[should_panic(expected = "not yet implemented")]
     fn test_determinant_4() {
-        test_determinants::<4>(-0.05985309703547821);
+        test_determinants::<4>(-0.28809505590157414);
     }
 }

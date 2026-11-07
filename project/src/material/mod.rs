@@ -1,5 +1,5 @@
 use platform::collections::hash_map::HashMap;
-use platform::collections::string::String;
+use platform::compat::string::String;
 
 pub struct Material {
     name: String,

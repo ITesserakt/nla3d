@@ -6,15 +6,20 @@ extern crate core as std;
 #[cfg(feature = "std")]
 extern crate std;
 
+pub mod compat {
+    #[cfg(feature = "std")]
+    pub use std::{borrow, boxed, string, sync};
+
+    #[cfg(not(feature = "std"))]
+    pub use alloc::{borrow, boxed, string, sync};
+}
+
 pub mod collections {
     #[cfg(feature = "std")]
-    pub use std::{boxed, collections::*, vec, string};
+    pub use std::{collections::*, vec};
 
     #[cfg(not(feature = "std"))]
-    extern crate alloc;
-
-    #[cfg(not(feature = "std"))]
-    pub use alloc::{boxed, collections::*, vec, string};
+    pub use alloc::{collections::*, vec};
 
     pub mod hash_set {
         pub use hashbrown::hash_set::*;
@@ -43,7 +48,7 @@ fn panic(info: &core::panic::PanicInfo) -> ! {
     unsafe { libc::abort() }
 }
 
-use collections::boxed::Box;
+use compat::boxed::Box;
 use collections::vec::Vec;
 
 type DynLog = Box<dyn log::Log>;

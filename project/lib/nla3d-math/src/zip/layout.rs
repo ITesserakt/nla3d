@@ -4,11 +4,11 @@ use generic_array::typenum::Const;
 
 use crate::{
     dense::{DMat, Mat, MatSym, MatSymLength, SymKind},
-    zip::ElementwiseConstructible,
+    sparse,
 };
 
 pub trait Layout {
-    type Matrix<V>: ElementwiseConstructible<Item = V>;
+    type Matrix<V>;
 }
 
 pub trait Join<R: Layout>: Layout {
@@ -21,12 +21,17 @@ pub trait Join<R: Layout>: Layout {
 pub trait Fits<Rhs = Self>: Layout {}
 
 pub struct Any;
+pub struct Sparse;
 pub struct Dynamic;
 pub struct Static<const N: usize, const M: usize>;
 pub struct Symmetric<const N: usize, Kind>(PhantomData<Kind>);
 
 impl Layout for Any {
     type Matrix<V> = DMat<V>;
+}
+
+impl Layout for Sparse {
+    type Matrix<V> = sparse::Mat<V>;
 }
 
 impl Layout for Dynamic {
@@ -102,6 +107,11 @@ where
 }
 
 impl<T: Layout> Fits<T> for Any {}
+
+impl Fits<Dynamic> for Dynamic {}
+impl Fits<Sparse> for Sparse {}
+impl Fits<Dynamic> for Sparse {}
+impl Fits<Sparse> for Dynamic {}
 
 impl<const N: usize, const M: usize> Fits<Static<N, M>> for Static<N, M> {}
 impl<const N: usize, const M: usize> Fits<Any> for Static<N, M> {}

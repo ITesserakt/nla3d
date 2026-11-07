@@ -2,12 +2,15 @@ use core::marker::PhantomData;
 use core::mem::ManuallyDrop;
 use core::ptr::NonNull;
 
+use faer::Unbind;
+use faer::traits::Index;
 use faer::{MatMut, MatRef, Shape, Stride, utils::bound::Idx};
 use generic_array::typenum::Const;
+use platform::compat::borrow::ToOwned;
 
 use crate::dense::{DMat, Mat, MatSym, MatSymLength, SymKind};
 use crate::zip::drive::{Domain, Full, Triangular};
-use crate::zip::layout::{Dynamic, Layout};
+use crate::zip::layout::{Dynamic, Layout, Sparse};
 use crate::zip::{Any, Static, Symmetric};
 
 /// # Safety
@@ -400,5 +403,38 @@ where
     unsafe fn get_unchecked(cursor: &mut Self::Cursor, i: Idx, j: Idx) -> Self::Item {
         let item = unsafe { T::get_unchecked(cursor, i, j) };
         item.to_owned()
+    }
+}
+
+unsafe impl<'a, I, Rows, Cols> Producer for faer::sparse::SymbolicSparseColMatRef<'a, I, Rows, Cols>
+where
+    Rows: Shape,
+    Cols: Shape,
+    I: Index,
+{
+    type Domain = Full;
+    type Layout = Sparse;
+    type Item = Option<usize>;
+    type Cursor = Self;
+
+    #[inline(always)]
+    fn shape(&self) -> (usize, usize) {
+        let (rows, cols) = faer::sparse::SymbolicSparseColMatRef::shape(self);
+        (rows.unbound(), cols.unbound())
+    }
+
+    #[inline(always)]
+    fn into_cursor(self) -> Self::Cursor {
+        self
+    }
+
+    #[inline]
+    unsafe fn get_unchecked(cursor: &mut Self::Cursor, i: Idx, j: Idx) -> Self::Item {
+        let i = I::truncate(*i);
+        let j = unsafe { cursor.ncols().unchecked_idx(*j) };
+        let row_indices = cursor.row_idx_of_col_raw(j);
+        let start = row_indices.partition_point(|it| it.unbound() < i);
+        let end = row_indices[start..].partition_point(|it| it.unbound() <= i);
+        (end == start + 1).then_some(start)
     }
 }

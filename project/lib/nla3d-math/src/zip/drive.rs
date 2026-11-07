@@ -9,7 +9,7 @@ use crate::dense::SymKind;
 
 use super::{ElementwiseConstructible, Fits, Layout, Producer, Zip};
 
-pub trait Domain {
+pub unsafe trait Domain {
     fn drive<R>(rows: Dim<'_>, cols: Dim<'_>, initial: R, f: impl FnMut(R, Idx, Idx) -> R) -> R;
 }
 
@@ -17,7 +17,7 @@ pub struct Full;
 
 pub struct Triangular<Kind>(PhantomData<Kind>);
 
-impl Domain for Full {
+unsafe impl Domain for Full {
     #[inline]
     fn drive<R>(
         rows: Dim<'_>,
@@ -35,7 +35,7 @@ impl Domain for Full {
     }
 }
 
-impl<K: SymKind> Domain for Triangular<K> {
+unsafe impl<K: SymKind> Domain for Triangular<K> {
     #[inline]
     fn drive<R>(
         rows: Dim<'_>,
@@ -107,7 +107,10 @@ macro_rules! impl_zip {
             }
 
             #[inline]
-            pub fn map<R>(self, f: impl FnMut($($t::Item, )+) -> R) -> L::Matrix<R> {
+            pub fn map<R>(self, f: impl FnMut($($t::Item, )+) -> R) -> L::Matrix<R>
+            where
+                L::Matrix<R>: ElementwiseConstructible<Item = R>
+            {
                 self.map_into_inner(f)
             }
 

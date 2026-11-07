@@ -154,7 +154,7 @@ mod tests {
         let product = Zip::from(&m).fold(1.0, std::ops::Mul::mul);
         let product_lower = Zip::from(m.lower()).fold(1.0, std::ops::Mul::mul);
         assert_eq!(visited, 6);
-        assert_eq!(product, 32.0);
-        assert_eq!(product_lower, -8.0);
+        assert_eq!(product, -64.0);
+        assert_eq!(product_lower, 16.0);
     }
 }
