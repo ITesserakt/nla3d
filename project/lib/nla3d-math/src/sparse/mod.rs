@@ -2,14 +2,17 @@ use core::fmt::Debug;
 use std::ops::Deref;
 
 use faer::{
-    Idx, Shape, ShapeIdx, sparse::{CreationError, FaerError, Pair, SparseColMatRef, SymbolicSparseColMat},
+    Idx, Shape, ShapeIdx,
+    sparse::{CreationError, FaerError, Pair, SparseColMatRef, SymbolicSparseColMat},
     traits::{Index, Symbolic},
 };
 use platform::collections::{vec, vec::Vec};
 use platform::compat::boxed::Box;
 use platform::compat::sync::Arc;
 
-struct SparsityInfo<I = usize, Rows = usize, Cols = usize> {
+use crate::zip::Pattern;
+
+pub struct SparsityInfo<I = usize, Rows = usize, Cols = usize> {
     descriptor: Arc<SymbolicSparseColMat<I, Rows, Cols>>,
 }
 
@@ -116,6 +119,42 @@ impl<I: Index, R: Shape, C: Shape> SparsityInfo<I, R, C> {
         let descriptor = self.descriptor.deref().as_ref();
         SparseColMatRef::new(descriptor, Symbolic::materialize(descriptor.compute_nnz()))
     }
+
+    pub fn from_pattern(shape: (R, C), pattern: Pattern<I>) -> Self {
+        let descriptor = SymbolicSparseColMat::new_checked(
+            shape.0,
+            shape.1,
+            pattern.col_ptr.to_vec(),
+            pattern.col_nnz.map(|it| it.to_vec()),
+            pattern.row_idx.to_vec(),
+        );
+        SparsityInfo {
+            descriptor: Arc::new(descriptor),
+        }
+    }
+}
+
+impl<I, R, C> Clone for SparsityInfo<I, R, C> {
+    fn clone(&self) -> Self {
+        Self {
+            descriptor: self.descriptor.clone(),
+        }
+    }
+}
+
+impl<I, R, C> Deref for SparsityInfo<I, R, C> {
+    type Target = SymbolicSparseColMat<I, R, C>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.descriptor
+    }
+}
+
+impl<I: Index, R: Shape, C: Shape> PartialEq for SparsityInfo<I, R, C> {
+    fn eq(&self, other: &Self) -> bool {
+        Arc::ptr_eq(&self.descriptor, &other.descriptor)
+            || self.col_ptr() == other.col_ptr() && self.row_idx() == other.row_idx()
+    }
 }
 
 impl<T, I, R, C> UncompressedMat<R, C, T, I>
@@ -149,6 +188,11 @@ impl<T, I, R, C> Mat<T, I, R, C> {
             entries: vec![],
             values: vec![],
         }
+    }
+
+    #[inline]
+    pub(crate) fn from_parts(info: SparsityInfo<I, R, C>, items: Box<[T]>) -> Self {
+        Self { info, items }
     }
 
     pub fn try_new(mut uncompressed: UncompressedMat<R, C, T, I>) -> Result<Self, FaerError>

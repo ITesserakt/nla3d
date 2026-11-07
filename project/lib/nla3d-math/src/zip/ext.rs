@@ -3,8 +3,9 @@ use core::marker::PhantomData;
 use generic_array::typenum::Const;
 
 use crate::dense::{DMat, Lower, Mat, MatSym, MatSymLength, Upper};
+use crate::zip::{ElementwiseConstructible, KnownShape};
 use crate::zip::{
-    Dynamic, Fits, Producer, Static, Symmetric, Zip,
+    Producer, Zip,
     drive::Full,
     producer::{ToOwnedProducer, Tri},
 };
@@ -29,31 +30,37 @@ where
     }
 }
 
-pub trait CollectIntoExt: Producer {
+pub trait CollectIntoExt: Producer
+where
+    Self::Shape: KnownShape,
+{
     fn into_dyn(self) -> DMat<Self::Item>
     where
-        Self::Layout: Fits<Dynamic>;
+        DMat<Self::Item>: ElementwiseConstructible<Self::Shape, Self::Domain, Item = Self::Item>;
 
     fn into_static<const N: usize, const M: usize>(self) -> Mat<N, M, Self::Item>
     where
-        Self::Layout: Fits<Static<N, M>>;
+        Mat<N, M, Self::Item>:
+            ElementwiseConstructible<Self::Shape, Self::Domain, Item = Self::Item>;
 
     fn into_lower<const N: usize>(self) -> MatSym<N, Self::Item, Lower>
     where
-        Self::Layout: Fits<Symmetric<N, Lower>>,
+        MatSym<N, Self::Item, Lower>:
+            ElementwiseConstructible<Self::Shape, Self::Domain, Item = Self::Item>,
         Const<N>: MatSymLength;
 
     fn into_upper<const N: usize>(self) -> MatSym<N, Self::Item, Upper>
     where
-        Self::Layout: Fits<Symmetric<N, Upper>>,
+        MatSym<N, Self::Item, Upper>:
+            ElementwiseConstructible<Self::Shape, Self::Domain, Item = Self::Item>,
         Const<N>: MatSymLength;
 }
 
-impl<T: Producer> CollectIntoExt for T {
+impl<T: Producer<Shape: KnownShape>> CollectIntoExt for T {
     #[inline]
     fn into_dyn(self) -> DMat<Self::Item>
     where
-        Self::Layout: Fits<Dynamic>,
+        DMat<Self::Item>: ElementwiseConstructible<Self::Shape, Self::Domain, Item = Self::Item>,
     {
         Zip::from(self).collect()
     }
@@ -61,7 +68,8 @@ impl<T: Producer> CollectIntoExt for T {
     #[inline]
     fn into_static<const N: usize, const M: usize>(self) -> Mat<N, M, Self::Item>
     where
-        Self::Layout: Fits<Static<N, M>>,
+        Mat<N, M, Self::Item>:
+            ElementwiseConstructible<Self::Shape, Self::Domain, Item = Self::Item>,
     {
         Zip::from(self).collect()
     }
@@ -69,7 +77,8 @@ impl<T: Producer> CollectIntoExt for T {
     #[inline]
     fn into_lower<const N: usize>(self) -> MatSym<N, Self::Item, Lower>
     where
-        Self::Layout: Fits<Symmetric<N, Lower>>,
+        MatSym<N, Self::Item, Lower>:
+            ElementwiseConstructible<Self::Shape, Self::Domain, Item = Self::Item>,
         Const<N>: MatSymLength,
     {
         Zip::from(self).collect()
@@ -78,7 +87,8 @@ impl<T: Producer> CollectIntoExt for T {
     #[inline]
     fn into_upper<const N: usize>(self) -> MatSym<N, Self::Item, Upper>
     where
-        Self::Layout: Fits<Symmetric<N, Upper>>,
+        MatSym<N, Self::Item, Upper>:
+            ElementwiseConstructible<Self::Shape, Self::Domain, Item = Self::Item>,
         Const<N>: MatSymLength,
     {
         Zip::from(self).collect()
@@ -97,16 +107,16 @@ impl<T: Producer> OwnedExt for T {
 }
 
 #[cfg(feature = "rand")]
-pub trait RandomConstructible {
+pub trait RandomConstructible<S: KnownShape, D> {
     type Item;
 
     fn random(
-        shape: (usize, usize),
+        shape: S,
         rng: &mut impl rand::Rng,
         distribution: impl rand::prelude::Distribution<Self::Item>,
     ) -> Self;
 
-    fn random_uniform(shape: (usize, usize), rng: &mut impl rand::Rng) -> Self
+    fn random_uniform(shape: S, rng: &mut impl rand::Rng) -> Self
     where
         Self: Sized,
         rand::distr::StandardUniform: rand::prelude::Distribution<Self::Item>,
@@ -119,28 +129,35 @@ pub trait RandomConstructible {
 const _: () = {
     use rand::{Rng, distr::Distribution};
 
-    use crate::zip::{Any, ElementwiseConstructible};
+    use crate::zip::{
+        ElementwiseConstructible, Free,
+        drive::{Domain, DomainIndex},
+    };
 
-    struct RandomProducer<'a, R, D, T> {
-        shape: (usize, usize),
+    struct RandomProducer<'a, R, D, T, Dom> {
         distribution: D,
         rng: &'a mut R,
-        _phantom: PhantomData<T>,
+        _phantom: PhantomData<(T, Dom)>,
     }
 
-    unsafe impl<R, D, T> Producer for RandomProducer<'_, R, D, T>
+    unsafe impl<R, D, T, Dom> Producer for RandomProducer<'_, R, D, T, Dom>
     where
         D: Distribution<T>,
         R: Rng,
+        Dom: Domain + Default,
     {
-        type Domain = Full;
-        type Layout = Any;
+        type Domain = Dom;
+        type Shape = Free;
         type Item = T;
         type Cursor = Self;
 
+        fn domain(&self) -> Self::Domain {
+            Dom::default()
+        }
+
         #[inline(always)]
-        fn shape(&self) -> (usize, usize) {
-            self.shape
+        fn shape(&self) -> Self::Shape {
+            Free
         }
 
         #[inline(always)]
@@ -149,37 +166,34 @@ const _: () = {
         }
 
         #[inline(always)]
-        unsafe fn get_unchecked(
-            cursor: &mut Self::Cursor,
-            _: faer::utils::bound::Idx,
-            _: faer::utils::bound::Idx,
-        ) -> Self::Item {
+        unsafe fn get_unchecked(cursor: &mut Self::Cursor, _index: DomainIndex) -> Self::Item {
             cursor.distribution.sample(cursor.rng)
         }
     }
 
-    impl<E> RandomConstructible for E
+    impl<S, E, D> RandomConstructible<S, D> for E
     where
-        E: ElementwiseConstructible,
+        E: ElementwiseConstructible<S, D>,
+        D: Domain + Default,
+        S: KnownShape
     {
         type Item = E::Item;
 
         #[inline]
         fn random(
-            shape: (usize, usize),
+            shape: S,
             rng: &mut impl rand::Rng,
             distribution: impl rand::prelude::Distribution<Self::Item>,
         ) -> Self {
             use crate::zip::Zip;
 
             let producer = RandomProducer {
-                shape,
                 distribution,
                 rng,
                 _phantom: PhantomData,
             };
 
-            Zip::from(producer).collect()
+            Zip::from(producer).with_shape(shape).map_into(|x| x)
         }
     }
 };

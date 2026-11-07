@@ -1,33 +1,90 @@
 use core::marker::PhantomData;
 
 use faer::{
-    make_guard,
+    Index, make_guard,
     utils::bound::{Dim, Idx},
 };
 
 use crate::dense::SymKind;
 
-use super::{ElementwiseConstructible, Fits, Layout, Producer, Zip};
+use super::{DefaultOutput, ElementwiseConstructible, KnownShape, MatrixFor, Producer, Space, Zip};
 
-pub unsafe trait Domain {
-    fn drive<R>(rows: Dim<'_>, cols: Dim<'_>, initial: R, f: impl FnMut(R, Idx, Idx) -> R) -> R;
+#[derive(Debug, Clone, Copy)]
+pub struct DomainIndex<'r, 'c> {
+    pub i: Idx<'r>,
+    pub j: Idx<'c>,
+    pub pos: usize,
 }
 
+pub unsafe trait Domain: Clone {
+    fn drive<R>(
+        &self,
+        rows: Dim<'_>,
+        cols: Dim<'_>,
+        initial: R,
+        f: impl FnMut(R, DomainIndex) -> R,
+    ) -> R;
+}
+
+pub unsafe trait Meet<Rhs: Domain>: Domain {
+    type Output: Domain;
+
+    fn meet(self, rhs: Rhs) -> Self::Output;
+}
+
+#[derive(Clone, Copy, Default)]
 pub struct Full;
 
-pub struct Triangular<Kind>(PhantomData<Kind>);
+pub struct Triangular<Kind>(pub PhantomData<Kind>);
+
+#[derive(Debug)]
+pub struct Pattern<'p, I = usize> {
+    pub(crate) col_ptr: &'p [I],
+    pub(crate) col_nnz: Option<&'p [I]>,
+    pub(crate) row_idx: &'p [I],
+}
+
+impl<Kind> Clone for Triangular<Kind> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl<Kind> Copy for Triangular<Kind> {}
+
+impl<Kind> Default for Triangular<Kind> {
+    fn default() -> Self {
+        Self(PhantomData)
+    }
+}
+
+impl<I> Clone for Pattern<'_, I> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl<I> Copy for Pattern<'_, I> {}
 
 unsafe impl Domain for Full {
     #[inline]
     fn drive<R>(
+        &self,
         rows: Dim<'_>,
         cols: Dim<'_>,
         mut initial: R,
-        mut f: impl FnMut(R, Idx, Idx) -> R,
+        mut f: impl FnMut(R, DomainIndex) -> R,
     ) -> R {
         for j in cols.indices() {
             for i in rows.indices() {
-                initial = f(initial, i, j);
+                initial = f(
+                    initial,
+                    DomainIndex {
+                        i,
+                        j,
+                        pos: *j * *rows + *i,
+                    },
+                );
             }
         }
 
@@ -38,10 +95,11 @@ unsafe impl Domain for Full {
 unsafe impl<K: SymKind> Domain for Triangular<K> {
     #[inline]
     fn drive<R>(
+        &self,
         rows: Dim<'_>,
         cols: Dim<'_>,
         mut initial: R,
-        mut f: impl FnMut(R, Idx, Idx) -> R,
+        mut f: impl FnMut(R, DomainIndex) -> R,
     ) -> R {
         assert_eq!(*rows, *cols);
 
@@ -50,25 +108,103 @@ unsafe impl<K: SymKind> Domain for Triangular<K> {
         let items = Dim::new(n * (n + 1) / 2, guard);
         for k in items.indices() {
             let (i, j) = K::wide_index(n, *k);
-            let i = unsafe { Idx::new_unchecked(i, rows) };
-            let j = unsafe { Idx::new_unchecked(j, cols) };
-            initial = f(initial, i, j);
+            initial = f(
+                initial,
+                DomainIndex {
+                    i: unsafe { Idx::new_unchecked(i, rows) },
+                    j: unsafe { Idx::new_unchecked(j, cols) },
+                    pos: *k,
+                },
+            );
         }
 
         initial
     }
 }
 
+unsafe impl<I: Index> Domain for Pattern<'_, I> {
+    fn drive<R>(
+        &self,
+        rows: Dim<'_>,
+        cols: Dim<'_>,
+        mut initial: R,
+        mut f: impl FnMut(R, DomainIndex) -> R,
+    ) -> R {
+        let col_ptr = self.col_ptr;
+        let row_idx = self.row_idx;
+        for j in cols.indices() {
+            let start = col_ptr[*j].zx();
+            let end = col_ptr[*j + 1].zx();
+            for p in start..end {
+                let i = unsafe { Idx::new_unchecked(row_idx[p].zx(), rows) };
+                initial = f(initial, DomainIndex { i, j, pos: p });
+            }
+        }
+        initial
+    }
+}
+
+unsafe impl<D: Domain> Meet<Full> for D {
+    type Output = Full;
+
+    fn meet(self, rhs: Full) -> Self::Output {
+        rhs
+    }
+}
+
+unsafe impl<K: SymKind> Meet<Triangular<K>> for Full {
+    type Output = Triangular<K>;
+
+    fn meet(self, rhs: Triangular<K>) -> Self::Output {
+        rhs
+    }
+}
+
+unsafe impl<'p, I: Index> Meet<Pattern<'p, I>> for Full {
+    type Output = Pattern<'p, I>;
+
+    fn meet(self, rhs: Pattern<'p, I>) -> Self::Output {
+        rhs
+    }
+}
+
+unsafe impl<K: SymKind> Meet<Triangular<K>> for Triangular<K> {
+    type Output = Triangular<K>;
+
+    fn meet(self, rhs: Triangular<K>) -> Self::Output {
+        rhs
+    }
+}
+
+unsafe impl<'p, I: Index> Meet<Pattern<'p, I>> for Pattern<'p, I> {
+    type Output = Pattern<'p, I>;
+
+    fn meet(self, rhs: Pattern<'p, I>) -> Self::Output {
+        assert_eq!(
+            self, rhs,
+            "Different sparsity patterns are not allowed: mix them beforehand"
+        );
+        self
+    }
+}
+
+impl<'p, I: PartialEq> PartialEq for Pattern<'p, I> {
+    fn eq(&self, other: &Self) -> bool {
+        self.col_ptr == other.col_ptr
+            && self.col_nnz == other.col_nnz
+            && self.row_idx == other.row_idx
+    }
+}
+
 macro_rules! impl_zip {
     ($($n:ident: $t:ident$(,)?)+) => {
-        impl<D: Domain, $($t: Producer<Domain = D>,)+ L: Layout> Zip<($($t,)+), L> {
+        impl<S: KnownShape, D: Domain, $($t: Producer,)+> Zip<($($t,)+), S, D> {
             /// Visits every (i, j) exactly once, column-major.
             #[inline(always)]
-            fn drive<R>(self, initial: R, mut f: impl FnMut(R, Idx, Idx, $($t::Item,)+) -> R) -> R {
-                let (rows, cols) = self.0.0.shape();
+            fn drive<R>(self, initial: R, mut f: impl FnMut(R, DomainIndex, $($t::Item,)+) -> R) -> R
+            {
+                let (rows, cols) = self.2.materialize();
                 let ($($n,)+) = self.0;
-                // Load-bearing for soundness: keep these as real asserts.
-                $( assert_eq!((rows, cols), $n.shape()); )+
                 let ($(mut $n,)+) = ($($n.into_cursor(),)+);
 
                 make_guard!(guard);
@@ -76,19 +212,19 @@ macro_rules! impl_zip {
                 make_guard!(guard);
                 let cols = Dim::new(cols, guard);
 
-                D::drive(rows, cols, initial, |acc, i, j| {
-                    f(acc, i, j, $(unsafe { $t::get_unchecked(&mut $n, i, j) }, )+)
+                self.1.drive(rows, cols, initial, |acc, index| {
+                    f(acc, index, $(unsafe { $t::get_unchecked(&mut $n, index) }, )+)
                 })
             }
 
             #[inline]
             pub fn for_each(self, mut f: impl FnMut($($t::Item,)+)) {
-                self.drive((), |_, _, _, $($n,)+| f($($n,)+));
+                self.drive((), |_, _, $($n,)+| f($($n,)+));
             }
 
             #[inline]
             pub fn fold<R>(self, initial: R, mut f: impl FnMut(R, $($t::Item,)+) -> R) -> R {
-                self.drive(initial, |acc, _, _, $($n,)+| {
+                self.drive(initial, |acc, _, $($n,)+| {
                     f(acc, $($n,)+)
                 })
             }
@@ -96,20 +232,21 @@ macro_rules! impl_zip {
             #[inline(always)]
             fn map_into_inner<M>(self, mut f: impl FnMut($($t::Item,)+) -> M::Item) -> M
             where
-                M: ElementwiseConstructible,
+                M: ElementwiseConstructible<S, D>,
             {
-                let mut matrix = M::uninit(self.0.0.shape());
-                self.drive((), |_, i, j, $($n,)+| {
+                let shape = self.2.materialize();
+                let mut matrix = M::uninit(shape, self.1.clone());
+                self.drive((), |_, index, $($n,)+| {
                     let value = f($($n,)+);
-                    unsafe { M::set(&mut matrix, i, j, value) };
+                    unsafe { M::set(&mut matrix, index, value) };
                 });
                 unsafe { M::assume_init(matrix) }
             }
 
             #[inline]
-            pub fn map<R>(self, f: impl FnMut($($t::Item, )+) -> R) -> L::Matrix<R>
+            pub fn map<R>(self, f: impl FnMut($($t::Item, )+) -> R) -> MatrixFor<S, D, R>
             where
-                L::Matrix<R>: ElementwiseConstructible<Item = R>
+                Space<S, D>: DefaultOutput<Shape = S, Domain = D>
             {
                 self.map_into_inner(f)
             }
@@ -117,8 +254,7 @@ macro_rules! impl_zip {
             #[inline]
             pub fn map_into<M>(self, f: impl FnMut($($t::Item, )+) -> M::Item) -> M
             where
-                M: ElementwiseConstructible,
-                L: Fits<M::Layout>
+                M: ElementwiseConstructible<S, D>,
             {
                 self.map_into_inner(f)
             }
@@ -126,13 +262,12 @@ macro_rules! impl_zip {
     };
 }
 
-impl<T, L> Zip<(T, ), L> {
+impl<T, S: KnownShape, D: Domain> Zip<(T,), S, D> {
     #[inline]
     pub fn collect<M>(self) -> M
-    where 
+    where
         T: Producer,
-        M: ElementwiseConstructible<Item = T::Item>,
-        L: Fits<M::Layout>
+        M: ElementwiseConstructible<S, D, Item = T::Item>,
     {
         self.map_into_inner(|x| x)
     }

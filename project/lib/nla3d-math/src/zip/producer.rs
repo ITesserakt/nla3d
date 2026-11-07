@@ -2,16 +2,13 @@ use core::marker::PhantomData;
 use core::mem::ManuallyDrop;
 use core::ptr::NonNull;
 
-use faer::Unbind;
-use faer::traits::Index;
-use faer::{MatMut, MatRef, Shape, Stride, utils::bound::Idx};
+use faer::{MatMut, MatRef, Stride};
 use generic_array::typenum::Const;
 use platform::compat::borrow::ToOwned;
 
 use crate::dense::{DMat, Mat, MatSym, MatSymLength, SymKind};
-use crate::zip::drive::{Domain, Full, Triangular};
-use crate::zip::layout::{Dynamic, Layout, Sparse};
-use crate::zip::{Any, Static, Symmetric};
+use crate::zip::drive::{Domain, DomainIndex, Full, Triangular};
+use crate::zip::{Dynamic, Free, Shape, Static};
 
 /// # Safety
 /// - `shape()` is the true extent: `get_unchecked` is sound for every
@@ -21,16 +18,17 @@ use crate::zip::{Any, Static, Symmetric};
 ///   the returned item (it would invalidate items returned earlier).
 pub unsafe trait Producer: Sized {
     type Domain: Domain;
-    type Layout: Layout;
+    type Shape: Shape;
     type Item;
     type Cursor;
 
-    fn shape(&self) -> (usize, usize);
+    fn domain(&self) -> Self::Domain;
+    fn shape(&self) -> Self::Shape;
     fn into_cursor(self) -> Self::Cursor;
 
     /// # Safety
     /// `(i, j)` within `shape()`, requested at most once per cursor.
-    unsafe fn get_unchecked(cursor: &mut Self::Cursor, i: Idx, j: Idx) -> Self::Item;
+    unsafe fn get_unchecked(cursor: &mut Self::Cursor, index: DomainIndex) -> Self::Item;
 }
 
 pub struct Consume<T>(pub T);
@@ -40,10 +38,7 @@ pub struct ConsumeCursor<const N: usize, const M: usize, T> {
     taken: usize,
 }
 
-pub struct Fill<T> {
-    pub element: T,
-    pub shape: (usize, usize),
-}
+pub struct Fill<T>(pub T);
 
 pub struct FillStatic<const N: usize, const M: usize, T>(pub T);
 
@@ -55,13 +50,17 @@ pub struct RawMut<'a, X: ?Sized> {
 
 unsafe impl<'a, const N: usize, const M: usize, T> Producer for &'a Mat<N, M, T> {
     type Domain = Full;
-    type Layout = Static<N, M>;
+    type Shape = Static<N, M>;
     type Item = &'a T;
     type Cursor = Self;
 
+    fn domain(&self) -> Self::Domain {
+        Full
+    }
+
     #[inline(always)]
-    fn shape(&self) -> (usize, usize) {
-        (N, M)
+    fn shape(&self) -> Self::Shape {
+        Static
     }
 
     #[inline(always)]
@@ -70,20 +69,24 @@ unsafe impl<'a, const N: usize, const M: usize, T> Producer for &'a Mat<N, M, T>
     }
 
     #[inline(always)]
-    unsafe fn get_unchecked(c: &mut Self::Cursor, i: Idx, j: Idx) -> &'a T {
-        unsafe { c.get_unchecked(*i, *j) }
+    unsafe fn get_unchecked(c: &mut Self::Cursor, index: DomainIndex) -> &'a T {
+        unsafe { c.get_unchecked(*index.i, *index.j) }
     }
 }
 
 unsafe impl<'a, const N: usize, const M: usize, T> Producer for &'a mut Mat<N, M, T> {
     type Domain = Full;
-    type Layout = Static<N, M>;
+    type Shape = Static<N, M>;
     type Item = &'a mut T;
     type Cursor = RawMut<'a, T>;
 
+    fn domain(&self) -> Self::Domain {
+        Full
+    }
+
     #[inline(always)]
-    fn shape(&self) -> (usize, usize) {
-        (N, M)
+    fn shape(&self) -> Self::Shape {
+        Static
     }
 
     #[inline(always)]
@@ -95,8 +98,8 @@ unsafe impl<'a, const N: usize, const M: usize, T> Producer for &'a mut Mat<N, M
     }
 
     #[inline(always)]
-    unsafe fn get_unchecked(c: &mut Self::Cursor, i: Idx, j: Idx) -> &'a mut T {
-        unsafe { c.ptr.add(*j * N + *i).as_mut() }
+    unsafe fn get_unchecked(c: &mut Self::Cursor, index: DomainIndex) -> &'a mut T {
+        unsafe { c.ptr.add(index.pos).as_mut() }
     }
 }
 
@@ -106,13 +109,17 @@ where
     Kind: SymKind,
 {
     type Domain = Full;
-    type Layout = Symmetric<N, Kind>;
+    type Shape = Static<N, N>;
     type Item = &'a T;
     type Cursor = Self;
 
+    fn domain(&self) -> Self::Domain {
+        Full
+    }
+
     #[inline(always)]
-    fn shape(&self) -> (usize, usize) {
-        (N, N)
+    fn shape(&self) -> Self::Shape {
+        Static
     }
 
     #[inline(always)]
@@ -121,29 +128,35 @@ where
     }
 
     #[inline(always)]
-    unsafe fn get_unchecked(c: &mut Self::Cursor, i: Idx, j: Idx) -> &'a T {
-        let this: &'a MatSym<N, T, Kind> = *c;
-        unsafe { this.get_unchecked(*i, *j) }
+    unsafe fn get_unchecked(c: &mut Self::Cursor, index: DomainIndex) -> &'a T {
+        unsafe { c.get_unchecked(*index.i, *index.j) }
     }
 }
 
 unsafe impl<'a, T, Rows, Cols, RStride, CStride> Producer
     for MatRef<'a, T, Rows, Cols, RStride, CStride>
 where
-    Rows: Shape + 'a,
-    Cols: Shape + 'a,
+    Rows: faer::Shape + 'a,
+    Cols: faer::Shape + 'a,
     RStride: Stride,
     CStride: Stride,
     T: 'a,
 {
     type Domain = Full;
-    type Layout = Dynamic;
+    type Shape = Dynamic;
     type Item = &'a T;
     type Cursor = Self;
 
+    fn domain(&self) -> Self::Domain {
+        Full
+    }
+
     #[inline(always)]
-    fn shape(&self) -> (usize, usize) {
-        (self.nrows().unbound(), self.ncols().unbound())
+    fn shape(&self) -> Self::Shape {
+        Dynamic {
+            rows: self.nrows().unbound(),
+            cols: self.ncols().unbound(),
+        }
     }
 
     #[inline(always)]
@@ -152,9 +165,9 @@ where
     }
 
     #[inline(always)]
-    unsafe fn get_unchecked(c: &mut Self::Cursor, i: Idx, j: Idx) -> &'a T {
-        let i = unsafe { c.nrows().unchecked_idx(*i) };
-        let j = unsafe { c.ncols().unchecked_idx(*j) };
+    unsafe fn get_unchecked(c: &mut Self::Cursor, index: DomainIndex) -> &'a T {
+        let i = unsafe { c.nrows().unchecked_idx(*index.i) };
+        let j = unsafe { c.ncols().unchecked_idx(*index.j) };
         unsafe { c.ptr_inbounds_at(i, j).as_ref_unchecked() }
     }
 }
@@ -162,19 +175,26 @@ where
 unsafe impl<'a, T, Rows, Cols, RStride, CStride> Producer
     for MatMut<'a, T, Rows, Cols, RStride, CStride>
 where
-    Rows: Shape,
-    Cols: Shape,
+    Rows: faer::Shape,
+    Cols: faer::Shape,
     RStride: Stride,
     CStride: Stride,
 {
     type Domain = Full;
-    type Layout = Dynamic;
+    type Shape = Dynamic;
     type Item = &'a mut T;
     type Cursor = Self;
 
+    fn domain(&self) -> Self::Domain {
+        Full
+    }
+
     #[inline(always)]
-    fn shape(&self) -> (usize, usize) {
-        (self.nrows().unbound(), self.ncols().unbound())
+    fn shape(&self) -> Self::Shape {
+        Dynamic {
+            rows: self.nrows().unbound(),
+            cols: self.ncols().unbound(),
+        }
     }
 
     #[inline(always)]
@@ -183,22 +203,29 @@ where
     }
 
     #[inline(always)]
-    unsafe fn get_unchecked(c: &mut Self::Cursor, i: Idx, j: Idx) -> &'a mut T {
-        let i = unsafe { c.nrows().unchecked_idx(*i) };
-        let j = unsafe { c.ncols().unchecked_idx(*j) };
+    unsafe fn get_unchecked(c: &mut Self::Cursor, index: DomainIndex) -> &'a mut T {
+        let i = unsafe { c.nrows().unchecked_idx(*index.i) };
+        let j = unsafe { c.ncols().unchecked_idx(*index.j) };
         unsafe { c.ptr_inbounds_at_mut(i, j).as_mut_unchecked() }
     }
 }
 
-unsafe impl<'a, T, Rows: Shape, Cols: Shape> Producer for &'a DMat<T, Rows, Cols> {
+unsafe impl<'a, T, Rows: faer::Shape, Cols: faer::Shape> Producer for &'a DMat<T, Rows, Cols> {
     type Domain = Full;
-    type Layout = Dynamic;
+    type Shape = Dynamic;
     type Item = &'a T;
     type Cursor = Self;
 
+    fn domain(&self) -> Self::Domain {
+        Full
+    }
+
     #[inline(always)]
-    fn shape(&self) -> (usize, usize) {
-        (self.nrows().unbound(), self.ncols().unbound())
+    fn shape(&self) -> Self::Shape {
+        Dynamic {
+            rows: self.nrows().unbound(),
+            cols: self.ncols().unbound(),
+        }
     }
 
     #[inline(always)]
@@ -207,22 +234,29 @@ unsafe impl<'a, T, Rows: Shape, Cols: Shape> Producer for &'a DMat<T, Rows, Cols
     }
 
     #[inline(always)]
-    unsafe fn get_unchecked(cursor: &mut Self::Cursor, i: Idx, j: Idx) -> Self::Item {
-        let i = unsafe { cursor.nrows().unchecked_idx(*i) };
-        let j = unsafe { cursor.ncols().unchecked_idx(*j) };
+    unsafe fn get_unchecked(cursor: &mut Self::Cursor, index: DomainIndex) -> Self::Item {
+        let i = unsafe { cursor.nrows().unchecked_idx(*index.i) };
+        let j = unsafe { cursor.ncols().unchecked_idx(*index.j) };
         unsafe { cursor.ptr_inbounds_at(i, j).as_ref_unchecked() }
     }
 }
 
-unsafe impl<'a, T, Rows: Shape, Cols: Shape> Producer for &'a mut DMat<T, Rows, Cols> {
+unsafe impl<'a, T, Rows: faer::Shape, Cols: faer::Shape> Producer for &'a mut DMat<T, Rows, Cols> {
     type Domain = Full;
-    type Layout = Dynamic;
+    type Shape = Dynamic;
     type Item = &'a mut T;
     type Cursor = Self;
 
+    fn domain(&self) -> Self::Domain {
+        Full
+    }
+
     #[inline(always)]
-    fn shape(&self) -> (usize, usize) {
-        (self.nrows().unbound(), self.ncols().unbound())
+    fn shape(&self) -> Self::Shape {
+        Dynamic {
+            rows: self.nrows().unbound(),
+            cols: self.ncols().unbound(),
+        }
     }
 
     #[inline(always)]
@@ -231,22 +265,26 @@ unsafe impl<'a, T, Rows: Shape, Cols: Shape> Producer for &'a mut DMat<T, Rows, 
     }
 
     #[inline(always)]
-    unsafe fn get_unchecked(cursor: &mut Self::Cursor, i: Idx, j: Idx) -> Self::Item {
-        let i = unsafe { cursor.nrows().unchecked_idx(*i) };
-        let j = unsafe { cursor.ncols().unchecked_idx(*j) };
+    unsafe fn get_unchecked(cursor: &mut Self::Cursor, index: DomainIndex) -> Self::Item {
+        let i = unsafe { cursor.nrows().unchecked_idx(*index.i) };
+        let j = unsafe { cursor.ncols().unchecked_idx(*index.j) };
         unsafe { cursor.ptr_inbounds_at_mut(i, j).as_mut_unchecked() }
     }
 }
 
 unsafe impl<const N: usize, const M: usize, T> Producer for Consume<Mat<N, M, T>> {
     type Domain = Full;
-    type Layout = Static<N, M>;
+    type Shape = Static<N, M>;
     type Item = T;
     type Cursor = ConsumeCursor<N, M, T>;
 
+    fn domain(&self) -> Self::Domain {
+        Full
+    }
+
     #[inline(always)]
-    fn shape(&self) -> (usize, usize) {
-        (N, M)
+    fn shape(&self) -> Self::Shape {
+        Static
     }
 
     #[inline(always)]
@@ -258,8 +296,8 @@ unsafe impl<const N: usize, const M: usize, T> Producer for Consume<Mat<N, M, T>
     }
 
     #[inline(always)]
-    unsafe fn get_unchecked(cursor: &mut Self::Cursor, i: Idx, j: Idx) -> Self::Item {
-        let value = unsafe { std::ptr::read(cursor.mat.get_unchecked(*i, *j)) };
+    unsafe fn get_unchecked(cursor: &mut Self::Cursor, index: DomainIndex) -> Self::Item {
+        let value = unsafe { std::ptr::read(cursor.mat.get_unchecked(*index.i, *index.j)) };
         cursor.taken += 1;
         value
     }
@@ -278,13 +316,17 @@ impl<const N: usize, const M: usize, T> Drop for ConsumeCursor<N, M, T> {
 
 unsafe impl<T: Clone> Producer for Fill<T> {
     type Domain = Full;
-    type Layout = Any;
+    type Shape = Free;
     type Item = T;
     type Cursor = Self;
 
+    fn domain(&self) -> Self::Domain {
+        Full
+    }
+
     #[inline(always)]
-    fn shape(&self) -> (usize, usize) {
-        self.shape
+    fn shape(&self) -> Self::Shape {
+        Free
     }
 
     #[inline(always)]
@@ -293,20 +335,24 @@ unsafe impl<T: Clone> Producer for Fill<T> {
     }
 
     #[inline(always)]
-    unsafe fn get_unchecked(cursor: &mut Self::Cursor, _: Idx, _: Idx) -> Self::Item {
-        cursor.element.clone()
+    unsafe fn get_unchecked(cursor: &mut Self::Cursor, _: DomainIndex) -> Self::Item {
+        cursor.0.clone()
     }
 }
 
 unsafe impl<const N: usize, const M: usize, T: Clone> Producer for FillStatic<N, M, T> {
     type Domain = Full;
-    type Layout = Static<N, M>;
+    type Shape = Static<N, M>;
     type Item = T;
     type Cursor = Self;
 
+    fn domain(&self) -> Self::Domain {
+        Full
+    }
+
     #[inline(always)]
-    fn shape(&self) -> (usize, usize) {
-        (N, M)
+    fn shape(&self) -> Self::Shape {
+        Static
     }
 
     #[inline(always)]
@@ -315,7 +361,7 @@ unsafe impl<const N: usize, const M: usize, T: Clone> Producer for FillStatic<N,
     }
 
     #[inline(always)]
-    unsafe fn get_unchecked(cursor: &mut Self::Cursor, _: Idx, _: Idx) -> Self::Item {
+    unsafe fn get_unchecked(cursor: &mut Self::Cursor, _: DomainIndex) -> Self::Item {
         cursor.0.clone()
     }
 }
@@ -325,13 +371,17 @@ where
     Const<N>: MatSymLength,
 {
     type Domain = Triangular<K>;
-    type Layout = Symmetric<N, K>;
+    type Shape = Static<N, N>;
     type Item = &'a mut T;
     type Cursor = RawMut<'a, [T]>;
 
+    fn domain(&self) -> Self::Domain {
+        Triangular(PhantomData)
+    }
+
     #[inline(always)]
-    fn shape(&self) -> (usize, usize) {
-        (N, N)
+    fn shape(&self) -> Self::Shape {
+        Static
     }
 
     #[inline(always)]
@@ -343,10 +393,9 @@ where
     }
 
     #[inline(always)]
-    unsafe fn get_unchecked(cursor: &mut Self::Cursor, i: Idx, j: Idx) -> Self::Item {
-        let k = K::flat_index(N, *i, *j);
+    unsafe fn get_unchecked(cursor: &mut Self::Cursor, index: DomainIndex) -> Self::Item {
         let base = cursor.ptr.cast::<T>();
-        unsafe { base.add(k).as_mut() }
+        unsafe { base.add(index.pos).as_mut() }
     }
 }
 
@@ -357,12 +406,16 @@ where
     T: Producer<Domain = Full>,
 {
     type Domain = Triangular<K>;
-    type Layout = T::Layout;
+    type Shape = T::Shape;
     type Item = T::Item;
     type Cursor = T::Cursor;
 
+    fn domain(&self) -> Self::Domain {
+        Triangular(PhantomData)
+    }
+
     #[inline(always)]
-    fn shape(&self) -> (usize, usize) {
+    fn shape(&self) -> Self::Shape {
         self.0.shape()
     }
 
@@ -372,8 +425,8 @@ where
     }
 
     #[inline(always)]
-    unsafe fn get_unchecked(cursor: &mut Self::Cursor, i: Idx, j: Idx) -> Self::Item {
-        unsafe { T::get_unchecked(cursor, i, j) }
+    unsafe fn get_unchecked(cursor: &mut Self::Cursor, index: DomainIndex) -> Self::Item {
+        unsafe { T::get_unchecked(cursor, index) }
     }
 }
 
@@ -385,12 +438,16 @@ where
     T::Item: ToOwned<Owned = O>,
 {
     type Domain = T::Domain;
-    type Layout = T::Layout;
+    type Shape = T::Shape;
     type Item = O;
     type Cursor = T::Cursor;
 
+    fn domain(&self) -> Self::Domain {
+        T::domain(&self.0)
+    }
+
     #[inline(always)]
-    fn shape(&self) -> (usize, usize) {
+    fn shape(&self) -> Self::Shape {
         self.0.shape()
     }
 
@@ -400,41 +457,8 @@ where
     }
 
     #[inline(always)]
-    unsafe fn get_unchecked(cursor: &mut Self::Cursor, i: Idx, j: Idx) -> Self::Item {
-        let item = unsafe { T::get_unchecked(cursor, i, j) };
+    unsafe fn get_unchecked(cursor: &mut Self::Cursor, index: DomainIndex) -> Self::Item {
+        let item = unsafe { T::get_unchecked(cursor, index) };
         item.to_owned()
-    }
-}
-
-unsafe impl<'a, I, Rows, Cols> Producer for faer::sparse::SymbolicSparseColMatRef<'a, I, Rows, Cols>
-where
-    Rows: Shape,
-    Cols: Shape,
-    I: Index,
-{
-    type Domain = Full;
-    type Layout = Sparse;
-    type Item = Option<usize>;
-    type Cursor = Self;
-
-    #[inline(always)]
-    fn shape(&self) -> (usize, usize) {
-        let (rows, cols) = faer::sparse::SymbolicSparseColMatRef::shape(self);
-        (rows.unbound(), cols.unbound())
-    }
-
-    #[inline(always)]
-    fn into_cursor(self) -> Self::Cursor {
-        self
-    }
-
-    #[inline]
-    unsafe fn get_unchecked(cursor: &mut Self::Cursor, i: Idx, j: Idx) -> Self::Item {
-        let i = I::truncate(*i);
-        let j = unsafe { cursor.ncols().unchecked_idx(*j) };
-        let row_indices = cursor.row_idx_of_col_raw(j);
-        let start = row_indices.partition_point(|it| it.unbound() < i);
-        let end = row_indices[start..].partition_point(|it| it.unbound() <= i);
-        (end == start + 1).then_some(start)
     }
 }

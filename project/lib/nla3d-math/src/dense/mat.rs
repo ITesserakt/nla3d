@@ -72,8 +72,8 @@ impl<const N: usize, const M: usize, T> Mat<N, M, T> {
     }
 
     #[inline(always)]
-    pub const fn as_mut_ptr(&mut self) -> NonNull<[[T; N]; M]> {
-        NonNull::from_mut(&mut self.0.0)
+    pub const fn as_mut_ptr(&mut self) -> NonNull<[T]> {
+        NonNull::from_mut(self.0.0.as_flattened_mut())
     }
 }
 

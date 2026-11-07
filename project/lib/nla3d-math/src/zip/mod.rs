@@ -1,40 +1,96 @@
 mod construct;
 mod drive;
 mod ext;
-mod layout;
 mod producer;
+mod shape;
 mod tuple;
 
-use core::marker::PhantomData;
-
 pub use construct::{ElementwiseConstructible, Nothing};
+pub use drive::Pattern;
 pub use ext::{CollectIntoExt, OwnedExt, TriExt};
-pub use layout::{Any, Dynamic, Fits, Join, Layout, Static, Symmetric};
+use faer::Index;
 pub use producer::{Consume, Fill, FillStatic, Producer, RawMut, ToOwnedProducer, Tri};
+pub use shape::{Dynamic, Fits, Free, Join, KnownShape, Shape, Static};
 pub use tuple::Push;
 
 #[cfg(feature = "rand")]
 pub use ext::RandomConstructible;
 
-pub struct Zip<T, L>(T, PhantomData<L>);
+use crate::{
+    dense::{MatSymLength, SymKind},
+    zip::drive::{Domain, Full, Meet, Triangular},
+};
 
-impl<T> Zip<(T,), T::Layout>
+pub struct Space<S, D>(S, D);
+
+pub trait DefaultOutput {
+    type Shape: Shape;
+    type Domain: Domain;
+    type Matrix<V>: ElementwiseConstructible<Self::Shape, Self::Domain, Item = V>;
+}
+
+type MatrixFor<S, D, T> = <Space<S, D> as DefaultOutput>::Matrix<T>;
+
+impl<const N: usize, const M: usize> DefaultOutput for Space<Static<N, M>, Full> {
+    type Shape = Static<N, M>;
+    type Domain = Full;
+    type Matrix<V> = crate::dense::Mat<N, M, V>;
+}
+
+impl DefaultOutput for Space<Dynamic, Full> {
+    type Shape = Dynamic;
+    type Domain = Full;
+    type Matrix<V> = crate::dense::DMat<V>;
+}
+
+impl<const N: usize, K: SymKind> DefaultOutput for Space<Static<N, N>, Triangular<K>>
+where
+    generic_array::typenum::Const<N>: MatSymLength,
+{
+    type Shape = Static<N, N>;
+    type Domain = Triangular<K>;
+    type Matrix<V> = crate::dense::MatSym<N, V, K>;
+}
+
+impl<'p, I: Index, S: Shape> DefaultOutput for Space<S, Pattern<'p, I>> {
+    type Shape = S;
+    type Domain = Pattern<'p, I>;
+    type Matrix<V> = crate::sparse::Mat<V, I>;
+}
+
+pub struct Zip<T, S, D>(T, D, S);
+
+impl<T> Zip<(T,), T::Shape, T::Domain>
 where
     T: Producer,
 {
-    pub const fn from(value: T) -> Self {
-        Self((value,), PhantomData)
+    #[inline]
+    pub fn from(value: T) -> Self {
+        let domain = value.domain();
+        let shape = value.shape();
+        Self((value,), domain, shape)
     }
 }
 
-impl<T, L: Layout> Zip<T, L> {
-    pub fn and<U>(self, value: U) -> Zip<T::Output, L::Out>
+impl<T, S, D> Zip<T, S, D> {
+    #[inline]
+    pub fn and<U>(self, value: U) -> Zip<T::Output, S::Output, D::Output>
     where
         T: Push<U>,
-        L: Join<U::Layout>,
         U: Producer,
+        D: Meet<U::Domain>,
+        S: Join<U::Shape>,
     {
-        Zip(self.0.push(value), PhantomData)
+        let domain = value.domain();
+        let shape = value.shape();
+        Zip(self.0.push(value), self.1.meet(domain), self.2.join(shape))
+    }
+}
+
+impl<T, D> Zip<T, Free, D> {
+    #[inline]
+    pub fn with_shape<S>(self, shape: S) -> Zip<T, S, D> {
+        Zip(self.0, self.1, shape)
     }
 }
 
@@ -47,7 +103,8 @@ mod tests {
 
     use crate::dense::Mat;
     use crate::zip::RandomConstructible;
-    use crate::zip::TriExt;
+    use crate::zip::Static;
+use crate::zip::TriExt;
     use crate::zip::Zip;
     use crate::zip::producer::Consume;
     use crate::{dense::MatSym, m};
@@ -88,7 +145,7 @@ mod tests {
 
     #[test]
     fn test_zip_map_same_type() {
-        let out = Zip::from(&b()).and(&b()).map(|x, y| (*x * *y) as u8);
+        let out: Mat<_, _, u8> = Zip::from(&b()).and(&b()).map_into(|x, y| (*x * *y) as u8);
 
         assert_matrix_eq!(out, m![[0, 1, 0], [1, 0, 0], [0, 0, 0]]);
     }
@@ -140,7 +197,7 @@ mod tests {
     #[test]
     fn test_triangular_traverse() {
         let mut rng = rand::rngs::SmallRng::seed_from_u64(42);
-        let mut m = MatSym::<3>::random_uniform((3, 3), &mut rng);
+        let mut m = MatSym::<3>::random_uniform(Static, &mut rng);
 
         let mut visited = 0;
         Zip::from(&mut m).for_each(|x| {

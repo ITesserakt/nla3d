@@ -59,7 +59,7 @@ define_accessor!(<T> MatSym<3, T, Lower> => xx, xy, yy, xz, yz, zz [new AccessSy
 #[cfg(test)]
 mod tests {
     use crate::dense::{Lower, Mat, MatSym, Upper};
-    use crate::zip::RandomConstructible;
+    use crate::zip::{RandomConstructible, Static};
     use rand::{SeedableRng, rngs::SmallRng};
 
     fn rng() -> SmallRng {
@@ -68,7 +68,7 @@ mod tests {
 
     #[test]
     fn test_accessors_are_valid_m33() {
-        let m = Mat::<3, 3>::random_uniform((3, 3), &mut rng());
+        let m = Mat::<3, 3>::random_uniform(Static, &mut rng());
 
         assert_eq!(m[(0, 0)], m.xx);
         assert_eq!(m[(0, 1)], m.xy);
@@ -83,7 +83,7 @@ mod tests {
 
     #[test]
     fn test_accessors_are_valid_m32() {
-        let m = Mat::<3, 2>::random_uniform((3, 2), &mut rng());
+        let m = Mat::<3, 2>::random_uniform(Static, &mut rng());
 
         assert_eq!(m[(0, 0)], m.xx);
         assert_eq!(m[(0, 1)], m.xy);
@@ -95,7 +95,7 @@ mod tests {
 
     #[test]
     fn test_accessors_are_valid_m23() {
-        let m = Mat::<2, 3>::random_uniform((2, 3), &mut rng());
+        let m = Mat::<2, 3>::random_uniform(Static, &mut rng());
 
         assert_eq!(m[(0, 0)], m.xx);
         assert_eq!(m[(0, 1)], m.xy);
@@ -107,7 +107,7 @@ mod tests {
 
     #[test]
     fn test_accessors_are_valid_m22() {
-        let m = Mat::<2, 2>::random_uniform((2, 2), &mut rng());
+        let m = Mat::<2, 2>::random_uniform(Static, &mut rng());
 
         assert_eq!(m[(0, 0)], m.xx);
         assert_eq!(m[(0, 1)], m.xy);
@@ -117,8 +117,8 @@ mod tests {
 
     #[test]
     fn test_accessors_are_valid_ms1() {
-        let mu = MatSym::<1, f64, Upper>::random_uniform((1, 1), &mut rng());
-        let ml = MatSym::<1, f64, Lower>::random_uniform((1, 1), &mut rng());
+        let mu = MatSym::<1, f64, Upper>::random_uniform(Static, &mut rng());
+        let ml = MatSym::<1, f64, Lower>::random_uniform(Static, &mut rng());
 
         assert_eq!(mu[(0, 0)], mu.x);
 
@@ -127,8 +127,8 @@ mod tests {
 
     #[test]
     fn test_accessors_are_valid_ms2() {
-        let mu = MatSym::<2, f64, Upper>::random_uniform((2, 2), &mut rng());
-        let ml = MatSym::<2, f64, Lower>::random_uniform((2, 2), &mut rng());
+        let mu = MatSym::<2, f64, Upper>::random_uniform(Static, &mut rng());
+        let ml = MatSym::<2, f64, Lower>::random_uniform(Static, &mut rng());
 
         assert_eq!(mu[(0, 0)], mu.xx);
         assert_eq!(mu[(0, 1)], mu.xy);
@@ -143,8 +143,8 @@ mod tests {
 
     #[test]
     fn test_accessors_are_valid_ms3() {
-        let mu = MatSym::<3, f64, Upper>::random_uniform((3, 3), &mut rng());
-        let ml = MatSym::<3, f64, Lower>::random_uniform((3, 3), &mut rng());
+        let mu = MatSym::<3, f64, Upper>::random_uniform(Static, &mut rng());
+        let ml = MatSym::<3, f64, Lower>::random_uniform(Static, &mut rng());
 
         assert_eq!(mu[(0, 0)], mu.xx);
         assert_eq!(mu[(0, 1)], mu.xy);

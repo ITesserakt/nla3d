@@ -174,11 +174,21 @@ where
     }
 
     #[inline]
+    pub unsafe fn get_unchecked_flat(&self, k: usize) -> &T {
+        unsafe { self.0.data.get_unchecked(k) }
+    }
+
+    #[inline]
     pub unsafe fn get_unchecked_mut(&mut self, i: usize, j: usize) -> &mut T
     where
         Kind: SymKind,
     {
         let k = Kind::flat_index(N, i, j);
+        unsafe { self.0.data.get_unchecked_mut(k) }
+    }
+
+    #[inline]
+    pub unsafe fn get_unchecked_mut_flat(&mut self, k: usize) -> &mut T {
         unsafe { self.0.data.get_unchecked_mut(k) }
     }
 

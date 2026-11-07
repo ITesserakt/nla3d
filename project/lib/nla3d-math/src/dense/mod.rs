@@ -48,7 +48,7 @@ mod tests {
 
     use crate::dense::{Lower, Mat, MatSym, MatSymLength, SymKind, Upper};
     use crate::num_traits::Zero;
-    use crate::zip::RandomConstructible;
+    use crate::zip::{RandomConstructible, Static};
 
     type M = MatSym<3>;
 
@@ -110,7 +110,7 @@ mod tests {
         Const<N>: MatSymLength,
     {
         let mut rng = rand::rngs::SmallRng::seed_from_u64(42);
-        let m = MatSym::<_, f64, Lower>::random_uniform((N, N), &mut rng).to_mat();
+        let m = MatSym::<_, f64, Lower>::random_uniform(Static, &mut rng).to_mat();
         let mu = MatSym::<_, _, Upper>::from_mat(m);
         let ml = MatSym::<_, _, Lower>::from_mat(m);
 
