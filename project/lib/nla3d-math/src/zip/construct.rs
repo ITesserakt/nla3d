@@ -14,6 +14,10 @@ use crate::zip::{Dynamic, Static};
 /// # Safety
 /// `uninit(shape)` must panic unless `shape` is exactly the shape of `Self`;
 /// `set` is sound for every `(i, j)` within that shape.
+#[diagnostic::on_unimplemented(
+    message = "`{Self}` cannot be built from a zip with shape `{S}` and domain `{D}`",
+    label = "no way to fill this type from that shape and domain",
+)]
 pub unsafe trait ElementwiseConstructible<S: Shape, D: Domain> {
     type Item;
     type Uninit;

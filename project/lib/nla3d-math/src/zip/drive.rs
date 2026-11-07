@@ -16,6 +16,10 @@ pub struct DomainIndex<'r, 'c> {
     pub pos: usize,
 }
 
+#[diagnostic::on_unimplemented(
+    message = "`{Self}` is not an iteration domain",
+    label = "expected `Full`, `Triangular<_>` or `Pattern<_>`"
+)]
 pub unsafe trait Domain: Clone {
     fn drive<R>(
         &self,
@@ -26,6 +30,12 @@ pub unsafe trait Domain: Clone {
     ) -> R;
 }
 
+#[diagnostic::on_unimplemented(
+    message = "cannot zip a `{Self}` producer with a `{Rhs}` producer",
+    label = "these producers visit different sets of positions",
+    note = "`Full` combines with every domain and a domain combines with itself; `Triangular<_>` and `Pattern<_>` never combine with each other",
+    note = "to read a dense matrix over a triangle use `.lower()` / `.upper()`"
+)]
 pub unsafe trait Meet<Rhs: Domain>: Domain {
     type Output: Domain;
 
@@ -145,10 +155,10 @@ unsafe impl<I: Index> Domain for Pattern<'_, I> {
 }
 
 unsafe impl<D: Domain> Meet<Full> for D {
-    type Output = Full;
+    type Output = D;
 
-    fn meet(self, rhs: Full) -> Self::Output {
-        rhs
+    fn meet(self, _: Full) -> Self::Output {
+        self
     }
 }
 
@@ -198,10 +208,12 @@ impl<'p, I: PartialEq> PartialEq for Pattern<'p, I> {
 
 macro_rules! impl_zip {
     ($($n:ident: $t:ident$(,)?)+) => {
-        impl<S: KnownShape, D: Domain, $($t: Producer,)+> Zip<($($t,)+), S, D> {
+        impl<S, D: Domain, $($t: Producer,)+> Zip<($($t,)+), S, D> {
             /// Visits every (i, j) exactly once, column-major.
             #[inline(always)]
             fn drive<R>(self, initial: R, mut f: impl FnMut(R, DomainIndex, $($t::Item,)+) -> R) -> R
+            where 
+                S: KnownShape
             {
                 let (rows, cols) = self.2.materialize();
                 let ($($n,)+) = self.0;
@@ -218,12 +230,18 @@ macro_rules! impl_zip {
             }
 
             #[inline]
-            pub fn for_each(self, mut f: impl FnMut($($t::Item,)+)) {
+            pub fn for_each(self, mut f: impl FnMut($($t::Item,)+))
+            where 
+                S: KnownShape
+            {
                 self.drive((), |_, _, $($n,)+| f($($n,)+));
             }
 
             #[inline]
-            pub fn fold<R>(self, initial: R, mut f: impl FnMut(R, $($t::Item,)+) -> R) -> R {
+            pub fn fold<R>(self, initial: R, mut f: impl FnMut(R, $($t::Item,)+) -> R) -> R 
+            where
+                S: KnownShape
+            {
                 self.drive(initial, |acc, _, $($n,)+| {
                     f(acc, $($n,)+)
                 })
@@ -233,6 +251,7 @@ macro_rules! impl_zip {
             fn map_into_inner<M>(self, mut f: impl FnMut($($t::Item,)+) -> M::Item) -> M
             where
                 M: ElementwiseConstructible<S, D>,
+                S: KnownShape
             {
                 let shape = self.2.materialize();
                 let mut matrix = M::uninit(shape, self.1.clone());
@@ -246,7 +265,8 @@ macro_rules! impl_zip {
             #[inline]
             pub fn map<R>(self, f: impl FnMut($($t::Item, )+) -> R) -> MatrixFor<S, D, R>
             where
-                Space<S, D>: DefaultOutput<Shape = S, Domain = D>
+                Space<S, D>: DefaultOutput<Shape = S, Domain = D>,
+                S: KnownShape
             {
                 self.map_into_inner(f)
             }
@@ -255,6 +275,7 @@ macro_rules! impl_zip {
             pub fn map_into<M>(self, f: impl FnMut($($t::Item, )+) -> M::Item) -> M
             where
                 M: ElementwiseConstructible<S, D>,
+                S: KnownShape
             {
                 self.map_into_inner(f)
             }
@@ -262,12 +283,13 @@ macro_rules! impl_zip {
     };
 }
 
-impl<T, S: KnownShape, D: Domain> Zip<(T,), S, D> {
+impl<T, S, D: Domain> Zip<(T,), S, D> {
     #[inline]
     pub fn collect<M>(self) -> M
     where
         T: Producer,
         M: ElementwiseConstructible<S, D, Item = T::Item>,
+        S: KnownShape
     {
         self.map_into_inner(|x| x)
     }

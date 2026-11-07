@@ -3,20 +3,40 @@ pub struct Free;
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub struct Dynamic {
     pub rows: usize,
-    pub cols: usize
+    pub cols: usize,
 }
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub struct Static<const N: usize, const M: usize>;
 
+#[diagnostic::on_unimplemented(
+    message = "`{Self}` is not a zip shape",
+    label = "expected `Free`, `Dynamic` or `Static<N, M>`"
+)]
 pub trait Shape {}
+
+#[diagnostic::on_unimplemented(
+    message = "this zip has shape `{Self}`, so it does not know its size",
+    label = "no sized producer in this zip"
+)]
 pub trait KnownShape: Shape + Copy {
     fn materialize(self) -> (usize, usize);
 }
+
+#[diagnostic::on_unimplemented(
+    message = "cannot zip shape `{Self}` with shape `{Rhs}`",
+    label = "these producers have incompatible sizes",
+)]
 pub trait Join<Rhs = Self>: Shape {
     type Output: Shape;
 
     fn join(self, rhs: Rhs) -> Self::Output;
 }
+
+#[diagnostic::on_unimplemented(
+    message = "a zip of shape `{Self}` cannot fill a `{Target}` target",
+    label = "size mismatch",
+    note = "static sizes must match exactly; go through a `Dynamic` producer to defer the check to runtime"
+)]
 pub trait Fits<Target = Self>: Shape {}
 
 impl<S: Shape> Join<Free> for S {

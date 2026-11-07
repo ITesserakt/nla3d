@@ -23,6 +23,11 @@ use crate::{
 
 pub struct Space<S, D>(S, D);
 
+#[diagnostic::on_unimplemented(
+    message = "`map` has no default result type for `{Self}`",
+    label = "no default output for this shape and domain",
+    note = "use `map_into::<M>` / `collect::<M>` with an explicit target, or add `.with_shape(..)`"
+)]
 pub trait DefaultOutput {
     type Shape: Shape;
     type Domain: Domain;
@@ -60,15 +65,15 @@ impl<'p, I: Index, S: Shape> DefaultOutput for Space<S, Pattern<'p, I>> {
 
 pub struct Zip<T, S, D>(T, D, S);
 
-impl<T> Zip<(T,), T::Shape, T::Domain>
-where
-    T: Producer,
-{
+impl Zip<(), Free, Full> {
     #[inline]
-    pub fn from(value: T) -> Self {
+    pub fn from<T>(value: T) -> Zip<(T,), T::Shape, T::Domain>
+    where
+        T: Producer,
+    {
         let domain = value.domain();
         let shape = value.shape();
-        Self((value,), domain, shape)
+        Zip((value,), domain, shape)
     }
 }
 
@@ -104,7 +109,7 @@ mod tests {
     use crate::dense::Mat;
     use crate::zip::RandomConstructible;
     use crate::zip::Static;
-use crate::zip::TriExt;
+    use crate::zip::TriExt;
     use crate::zip::Zip;
     use crate::zip::producer::Consume;
     use crate::{dense::MatSym, m};

@@ -35,7 +35,7 @@ pub struct Consume<T>(pub T);
 
 pub struct ConsumeCursor<const N: usize, const M: usize, T> {
     mat: ManuallyDrop<Mat<N, M, T>>,
-    taken: usize,
+    taken: [[bool; N]; M],
 }
 
 pub struct Fill<T>(pub T);
@@ -99,7 +99,7 @@ unsafe impl<'a, const N: usize, const M: usize, T> Producer for &'a mut Mat<N, M
 
     #[inline(always)]
     unsafe fn get_unchecked(c: &mut Self::Cursor, index: DomainIndex) -> &'a mut T {
-        unsafe { c.ptr.add(index.pos).as_mut() }
+        unsafe { c.ptr.add(*index.j * N + *index.i).as_mut() }
     }
 }
 
@@ -291,26 +291,32 @@ unsafe impl<const N: usize, const M: usize, T> Producer for Consume<Mat<N, M, T>
     fn into_cursor(self) -> Self::Cursor {
         ConsumeCursor {
             mat: ManuallyDrop::new(self.0),
-            taken: 0,
+            taken: [[false; N]; M],
         }
     }
 
     #[inline(always)]
     unsafe fn get_unchecked(cursor: &mut Self::Cursor, index: DomainIndex) -> Self::Item {
         let value = unsafe { std::ptr::read(cursor.mat.get_unchecked(*index.i, *index.j)) };
-        cursor.taken += 1;
+        cursor.taken[*index.j][*index.i] = true;
         value
     }
 }
 
 impl<const N: usize, const M: usize, T> Drop for ConsumeCursor<N, M, T> {
     fn drop(&mut self) {
-        let base = self.mat.as_mut_ptr().cast::<T>();
-        for k in self.taken..N * M {
-            unsafe {
-                base.add(k).drop_in_place();
-            }
+        if const { !std::mem::needs_drop::<T>() } {
+            return;
         }
+
+        let base = self.mat.as_mut_ptr().cast::<T>();
+        self.taken
+            .as_flattened()
+            .iter()
+            .enumerate()
+            .filter(|&(_, taken)| !taken)
+            .map(|(offset, _)| unsafe { base.add(offset) })
+            .for_each(|it| unsafe { it.drop_in_place() });
     }
 }
 
