@@ -1,0 +1,11 @@
+# Seeds for failure cases proptest has generated in the past. It is
+# automatically read and these particular cases re-run before any
+# novel cases are generated.
+#
+# It is recommended to check this file in to source control so that
+# everyone who runs the test benefits from these saved cases.
+cc 780c6d83b7b5a343b24f0de994283b90e331c9c6a970ca2b4f9916bc4674414d # shrinks to m = Mat(ArrayStorage([[0.0, 0.0, 0.0], [0.0, -0.0, 0.0], [0.0, 0.0, 0.0]]))
+cc 55d39d6bdf82e0768ad0ba5535f709c51cc04943adab9092cc7717fa5a9320bb # shrinks to m = Mat(ArrayStorage([[-2.251128344809506, 4582403.472495104], [-4.753784142246265, -0.277169045641131]]))
+cc e14a2e550d1c4be1663225c8b12d94b3a8090adf68fd79ba99da60605a812d99 # shrinks to m = Mat(ArrayStorage([[-7.690564982852421, -8.0457393282823], [0.0, -1.849581793667892e151]]))
+cc 87e8f3106df43a550f77dd9896e532bb73726ab7ee06de680b51cd61bf6a908a # shrinks to m = Mat(ArrayStorage([[-7.427166322578296, -0.11334413047561054], [-2.4788119219803355e79, -0.0]]))
+cc 85a81e3c20200b1dc8c0603af7ed911bfe029dc743878c3ee8e6684f97f3d682 # shrinks to m = Mat(ArrayStorage([[0.0, 0.0, 0.0], [0.0, 0.0, 0.0], [0.0, 0.0, 0.0]]))

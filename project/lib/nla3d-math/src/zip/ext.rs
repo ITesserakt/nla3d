@@ -127,55 +127,13 @@ pub trait RandomConstructible<S: KnownShape, D> {
 
 #[cfg(feature = "rand")]
 const _: () = {
-    use rand::{Rng, distr::Distribution};
-
-    use crate::zip::{
-        ElementwiseConstructible, Free,
-        drive::{Domain, DomainIndex},
-    };
-
-    struct RandomProducer<'a, R, D, T, Dom> {
-        distribution: D,
-        rng: &'a mut R,
-        _phantom: PhantomData<(T, Dom)>,
-    }
-
-    unsafe impl<R, D, T, Dom> Producer for RandomProducer<'_, R, D, T, Dom>
-    where
-        D: Distribution<T>,
-        R: Rng,
-        Dom: Domain + Default,
-    {
-        type Domain = Dom;
-        type Shape = Free;
-        type Item = T;
-        type Cursor = Self;
-
-        fn domain(&self) -> Self::Domain {
-            Dom::default()
-        }
-
-        #[inline(always)]
-        fn shape(&self) -> Self::Shape {
-            Free
-        }
-
-        #[inline(always)]
-        fn into_cursor(self) -> Self::Cursor {
-            self
-        }
-
-        #[inline(always)]
-        unsafe fn get_unchecked(cursor: &mut Self::Cursor, _index: DomainIndex) -> Self::Item {
-            cursor.distribution.sample(cursor.rng)
-        }
-    }
+    use crate::zip::{ElementwiseConstructible, drive::Domain};
 
     impl<S, E, D> RandomConstructible<S, D> for E
     where
         E: ElementwiseConstructible<S, D>,
         D: Domain + Default,
-        S: KnownShape
+        S: KnownShape,
     {
         type Item = E::Item;
 
@@ -187,13 +145,9 @@ const _: () = {
         ) -> Self {
             use crate::zip::Zip;
 
-            let producer = RandomProducer {
-                distribution,
-                rng,
-                _phantom: PhantomData,
-            };
-
-            Zip::from(producer).with_shape(shape).map_into(|x| x)
+            Zip::from_fn(D::default(), |_| distribution.sample(rng))
+                .with_shape(shape)
+                .collect()
         }
     }
 };

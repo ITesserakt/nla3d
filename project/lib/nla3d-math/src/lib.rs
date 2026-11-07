@@ -1,5 +1,7 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
+#[cfg(feature = "proptest")]
+pub mod arbitrary;
 pub mod dense;
 pub mod sparse;
 pub mod zip;

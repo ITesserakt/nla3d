@@ -42,13 +42,8 @@ pub trait MatMulAssign<Rhs> {
 
 #[cfg(test)]
 mod tests {
-    use generic_array::typenum::Const;
-    use matrixcompare::assert_scalar_eq;
-    use rand::SeedableRng;
-
-    use crate::dense::{Lower, Mat, MatSym, MatSymLength, SymKind, Upper};
+    use crate::dense::{Lower, Mat, MatSym, SymKind, Upper};
     use crate::num_traits::Zero;
-    use crate::zip::{RandomConstructible, Static};
 
     type M = MatSym<3>;
 
@@ -103,46 +98,5 @@ mod tests {
                 assert!(i == i_ && j == j_ || i == j_ && j == i_);
             }
         }
-    }
-
-    fn test_determinants<const N: usize>(expected: f64)
-    where
-        Const<N>: MatSymLength,
-    {
-        let mut rng = rand::rngs::SmallRng::seed_from_u64(42);
-        let m = MatSym::<_, f64, Lower>::random_uniform(Static, &mut rng).to_mat();
-        let mu = MatSym::<_, _, Upper>::from_mat(m);
-        let ml = MatSym::<_, _, Lower>::from_mat(m);
-
-        let det = m.determinant();
-        assert_scalar_eq!(det, expected, comp = abs, tol = 1e-7);
-        assert_scalar_eq!(det, mu.determinant(), comp = abs, tol = 1e-9);
-        assert_scalar_eq!(det, ml.determinant(), comp = abs, tol = 1e-9);
-    }
-
-    #[test]
-    fn test_determinant_0() {
-        test_determinants::<0>(1.0);
-    }
-
-    #[test]
-    fn test_determinant_1() {
-        test_determinants::<1>(0.8143051451229099);
-    }
-
-    #[test]
-    fn test_determinant_2() {
-        test_determinants::<2>(-0.3971094091837122);
-    }
-
-    #[test]
-    fn test_determinant_3() {
-        test_determinants::<3>(-0.172172412694047);
-    }
-
-    #[test]
-    #[should_panic(expected = "not yet implemented")]
-    fn test_determinant_4() {
-        test_determinants::<4>(-0.28809505590157414);
     }
 }

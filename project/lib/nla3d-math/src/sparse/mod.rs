@@ -295,6 +295,14 @@ impl<T: Debug, I: Index, R: Shape, C: Shape> Debug for Mat<T, I, R, C> {
 
 #[cfg(test)]
 mod tests {
+    use std::collections::btree_map::BTreeMap;
+
+use proptest::{
+        collection::{btree_map, vec},
+        prelude::{Just, Strategy, any},
+        prop_assert_eq, proptest,
+    };
+
     use crate::sparse::{Argsort, Mat, Visit};
 
     #[test]
@@ -377,11 +385,51 @@ mod tests {
         m.add_entry(4, 3, 9.0).unwrap();
         let m = m.compress();
 
-        dbg!(&m);
         assert_eq!(m.view().get(0, 0), Some(&5.0));
         assert_eq!(m.view().get(3, 4), Some(&8.0));
         assert_eq!(m.view().get(1, 1), Some(&7.0));
         assert_eq!(m.view().get(2, 2), Some(&6.0));
         assert_eq!(m.view().get(4, 3), Some(&9.0));
+    }
+
+    proptest! {
+        #![proptest_config(proptest::test_runner::Config {
+            #[cfg(miri)]
+            failure_persistence: None,
+            #[cfg(miri)]
+            cases: 32,
+            ..Default::default()
+        })]
+        
+        #[test]
+        fn argsort_is_scatter(
+            (idx, vals) in (0usize..64).prop_flat_map(|n| (
+                Just((0..n).collect::<Vec<_>>()).prop_shuffle(),
+                vec(any::<i32>(), n),
+            ))
+        ) {
+            let n = idx.len();
+            let mut expected = vals.clone();
+            for k in 0..n { expected[idx[k]] = vals[k]; }   
+            let mut a = Argsort { idx: idx.iter().map(|&p| Visit(p)).collect(), all_nnz: n, nnz: n };
+            let mut got = vals;
+            a.apply_ordering(&mut got);
+            prop_assert_eq!(got, expected);
+        }
+
+        #[test]
+        fn compress_matches_map(
+            entries in btree_map((0..6usize, 0..6usize), -9.0f64..9.0, 0..20)
+                .prop_map(|m| m.into_iter().collect::<Vec<_>>())
+                .prop_flat_map(|v| Just(v).prop_shuffle())
+        ) {
+            let mut m = Mat::new((6, 6));
+            for &((i, j), v) in &entries { m.add_entry(i, j, v).unwrap(); }
+            let m = m.compress();
+            let oracle: BTreeMap<_, _> = entries.into_iter().collect();
+            for i in 0..6 { for j in 0..6 {
+                prop_assert_eq!(m.view().get(i, j).copied(), oracle.get(&(i, j)).copied());
+            }}
+        }
     }
 }
