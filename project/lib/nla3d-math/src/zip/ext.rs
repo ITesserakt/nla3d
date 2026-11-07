@@ -3,6 +3,7 @@ use core::marker::PhantomData;
 use generic_array::typenum::Const;
 
 use crate::dense::{DMat, Lower, Mat, MatSym, MatSymLength, Upper};
+use crate::zip::producer::ExpandProducer;
 use crate::zip::{ElementwiseConstructible, KnownShape};
 use crate::zip::{
     Producer, Zip,
@@ -103,6 +104,19 @@ impl<T: Producer> OwnedExt for T {
     #[inline]
     fn as_owned(self) -> ToOwnedProducer<Self> {
         ToOwnedProducer(self)
+    }
+}
+
+pub trait ExpandExt: Sized {
+    fn expand(self) -> ExpandProducer<Self>;
+}
+
+impl<T> ExpandExt for T
+where
+    ExpandProducer<T>: Producer,
+{
+    fn expand(self) -> ExpandProducer<Self> {
+        ExpandProducer(self)
     }
 }
 

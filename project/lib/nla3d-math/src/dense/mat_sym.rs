@@ -21,6 +21,9 @@ use crate::dense::Mat;
 use crate::dense::MatSym;
 use crate::dense::SingularMatrix;
 use crate::num_traits::Zero;
+use crate::zip::ExpandExt;
+use crate::zip::Static;
+use crate::zip::Triangular;
 use crate::zip::Zip;
 
 #[derive(Debug, Clone, Copy)]
@@ -161,7 +164,7 @@ where
         T: Clone,
         Kind: SymKind,
     {
-        Zip::from(self).map_into(|x| x.clone())
+        Zip::from(self.expand()).map_into(|x| x.clone())
     }
 
     #[inline]
@@ -244,6 +247,22 @@ where
     #[inline]
     pub fn as_mut_ptr(&mut self) -> NonNull<[T]> {
         NonNull::from_mut(&mut self.0.data)
+    }
+
+    pub fn identity() -> Self
+    where
+        T: RealField,
+        Kind: SymKind,
+    {
+        Zip::from_fn(Triangular::default(), |ix| {
+            if *ix.i == *ix.j {
+                T::one_impl()
+            } else {
+                T::zero_impl()
+            }
+        })
+        .with_shape(Static)
+        .collect()
     }
 }
 

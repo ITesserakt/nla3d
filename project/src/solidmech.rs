@@ -1,6 +1,7 @@
 use nla3d_math::{
     dense::{Mat, MatSym, Vec},
-    m,
+    m, v,
+    zip::Zip,
 };
 use std::ops::{Deref, DerefMut};
 
@@ -35,7 +36,32 @@ impl CauchyStrainTensor {
     pub fn J(&self) -> f64 {
         #[cfg(not(feature = "std"))]
         use nla3d_math::num_traits::Float;
-        
-        self.0.determinant().sqrt()
+
+        self.determinant().sqrt()
+    }
+
+    #[inline]
+    pub fn inv(&self) -> MatSym<3> {
+        self.0.inv()
+    }
+
+    #[inline]
+    #[allow(non_snake_case)]
+    pub fn E(&self) -> MatSym<3> {
+        Zip::from(&self.0)
+            .and(&MatSym::<_, f64>::identity())
+            .map(|c, i| (c - i) * 0.5)
+    }
+
+    #[inline]
+    pub fn invariants(&self) -> Vec<3> {
+        v![
+            self.xx + self.yy + self.zz,
+            self.xx * self.yy + self.yy * self.zz + self.xx * self.zz
+                - self.xy * self.xy
+                - self.yz * self.yz
+                - self.xz * self.xz,
+            self.determinant()
+        ]
     }
 }

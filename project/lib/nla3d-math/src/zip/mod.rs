@@ -7,7 +7,7 @@ mod tuple;
 
 pub use construct::{ElementwiseConstructible, Nothing};
 pub use drive::{Domain, DomainIndex, Full, Pattern, Triangular};
-pub use ext::{CollectIntoExt, OwnedExt, TriExt};
+pub use ext::{CollectIntoExt, ExpandExt, OwnedExt, TriExt};
 pub use producer::{Consume, Fill, FillStatic, FromFn, Producer, RawMut, ToOwnedProducer, Tri};
 pub use shape::{Dynamic, Fits, Free, Join, KnownShape, Shape, Static};
 pub use tuple::Push;
@@ -114,8 +114,8 @@ mod tests {
     use matrixcompare::assert_matrix_eq;
 
     use crate::dense::Mat;
-    use crate::zip::Zip;
     use crate::zip::producer::Consume;
+    use crate::zip::{ExpandExt, Zip};
     use crate::{dense::MatSym, m};
 
     const A: Mat<3, 3, usize> = m![[1, 2, 3], [2, 3, 4], [5, 6, 7]];
@@ -154,7 +154,9 @@ mod tests {
 
     #[test]
     fn test_zip_map_same_type() {
-        let out: Mat<_, _, u8> = Zip::from(&b()).and(&b()).map_into(|x, y| (*x * *y) as u8);
+        let out: Mat<_, _, u8> = Zip::from(b().expand())
+            .and(b().expand())
+            .map_into(|x, y| (*x * *y) as u8);
 
         assert_matrix_eq!(out, m![[0, 1, 0], [1, 0, 0], [0, 0, 0]]);
     }

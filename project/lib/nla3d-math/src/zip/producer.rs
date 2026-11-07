@@ -108,13 +108,13 @@ where
     Const<N>: MatSymLength,
     Kind: SymKind,
 {
-    type Domain = Full;
+    type Domain = Triangular<Kind>;
     type Shape = Static<N, N>;
     type Item = &'a T;
     type Cursor = Self;
 
     fn domain(&self) -> Self::Domain {
-        Full
+        Triangular::default()
     }
 
     #[inline(always)]
@@ -508,5 +508,38 @@ where
     #[inline(always)]
     unsafe fn get_unchecked(cursor: &mut Self::Cursor, index: DomainIndex) -> Self::Item {
         cursor(index)
+    }
+}
+
+pub struct ExpandProducer<T>(pub T);
+
+unsafe impl<'a, const N: usize, T, K> Producer for ExpandProducer<&'a MatSym<N, T, K>>
+where
+    Const<N>: MatSymLength,
+    K: SymKind,
+{
+    type Domain = Full;
+    type Shape = Static<N, N>;
+    type Item = &'a T;
+    type Cursor = Self;
+
+    #[inline(always)]
+    fn domain(&self) -> Self::Domain {
+        Full
+    }
+
+    #[inline(always)]
+    fn shape(&self) -> Self::Shape {
+        Static
+    }
+
+    #[inline(always)]
+    fn into_cursor(self) -> Self::Cursor {
+        self
+    }
+
+    #[inline(always)]
+    unsafe fn get_unchecked(cursor: &mut Self::Cursor, index: DomainIndex) -> Self::Item {
+        unsafe { <&MatSym<N, T, K>>::get_unchecked(&mut cursor.0, index) }
     }
 }
