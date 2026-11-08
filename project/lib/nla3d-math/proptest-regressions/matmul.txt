@@ -1,0 +1,7 @@
+# Seeds for failure cases proptest has generated in the past. It is
+# automatically read and these particular cases re-run before any
+# novel cases are generated.
+#
+# It is recommended to check this file in to source control so that
+# everyone who runs the test benefits from these saved cases.
+cc 259dffc4cde1742c6a6fffe2093e3f2c5268bdda6069ce6515ca46e8c8e4524b # shrinks to a = Mat(ArrayStorage([[0.0, 0.0], [0.0, 0.0], [0.0, 0.0], [0.0, -979.4786718460011]])), b = Mat(ArrayStorage([[0.0, 0.0, 0.0, 0.0], [0.0, 0.0, 0.0, 0.0], [0.0, 0.0, 0.0, -226.46204674890546]])), s = -712.2046251919868

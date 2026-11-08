@@ -2,9 +2,9 @@ use core::marker::PhantomData;
 
 use generic_array::typenum::Const;
 
-use crate::dense::{DMat, Lower, Mat, MatSym, MatSymLength, Upper};
+use crate::dense::{DMat, Lower, Mat, MatSym, MatSymLength, SymKind, Upper};
 use crate::zip::producer::ExpandProducer;
-use crate::zip::{ElementwiseConstructible, KnownShape};
+use crate::zip::{ConsumeProducer, ElementwiseConstructible, KnownShape};
 use crate::zip::{
     Producer, Zip,
     drive::Full,
@@ -14,6 +14,7 @@ use crate::zip::{
 pub trait TriExt: Sized {
     fn lower(self) -> Tri<Lower, Self>;
     fn upper(self) -> Tri<Upper, Self>;
+    fn tri<K: SymKind>(self) -> Tri<K, Self>;
 }
 
 impl<T> TriExt for T
@@ -27,6 +28,11 @@ where
 
     #[inline(always)]
     fn upper(self) -> Tri<Upper, Self> {
+        Tri(self, PhantomData)
+    }
+
+    #[inline(always)]
+    fn tri<K: SymKind>(self) -> Tri<K, Self> {
         Tri(self, PhantomData)
     }
 }
@@ -117,6 +123,19 @@ where
 {
     fn expand(self) -> ExpandProducer<Self> {
         ExpandProducer(self)
+    }
+}
+
+pub trait ConsumeExt: Sized {
+    fn consume(self) -> ConsumeProducer<Self>;
+}
+
+impl<T> ConsumeExt for T
+where 
+    ConsumeProducer<T>: Producer
+{
+    fn consume(self) -> ConsumeProducer<Self> {
+        ConsumeProducer(self)
     }
 }
 

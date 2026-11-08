@@ -222,6 +222,7 @@ mod tests {
     use std::panic::catch_unwind;
 
     use matrixcompare::{prop_assert_matrix_eq, prop_assert_scalar_eq};
+    use num_traits::Zero;
     use platform::collections::hash_set::HashSet;
     use proptest::{
         prelude::{Just, Strategy, any},
@@ -229,7 +230,9 @@ mod tests {
     };
 
     use crate::{
-        arbitrary::{dmat, mat, mat_sym, sparse_mat}, dense::{Lower, Mat, MatSym, SymKind, Upper}, num_traits::Zero, zip::{Consume, Domain, Dynamic, Full, TriExt, Triangular, Zip},
+        arbitrary::{dmat, mat, mat_sym, sparse_mat},
+        dense::{Lower, Mat, MatSym, SymKind, Upper},
+        zip::{ConsumeProducer, Domain, Dynamic, Full, TriExt, Triangular, Zip},
     };
 
     fn visit<D: Domain>(shape: Dynamic, d: D) -> Vec<(usize, usize, usize)> {
@@ -361,8 +364,8 @@ mod tests {
             let _ = catch_unwind(AssertUnwindSafe(|| {
                 let mut seen = 0;
                 let f = |x: Tracked| { if seen == panic_at { panic!() } seen += 1; drop(x) };
-                if tri { Zip::from(Consume(m).lower()).for_each(f) }
-                else   { Zip::from(Consume(m)).for_each(f) }
+                if tri { Zip::from(ConsumeProducer(m).lower()).for_each(f) }
+                else   { Zip::from(ConsumeProducer(m)).for_each(f) }
             }));
             let mut d = DROPS.with(|d| d.borrow().clone());
             d.sort();

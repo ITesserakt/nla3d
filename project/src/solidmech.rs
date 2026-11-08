@@ -35,7 +35,7 @@ impl CauchyStrainTensor {
     #[inline]
     pub fn J(&self) -> f64 {
         #[cfg(not(feature = "std"))]
-        use nla3d_math::num_traits::Float;
+        use num_traits::Float;
 
         self.determinant().sqrt()
     }

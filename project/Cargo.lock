@@ -635,6 +635,7 @@ dependencies = [
  "matrixcompare",
  "nla3d",
  "nla3d-math",
+ "num-traits",
  "platform",
  "strum",
 ]

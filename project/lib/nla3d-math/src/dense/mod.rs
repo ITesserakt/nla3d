@@ -28,22 +28,10 @@ impl std::fmt::Display for SingularMatrix {
 
 impl std::error::Error for SingularMatrix {}
 
-pub trait MatMul<Rhs> {
-    type Output;
-
-    fn matmul(self, rhs: Rhs) -> Self::Output;
-}
-
-pub trait MatMulAssign<Rhs> {
-    type Output;
-
-    fn matmul_assign(self, rhs: Rhs, out: Self::Output);
-}
-
 #[cfg(test)]
 mod tests {
     use crate::dense::{Lower, Mat, MatSym, SymKind, Upper};
-    use crate::num_traits::Zero;
+    use num_traits::Zero;
 
     type M = MatSym<3>;
 

@@ -10,17 +10,18 @@ use std::ops::DerefMut;
 use std::ops::Index;
 use std::ops::IndexMut;
 
+use faer::linalg::matmul::triangular::BlockStructure;
 use faer::traits::ComplexField;
 use faer::traits::RealField;
 use faer::traits::ext::ComplexFieldExt;
 use generic_array::sequence::GenericSequence;
 use generic_array::typenum::Const;
 use generic_array::{ArrayLength, GenericArray};
+use num_traits::Zero;
 
 use crate::dense::Mat;
 use crate::dense::MatSym;
 use crate::dense::SingularMatrix;
-use crate::num_traits::Zero;
 use crate::zip::ExpandExt;
 use crate::zip::Static;
 use crate::zip::Triangular;
@@ -104,12 +105,15 @@ impl<T, N: MatSymLength, Kind> DerefMut for SymArrayStorage<T, N, Kind> {
 }
 
 pub trait SymKind {
-    fn flat_index(side: usize, i: usize, j: usize) -> usize;
+    const BLOCK: BlockStructure;
 
+    fn flat_index(side: usize, i: usize, j: usize) -> usize;
     fn wide_index(side: usize, k: usize) -> (usize, usize);
 }
 
 impl SymKind for Upper {
+    const BLOCK: BlockStructure = BlockStructure::TriangularUpper;
+
     #[inline]
     fn flat_index(side: usize, mut i: usize, mut j: usize) -> usize {
         if i > j {
@@ -133,6 +137,8 @@ impl SymKind for Upper {
 }
 
 impl SymKind for Lower {
+    const BLOCK: BlockStructure = BlockStructure::TriangularLower;
+    
     #[inline]
     fn flat_index(_: usize, mut i: usize, mut j: usize) -> usize {
         if i < j {
@@ -215,6 +221,17 @@ where
             slot.write(matrix[(i, j)].clone());
         }
         unsafe { out.assume_init() }
+    }
+
+    #[inline]
+    pub fn from_elem(element: T) -> Self
+    where
+        T: Clone,
+    {
+        MatSym(SymArrayStorage {
+            data: GenericArray::repeat(element),
+            _phantom: PhantomData,
+        })
     }
 
     pub fn determinant(&self) -> T

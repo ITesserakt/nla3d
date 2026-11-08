@@ -14,6 +14,7 @@ crate-type = ["rlib", "cdylib"]
 
 [dependencies]
 nla3d-math = { path = "lib/nla3d-math" }
+num-traits = { version = "0.2.19", default-features = false, features = ["libm"] }
 platform = { path = "lib/platform", default-features = false }
 strum = { version = "0.28.0", default-features = false, features = ["derive"] }
 
@@ -22,7 +23,7 @@ matrixcompare = "0.3.0"
 nla3d = { path = ".", features = ["std"] }
 
 [features]
-std = ["nla3d-math/std", "platform/std"]
+std = ["nla3d-math/std", "platform/std", "num-traits/std"]
 
 [profile.no_std]
 inherits = "dev"

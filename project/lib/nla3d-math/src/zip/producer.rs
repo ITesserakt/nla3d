@@ -31,7 +31,7 @@ pub unsafe trait Producer: Sized {
     unsafe fn get_unchecked(cursor: &mut Self::Cursor, index: DomainIndex) -> Self::Item;
 }
 
-pub struct Consume<T>(pub T);
+pub struct ConsumeProducer<T>(pub T);
 
 pub struct ConsumeCursor<const N: usize, const M: usize, T> {
     mat: ManuallyDrop<Mat<N, M, T>>,
@@ -272,7 +272,7 @@ unsafe impl<'a, T, Rows: faer::Shape, Cols: faer::Shape> Producer for &'a mut DM
     }
 }
 
-unsafe impl<const N: usize, const M: usize, T> Producer for Consume<Mat<N, M, T>> {
+unsafe impl<const N: usize, const M: usize, T> Producer for ConsumeProducer<Mat<N, M, T>> {
     type Domain = Full;
     type Shape = Static<N, M>;
     type Item = T;

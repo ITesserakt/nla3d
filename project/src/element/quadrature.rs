@@ -2,12 +2,11 @@ use core::{
     f64::consts::{FRAC_PI_2, PI},
     ops::{Add, Div, Mul, Sub},
 };
+use num_traits::{MulAddAssign, One, Zero};
 
 use nla3d_math::{
     dense::{Mat, Vec},
-    m,
-    num_traits::{MulAddAssign, One, Zero},
-    v,
+    m, v,
     zip::Zip,
 };
 

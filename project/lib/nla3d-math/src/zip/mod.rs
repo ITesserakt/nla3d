@@ -6,19 +6,18 @@ mod shape;
 mod tuple;
 
 pub use construct::{ElementwiseConstructible, Nothing};
-pub use drive::{Domain, DomainIndex, Full, Pattern, Triangular};
-pub use ext::{CollectIntoExt, ExpandExt, OwnedExt, TriExt};
-pub use producer::{Consume, Fill, FillStatic, FromFn, Producer, RawMut, ToOwnedProducer, Tri};
+pub use drive::{Domain, DomainIndex, Full, Meet, Pattern, Triangular};
+pub use ext::{CollectIntoExt, ConsumeExt, ExpandExt, OwnedExt, TriExt};
+pub use producer::{
+    ConsumeProducer, Fill, FillStatic, FromFn, Producer, RawMut, ToOwnedProducer, Tri,
+};
 pub use shape::{Dynamic, Fits, Free, Join, KnownShape, Shape, Static};
 pub use tuple::Push;
 
 #[cfg(feature = "rand")]
 pub use ext::RandomConstructible;
 
-use crate::{
-    dense::{MatSymLength, SymKind},
-    zip::drive::Meet,
-};
+use crate::dense::{MatSymLength, SymKind};
 use faer::Index;
 
 pub struct Space<S, D>(S, D);
@@ -114,7 +113,7 @@ mod tests {
     use matrixcompare::assert_matrix_eq;
 
     use crate::dense::Mat;
-    use crate::zip::producer::Consume;
+    use crate::zip::producer::ConsumeProducer;
     use crate::zip::{ExpandExt, Zip};
     use crate::{dense::MatSym, m};
 
@@ -127,7 +126,7 @@ mod tests {
     #[test]
     fn test_zip_fold() {
         let sum = Zip::from(&A)
-            .and(&b())
+            .and(b().expand())
             .fold(0.0, |acc, x, y| acc + (*x as f64) * *y);
 
         assert_eq!(sum, 4.0);
@@ -136,7 +135,7 @@ mod tests {
     #[test]
     fn test_zip_for_each() {
         let mut total_non_zero = 0;
-        Zip::from(&A).and(&b()).for_each(|x, y| {
+        Zip::from(&A).and(b().expand()).for_each(|x, y| {
             if (*x as f64) * *y != 0.0 {
                 total_non_zero += 1;
             }
@@ -174,7 +173,7 @@ mod tests {
     #[test]
     fn change_output_type() {
         let a = m![[1, 2], [3, 4]];
-        let b = Zip::from(Consume(a)).map(|x| x);
+        let b = Zip::from(ConsumeProducer(a)).map(|x| x);
 
         assert_matrix_eq!(a, b);
     }
@@ -193,7 +192,7 @@ mod tests {
         let a = m![[IncOnDrop(1), IncOnDrop(2)], [IncOnDrop(3), IncOnDrop(4)]];
 
         let result = std::panic::catch_unwind(|| {
-            Zip::from(Consume(a)).for_each(|x| {
+            Zip::from(ConsumeProducer(a)).for_each(|x| {
                 let x = ManuallyDrop::new(x);
                 if x.0 == 3 {
                     panic!("Test");

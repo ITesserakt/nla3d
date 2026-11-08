@@ -3,13 +3,13 @@ use faer::mat::{AsMatMut, AsMatRef};
 use faer::traits::ext::ComplexFieldExt;
 use faer::traits::{ComplexField, RealField};
 use faer::{MatMut, MatRef};
+use num_traits::{ConstOne, ConstZero, One, Zero};
 use std::mem::MaybeUninit;
 use std::ops::*;
 
 use crate::dense::{DMat, Mat, SingularMatrix, Vec};
 use crate::m;
-use crate::num_traits::{ConstOne, ConstZero, One, Zero};
-use crate::zip::{Consume, FillStatic, Zip};
+use crate::zip::{ConsumeProducer, FillStatic, Zip, ConsumeExt};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(transparent)]
@@ -41,7 +41,7 @@ impl<const N: usize, const M: usize, T> Mat<N, M, T> {
 
     #[inline]
     pub fn into_dyn(self) -> DMat<T> {
-        Zip::from(Consume(self)).map_into(|it| it)
+        Zip::from(ConsumeProducer(self)).map_into(|it| it)
     }
 
     #[inline]
@@ -238,6 +238,15 @@ impl<const N: usize, const M: usize, T> Index<(usize, usize)> for Mat<N, M, T> {
     }
 }
 
+impl<const N: usize, const M: usize, T> Index<(usize, usize)> for &Mat<N, M, T> {
+    type Output = T;
+
+    #[inline(always)]
+    fn index(&self, index: (usize, usize)) -> &Self::Output {
+        &self.0.0[index.1][index.0]
+    }
+}
+
 impl<const N: usize, const M: usize, T> AsMatRef for Mat<N, M, T> {
     type T = T;
 
@@ -270,8 +279,8 @@ macro_rules! impl_operator {
 
             #[inline]
             fn $trait_fn(self, rhs: Self) -> Self::Output {
-                Zip::from(Consume(self))
-                    .and(Consume(rhs))
+                Zip::from(self.consume())
+                    .and(rhs.consume())
                     .map(|x, y| x.$trait_fn(y))
             }
         }
@@ -284,7 +293,7 @@ macro_rules! impl_operator {
 
             #[inline]
             fn $trait_fn(self, rhs: Mat<N, M, T>) -> Self::Output {
-                Zip::from(self).and(Consume(rhs)).map(|x, y| x.$trait_fn(y))
+                Zip::from(self).and(rhs.consume()).map(|x, y| x.$trait_fn(y))
             }
         }
 
@@ -296,7 +305,7 @@ macro_rules! impl_operator {
 
             #[inline]
             fn $trait_fn(self, rhs: &'a Mat<N, M, T>) -> Self::Output {
-                Zip::from(Consume(self)).and(rhs).map(|x, y| x.$trait_fn(y))
+                Zip::from(self.consume()).and(rhs).map(|x, y| x.$trait_fn(y))
             }
         }
 
@@ -321,7 +330,7 @@ macro_rules! impl_operator {
 
             #[inline]
             fn $trait_fn(self, rhs: T) -> Self::Output {
-                Zip::from(Consume(self))
+                Zip::from(self.consume())
                     .and(FillStatic(rhs))
                     .map(|x, y| x.$trait_fn(y))
             }
@@ -335,7 +344,7 @@ macro_rules! impl_operator {
 
             #[inline]
             fn $trait_fn(self, rhs: &'a T) -> Self::Output {
-                Zip::from(Consume(self))
+                Zip::from(self.consume())
                     .and(FillStatic(rhs))
                     .map(|x, y| x.$trait_fn(y))
             }
@@ -381,7 +390,7 @@ macro_rules! impl_assign_operator {
             #[inline]
             fn $trait_fn(&mut self, rhs: Self) {
                 Zip::from(self)
-                    .and(Consume(rhs))
+                    .and(rhs.consume())
                     .for_each(|y, x| y.$trait_fn(x))
             }
         }

@@ -5,6 +5,7 @@ pub mod arbitrary;
 pub mod dense;
 pub mod sparse;
 pub mod zip;
+pub mod matmul;
 
 #[cfg(feature = "std")]
 extern crate std;
@@ -13,8 +14,6 @@ extern crate std;
 extern crate core as std;
 #[cfg(not(feature = "std"))]
 extern crate platform;
-
-pub use faer::traits::num_traits;
 
 #[cfg(feature = "compare")]
 pub struct FaerCompare<T>(pub T);
