@@ -22,10 +22,10 @@ use num_traits::Zero;
 use crate::dense::Mat;
 use crate::dense::MatSym;
 use crate::dense::SingularMatrix;
-use crate::zip::ExpandExt;
 use crate::zip::Static;
 use crate::zip::Triangular;
 use crate::zip::Zip;
+use crate::zip::{ConsumeExt, ExpandExt, TriExt};
 
 #[derive(Debug, Clone, Copy)]
 pub struct Upper;
@@ -138,7 +138,7 @@ impl SymKind for Upper {
 
 impl SymKind for Lower {
     const BLOCK: BlockStructure = BlockStructure::TriangularLower;
-    
+
     #[inline]
     fn flat_index(_: usize, mut i: usize, mut j: usize) -> usize {
         if i < j {
@@ -210,20 +210,6 @@ where
     }
 
     #[inline]
-    pub fn from_mat(matrix: Mat<N, N, T>) -> Self
-    where
-        Kind: SymKind,
-        T: Clone,
-    {
-        let mut out = Self::uninit();
-        for (k, slot) in out.0.iter_mut().enumerate() {
-            let (i, j) = Kind::wide_index(N, k);
-            slot.write(matrix[(i, j)].clone());
-        }
-        unsafe { out.assume_init() }
-    }
-
-    #[inline]
     pub fn from_elem(element: T) -> Self
     where
         T: Clone,
@@ -280,6 +266,19 @@ where
         })
         .with_shape(Static)
         .collect()
+    }
+}
+
+impl<const N: usize, T> MatSym<N, T, Lower>
+where
+    Const<N>: MatSymLength,
+{
+    #[inline]
+    pub fn from_mat(matrix: Mat<N, N, T>) -> Self
+    where
+        T: Clone,
+    {
+        Zip::from(matrix.consume().tri()).collect()
     }
 }
 

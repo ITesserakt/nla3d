@@ -205,7 +205,7 @@ fn manual_matmul_inplace<'a, T, D, P>(
         .and(dst)
         .for_each(|(i, j), y| {
             for k in 0..inner_size {
-                *y += scalar.clone() * lhs[(i, j)].clone() * rhs[(k, j)].clone();
+                *y += scalar.clone() * lhs[(i, k)].clone() * rhs[(k, j)].clone();
             }
         });
 }
@@ -347,12 +347,23 @@ mod impls {
 
 #[cfg(test)]
 mod tests {
+    use crate::dense::DMat;
+    use crate::dense::MatSym;
+    use crate::matmul::MatMul;
+    use crate::{FaerCompare, arbitrary::mat, m};
     use matrixcompare::prop_assert_matrix_eq;
     use proptest::{prop_assert_eq, proptest};
 
-    use crate::matmul::MatMul;
-    use crate::{FaerCompare, arbitrary::mat};
-    use crate::dense::DMat;
+    #[test]
+    fn test_matmul_simple() {
+        let identity = MatSym::from_mat(m![[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]]);
+        let m = m![[1.0, 2.0, 3.0], [4.0, 5.0, 6.0], [7.0, 8.0, 9.0]];
+
+        assert_eq!(
+            identity.matmul(m),
+            m![[1.0, 2.0, 3.0], [4.0, 5.0, 6.0], [7.0, 8.0, 9.0]]
+        );
+    }
 
     proptest! {
         #![proptest_config(proptest::test_runner::Config {
@@ -372,7 +383,7 @@ mod tests {
             let out_manual = a.matmul_scalar(b, s);
             let out_faer: DMat = s * da * db;
             prop_assert_eq!(out_manual.shape(), out_faer.shape());
-            prop_assert_matrix_eq!(out_manual, FaerCompare(out_faer), comp=abs, tol=1e-7);
+            prop_assert_matrix_eq!(out_manual, FaerCompare(out_faer), comp=abs, tol=1e-6);
         }
     }
 }

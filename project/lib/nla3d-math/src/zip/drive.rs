@@ -212,7 +212,7 @@ macro_rules! impl_zip {
             /// Visits every (i, j) exactly once, column-major.
             #[inline(always)]
             fn drive<R>(self, initial: R, mut f: impl FnMut(R, DomainIndex, $($t::Item,)+) -> R) -> R
-            where 
+            where
                 S: KnownShape
             {
                 let (rows, cols) = self.2.materialize();
@@ -231,14 +231,14 @@ macro_rules! impl_zip {
 
             #[inline]
             pub fn for_each(self, mut f: impl FnMut($($t::Item,)+))
-            where 
+            where
                 S: KnownShape
             {
                 self.drive((), |_, _, $($n,)+| f($($n,)+));
             }
 
             #[inline]
-            pub fn fold<R>(self, initial: R, mut f: impl FnMut(R, $($t::Item,)+) -> R) -> R 
+            pub fn fold<R>(self, initial: R, mut f: impl FnMut(R, $($t::Item,)+) -> R) -> R
             where
                 S: KnownShape
             {
@@ -289,7 +289,7 @@ impl<T, S, D: Domain> Zip<(T,), S, D> {
     where
         T: Producer,
         M: ElementwiseConstructible<S, D, Item = T::Item>,
-        S: KnownShape
+        S: KnownShape,
     {
         self.map_into_inner(|x| x)
     }
