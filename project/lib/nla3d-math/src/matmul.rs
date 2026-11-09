@@ -310,7 +310,7 @@ mod impls {
         override[N <= 5] = manual_matmul_inplace(N, self, scalar, RemoveRef::forward(&lhs), RemoveRef::forward(&rhs));
     });
 
-    impl_matmul!(<const N: usize; T: ComplexField, K: SymKind> MatSym<N, T, K>, Mat<N, N, T> => Mat<N, N, T> {
+    impl_matmul!(<const N: usize, const M: usize; T: ComplexField, K: SymKind> MatSym<N, T, K>, Mat<N, M, T> => Mat<N, M, T> {
         |self, rhs, scalar, lhs|
         symmetric = true;
         scalar = T;
@@ -319,7 +319,7 @@ mod impls {
         override[N <= 5] = manual_matmul_inplace(N, self, scalar, RemoveRef::forward(&lhs), RemoveRef::forward(&rhs));
     });
 
-    impl_matmul!(<const N: usize; T: ComplexField, K: SymKind> Mat<N, N, T>, MatSym<N, T, K> => Mat<N, N, T> {
+    impl_matmul!(<const N: usize, const M: usize; T: ComplexField, K: SymKind> Mat<M, N, T>, MatSym<N, T, K> => Mat<M, N, T> {
         |self, rhs, scalar, lhs|
         symmetric = true;
         scalar = T;

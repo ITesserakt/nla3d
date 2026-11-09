@@ -177,5 +177,38 @@ macro_rules! impl_assign_operator {
                 handle rhs = $handle_rhs;
             }
         );
+
+        $crate::impl_assign_operator!(
+            <$($lt),*; $(const $const_generic: $const_bound),*; $($generic),*>
+            impl SubAssign$(<$rhs>)? for $name
+            $(where $($bind: $bound,)*)?
+            {
+                fn = sub_assign;
+                scalar = $scalar$(, $scalar_rhs)?;
+                handle rhs = $handle_rhs;
+            }
+        );
+
+        $crate::impl_assign_operator!(
+            <$($lt),*; $(const $const_generic: $const_bound),*; $($generic),*>
+            impl MulAssign$(<$rhs>)? for $name
+            $(where $($bind: $bound,)*)?
+            {
+                fn = mul_assign;
+                scalar = $scalar$(, $scalar_rhs)?;
+                handle rhs = $handle_rhs;
+            }
+        );
+
+        $crate::impl_assign_operator!(
+            <$($lt),*; $(const $const_generic: $const_bound),*; $($generic),*>
+            impl DivAssign$(<$rhs>)? for $name
+            $(where $($bind: $bound,)*)?
+            {
+                fn = div_assign;
+                scalar = $scalar$(, $scalar_rhs)?;
+                handle rhs = $handle_rhs;
+            }
+        );
     };
 }

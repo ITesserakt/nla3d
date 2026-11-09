@@ -231,7 +231,7 @@ where
                         * (self[(1, 0)].clone() * self[(2, 1)].clone()
                             - self[(1, 1)].clone() * self[(2, 0)].clone())
             }
-            _ => todo!(),
+            _ => self.to_mat().determinant(),
         }
     }
 
