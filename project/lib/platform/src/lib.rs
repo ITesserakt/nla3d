@@ -35,6 +35,11 @@ pub mod collections {
         pub type HashMap<K, V, S = foldhash::fast::RandomState> =
             hashbrown::hash_map::HashMap<K, V, S>;
     }
+    
+    pub mod hasher {
+        pub use foldhash::fast;
+        pub use foldhash::quality;
+    }
 }
 
 #[cfg(all(not(feature = "std"), not(feature = "mimalloc")))]

@@ -1,4 +1,5 @@
 use core::fmt::Debug;
+use std::hash::Hash;
 use std::ptr::NonNull;
 
 use faer::prelude::SparseColMat;
@@ -70,7 +71,10 @@ impl<I: Index, R: Shape, C: Shape> SparsityInfo<I, R, C> {
     }
 
     #[inline]
-    fn from_descriptor(descriptor: SymbolicSparseColMat<I, R, C>) -> Self {
+    fn from_descriptor(descriptor: SymbolicSparseColMat<I, R, C>) -> Self
+    where
+        I: Hash,
+    {
         let (rows, cols, col_ptr, col_nnz, row_idx) = descriptor.into_parts();
 
         Self {
@@ -130,7 +134,7 @@ impl<T, I, R, C> UncompressedMat<R, C, T, I>
 where
     R: Shape,
     C: Shape,
-    I: Index,
+    I: Index + Hash,
 {
     #[inline]
     pub fn compress(self) -> Mat<T, I, R, C>
@@ -196,7 +200,7 @@ impl<T, I, R, C> Mat<T, I, R, C> {
     where
         R: Shape,
         C: Shape,
-        I: Index,
+        I: Index + Hash,
         T: ComplexField,
     {
         let (descriptor, ordering) = match SymbolicSparseColMat::try_new_from_indices(
@@ -284,7 +288,7 @@ impl<I, T, R, C> From<faer::sparse::SparseColMat<I, T, R, C>> for Mat<T, I, R, C
 where
     R: Shape,
     C: Shape,
-    I: Index,
+    I: Index + Hash,
 {
     #[inline]
     fn from(value: faer::sparse::SparseColMat<I, T, R, C>) -> Self {

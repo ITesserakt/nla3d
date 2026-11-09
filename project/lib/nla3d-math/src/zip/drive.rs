@@ -1,6 +1,9 @@
 use core::alloc::Layout;
+use core::fmt::Formatter;
 use core::marker::PhantomData;
 use core::ptr::NonNull;
+use std::fmt::Debug;
+use std::hash::{BuildHasher, Hash, Hasher};
 use std::ops::Deref;
 
 use faer::sparse::{CreationError, FaerError};
@@ -58,8 +61,11 @@ pub struct PatternInner<I> {
     pub(crate) row_idx: Box<[I]>,
 }
 
-#[derive(Debug)]
-pub struct Pattern<I = usize>(platform::compat::sync::Arc<PatternInner<I>>);
+pub struct Pattern<I = usize, S = platform::collections::hasher::fast::RandomState> {
+    inner: platform::compat::sync::Arc<PatternInner<I>>,
+    hash: u64,
+    _phantom: PhantomData<fn() -> S>,
+}
 
 impl<Kind> Clone for Triangular<Kind> {
     fn clone(&self) -> Self {
@@ -75,19 +81,31 @@ impl<Kind> Default for Triangular<Kind> {
     }
 }
 
-impl<I> Clone for Pattern<I> {
+impl<I, S> Clone for Pattern<I, S> {
     fn clone(&self) -> Self {
-        Self(self.0.clone())
+        Self {
+            inner: self.inner.clone(),
+            hash: self.hash,
+            _phantom: PhantomData,
+        }
     }
 }
 
-impl<I: PartialEq> PartialEq for Pattern<I> {
+impl<I: PartialEq, S> PartialEq for Pattern<I, S> {
     #[inline]
     fn eq(&self, other: &Self) -> bool {
-        platform::compat::sync::Arc::ptr_eq(&self.0, &other.0)
+        self.hash == other.hash
+            || platform::compat::sync::Arc::ptr_eq(&self.inner, &other.inner)
             || self.col_ptr == other.col_ptr
                 && self.col_nnz == other.col_nnz
                 && self.row_idx == other.row_idx
+    }
+}
+
+impl<I, S> Hash for Pattern<I, S> {
+    #[inline]
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        state.write_u64(self.hash);
     }
 }
 
@@ -147,7 +165,7 @@ unsafe impl<K: SymKind> Domain for Triangular<K> {
     }
 }
 
-unsafe impl<I: Index> Domain for Pattern<I> {
+unsafe impl<I: Index, S> Domain for Pattern<I, S> {
     fn drive<R>(
         &self,
         rows: Dim<'_>,
@@ -185,10 +203,10 @@ unsafe impl<K: SymKind> Meet<Triangular<K>> for Full {
     }
 }
 
-unsafe impl<'p, I: Index> Meet<Pattern<I>> for Full {
-    type Output = Pattern<I>;
+unsafe impl<'p, I: Index, S> Meet<Pattern<I, S>> for Full {
+    type Output = Pattern<I, S>;
 
-    fn meet(self, rhs: Pattern<I>) -> Self::Output {
+    fn meet(self, rhs: Pattern<I, S>) -> Self::Output {
         rhs
     }
 }
@@ -201,10 +219,10 @@ unsafe impl<K: SymKind> Meet<Triangular<K>> for Triangular<K> {
     }
 }
 
-unsafe impl<'p, I: Index> Meet<Pattern<I>> for Pattern<I> {
-    type Output = Pattern<I>;
+unsafe impl<'p, I: Index, S> Meet<Pattern<I, S>> for Pattern<I, S> {
+    type Output = Pattern<I, S>;
 
-    fn meet(self, rhs: Pattern<I>) -> Self::Output {
+    fn meet(self, rhs: Pattern<I, S>) -> Self::Output {
         assert_eq!(
             self, rhs,
             "Different sparsity patterns are not allowed: mix them beforehand"
@@ -213,25 +231,51 @@ unsafe impl<'p, I: Index> Meet<Pattern<I>> for Pattern<I> {
     }
 }
 
-impl<I> Deref for Pattern<I> {
+impl<I: Debug, S> Debug for Pattern<I, S> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("Pattern")
+            .field("col_ptr", &self.col_ptr)
+            .field("col_nnz", &self.col_nnz)
+            .field("row_idx", &self.row_idx)
+            .field("hash", &self.hash)
+            .finish()
+    }
+}
+
+impl<I, S> Deref for Pattern<I, S> {
     type Target = PatternInner<I>;
 
     #[inline]
     fn deref(&self) -> &Self::Target {
-        &self.0
+        &self.inner
     }
 }
 
-impl<I: Clone> Pattern<I> {
+impl<I: Clone + Hash, S: BuildHasher + Default> Pattern<I, S> {
     #[inline]
-    pub fn from_parts(col_ptr: Box<[I]>, col_nnz: Option<Box<[I]>>, row_idx: Box<[I]>) -> Self {
-        Self(platform::compat::sync::Arc::new(PatternInner {
-            col_ptr,
-            col_nnz,
-            row_idx,
-        }))
-    }
+    pub(crate) fn from_parts(
+        col_ptr: Box<[I]>,
+        col_nnz: Option<Box<[I]>>,
+        row_idx: Box<[I]>,
+    ) -> Self {
+        let mut hasher = S::default().build_hasher();
+        col_ptr.hash(&mut hasher);
+        col_nnz.hash(&mut hasher);
+        row_idx.hash(&mut hasher);
 
+        Self {
+            inner: platform::compat::sync::Arc::new(PatternInner {
+                col_ptr,
+                col_nnz,
+                row_idx,
+            }),
+            hash: hasher.finish(),
+            _phantom: PhantomData,
+        }
+    }
+}
+
+impl<I: Clone, S> Pattern<I, S> {
     #[inline]
     fn try_zeroed(len: usize) -> Result<Box<[I]>, FaerError>
     where
@@ -261,19 +305,19 @@ impl<I: Clone> Pattern<I> {
         mut entries: Box<[(I, I)]>,
     ) -> Result<Self, CreationError>
     where
-        I: Index,
+        I: Index + Hash,
+        S: BuildHasher + Default,
     {
         let max_len = I::Signed::MAX.zx();
         if rows > max_len || cols > max_len || entries.len() > max_len {
             return Err(FaerError::IndexOverflow)?;
         }
         if entries.is_empty() {
-            let pattern = PatternInner {
-                col_ptr: Self::try_zeroed(cols)?,
-                col_nnz: None,
-                row_idx: Box::new([]),
-            };
-            return Ok(Self(platform::compat::sync::Arc::new(pattern)));
+            return Ok(Self::from_parts(
+                Self::try_zeroed(cols)?,
+                None,
+                Box::new([]),
+            ));
         }
 
         entries.sort_unstable_by_key(|&(row, col)| (col, row));
@@ -295,13 +339,11 @@ impl<I: Clone> Pattern<I> {
             })
             .collect();
 
-        let pattern = PatternInner {
+        Ok(Self::from_parts(
             col_ptr,
-            col_nnz: None,
-            row_idx: entries.into_iter().map(|it| it.0).collect(),
-        };
-
-        Ok(Self(platform::compat::sync::Arc::new(pattern)))
+            None,
+            entries.into_iter().map(|it| it.0).collect(),
+        ))
     }
 }
 
