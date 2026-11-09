@@ -9,7 +9,7 @@ use std::ops::*;
 
 use crate::dense::{DMat, Mat, SingularMatrix, Vec};
 use crate::m;
-use crate::zip::{ConsumeProducer, FillStatic, Zip, ConsumeExt};
+use crate::zip::{ConsumeProducer, Zip};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(transparent)]
@@ -269,176 +269,83 @@ impl<const N: usize, const M: usize, T> AsMatMut for Mat<N, M, T> {
     }
 }
 
-macro_rules! impl_operator {
-    ($trait_name:ident $trait_fn:ident) => {
-        impl<const N: usize, const M: usize, T> $trait_name for Mat<N, M, T>
-        where
-            T: $trait_name,
-        {
-            type Output = Mat<N, M, T::Output>;
+mod ops_impls {
+    use std::convert::identity;
+    use std::ops::*;
 
-            #[inline]
-            fn $trait_fn(self, rhs: Self) -> Self::Output {
-                Zip::from(self.consume())
-                    .and(rhs.consume())
-                    .map(|x, y| x.$trait_fn(y))
-            }
-        }
+    use crate::dense::Mat;
+    use crate::zip::{ConsumeExt, Fill, Zip};
+    use crate::{impl_assign_operator, impl_operator};
 
-        impl<'a, const N: usize, const M: usize, T> $trait_name<Mat<N, M, T>> for &'a Mat<N, M, T>
-        where
-            &'a T: $trait_name<T>,
-        {
-            type Output = Mat<N, M, <&'a T as $trait_name<T>>::Output>;
+    impl_operator!(<;const N: usize, const M: usize; T> impl Ops for Mat<N, M, T> {
+        scalar = T;
+        output = Mat<N, M, O>;
+        output scalar = O;
+        handle self = ConsumeExt::consume;
+        handle rhs = ConsumeExt::consume;
+    });
 
-            #[inline]
-            fn $trait_fn(self, rhs: Mat<N, M, T>) -> Self::Output {
-                Zip::from(self).and(rhs.consume()).map(|x, y| x.$trait_fn(y))
-            }
-        }
+    impl_operator!(<'a; const N: usize, const M: usize; T> impl Ops for &'a Mat<N, M, T> {
+        scalar = &'a T;
+        output = Mat<N, M, O>;
+        output scalar = O;
+        handle self = identity;
+        handle rhs = identity;
+    });
 
-        impl<'a, const N: usize, const M: usize, T> $trait_name<&'a Mat<N, M, T>> for Mat<N, M, T>
-        where
-            T: $trait_name<&'a T>,
-        {
-            type Output = Mat<N, M, <T as $trait_name<&'a T>>::Output>;
+    impl_operator!(<'a; const N: usize, const M: usize; T> impl Ops<&'a Mat<N, M, T>> for Mat<N, M, T> {
+        scalar = T, &'a T;
+        output = Mat<N, M, O>;
+        output scalar = O;
+        handle self = ConsumeExt::consume;
+        handle rhs = identity;
+    });
 
-            #[inline]
-            fn $trait_fn(self, rhs: &'a Mat<N, M, T>) -> Self::Output {
-                Zip::from(self.consume()).and(rhs).map(|x, y| x.$trait_fn(y))
-            }
-        }
+    impl_operator!(<'a; const N: usize, const M: usize; T> impl Ops<Mat<N, M, T>> for &'a Mat<N, M, T> {
+        scalar = &'a T, T;
+        output = Mat<N, M, O>;
+        output scalar = O;
+        handle self = identity;
+        handle rhs = ConsumeExt::consume;
+    });
 
-        impl<'a, const N: usize, const M: usize, T> $trait_name<&'a Mat<N, M, T>>
-            for &'a Mat<N, M, T>
-        where
-            &'a T: $trait_name<&'a T>,
-        {
-            type Output = Mat<N, M, <&'a T as $trait_name<&'a T>>::Output>;
+    impl_operator!(<;const N: usize, const M: usize; T> impl Ops<T> for Mat<N, M, T>
+        where T: Clone
+    {
+        scalar = T;
+        output = Mat<N, M, O>;
+        output scalar = O;
+        handle self = ConsumeExt::consume;
+        handle rhs = Fill;
+    });
 
-            #[inline]
-            fn $trait_fn(self, rhs: &'a Mat<N, M, T>) -> Self::Output {
-                Zip::from(self).and(rhs).map(|x, y| x.$trait_fn(y))
-            }
-        }
+    impl_operator!(<'a; const N: usize, const M: usize; T> impl Ops<T> for &'a Mat<N, M, T>
+        where T: Clone
+    {
+        scalar = &'a T, T;
+        output = Mat<N, M, O>;
+        output scalar = O;
+        handle self = identity;
+        handle rhs = Fill;
+    });
 
-        impl<const N: usize, const M: usize, T> $trait_name<T> for Mat<N, M, T>
-        where
-            T: $trait_name + Clone,
-        {
-            type Output = Mat<N, M, T::Output>;
+    impl_assign_operator!(<; const N: usize, const M: usize; T> impl Ops for Mat<N, M, T> {
+        scalar = T;
+        handle rhs = ConsumeExt::consume;
+    });
 
-            #[inline]
-            fn $trait_fn(self, rhs: T) -> Self::Output {
-                Zip::from(self.consume())
-                    .and(FillStatic(rhs))
-                    .map(|x, y| x.$trait_fn(y))
-            }
-        }
+    impl_assign_operator!(<'a; const N: usize, const M: usize; T> impl Ops<&'a Mat<N, M, T>> for Mat<N, M, T> {
+        scalar = T, &'a T;
+        handle rhs = identity;
+    });
 
-        impl<'a, const N: usize, const M: usize, T> $trait_name<&'a T> for Mat<N, M, T>
-        where
-            T: $trait_name<&'a T> + Clone,
-        {
-            type Output = Mat<N, M, T::Output>;
-
-            #[inline]
-            fn $trait_fn(self, rhs: &'a T) -> Self::Output {
-                Zip::from(self.consume())
-                    .and(FillStatic(rhs))
-                    .map(|x, y| x.$trait_fn(y))
-            }
-        }
-
-        impl<'a, const N: usize, const M: usize, T> $trait_name<T> for &'a Mat<N, M, T>
-        where
-            &'a T: $trait_name<T>,
-            T: Clone,
-        {
-            type Output = Mat<N, M, <&'a T as $trait_name<T>>::Output>;
-
-            #[inline]
-            fn $trait_fn(self, rhs: T) -> Self::Output {
-                Zip::from(self)
-                    .and(FillStatic(rhs))
-                    .map(|x, y| x.$trait_fn(y))
-            }
-        }
-
-        impl<'a, const N: usize, const M: usize, T> $trait_name<&'a T> for &'a Mat<N, M, T>
-        where
-            &'a T: $trait_name,
-        {
-            type Output = Mat<N, M, <&'a T as $trait_name>::Output>;
-
-            #[inline]
-            fn $trait_fn(self, rhs: &'a T) -> Self::Output {
-                Zip::from(self)
-                    .and(FillStatic(rhs))
-                    .map(|x, y| x.$trait_fn(y))
-            }
-        }
-    };
+    impl_assign_operator!(<; const N: usize, const M: usize; T> impl Ops<T> for Mat<N, M, T>
+        where T: Clone
+    {
+        scalar = T;
+        handle rhs = Fill;
+    });
 }
-
-macro_rules! impl_assign_operator {
-    ($trait_name:ident $trait_fn:ident) => {
-        impl<const N: usize, const M: usize, T> $trait_name for Mat<N, M, T>
-        where
-            T: $trait_name,
-        {
-            #[inline]
-            fn $trait_fn(&mut self, rhs: Self) {
-                Zip::from(self)
-                    .and(rhs.consume())
-                    .for_each(|y, x| y.$trait_fn(x))
-            }
-        }
-
-        impl<const N: usize, const M: usize, T> $trait_name<&Mat<N, M, T>> for Mat<N, M, T>
-        where
-            T: for<'a> $trait_name<&'a T>,
-        {
-            #[inline]
-            fn $trait_fn(&mut self, rhs: &Mat<N, M, T>) {
-                Zip::from(self).and(rhs).for_each(|y, x| y.$trait_fn(x))
-            }
-        }
-
-        impl<const N: usize, const M: usize, T> $trait_name<T> for Mat<N, M, T>
-        where
-            T: $trait_name + Clone,
-        {
-            #[inline]
-            fn $trait_fn(&mut self, rhs: T) {
-                Zip::from(self)
-                    .and(FillStatic(rhs))
-                    .for_each(|y, x| y.$trait_fn(x));
-            }
-        }
-
-        impl<const N: usize, const M: usize, T> $trait_name<&T> for Mat<N, M, T>
-        where
-            T: for<'a> $trait_name<&'a T>,
-        {
-            #[inline]
-            fn $trait_fn(&mut self, rhs: &T) {
-                Zip::from(self)
-                    .and(FillStatic(rhs))
-                    .for_each(|y, x| y.$trait_fn(x));
-            }
-        }
-    };
-}
-
-impl_operator!(Add add);
-impl_operator!(Sub sub);
-impl_operator!(Mul mul);
-impl_operator!(Div div);
-impl_assign_operator!(AddAssign add_assign);
-impl_assign_operator!(SubAssign sub_assign);
-impl_assign_operator!(MulAssign mul_assign);
-impl_assign_operator!(DivAssign div_assign);
 
 impl<const N: usize, const M: usize, T> Zero for Mat<N, M, T>
 where

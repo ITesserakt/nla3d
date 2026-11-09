@@ -3,13 +3,9 @@ use core::marker::PhantomData;
 use generic_array::typenum::Const;
 
 use crate::dense::{DMat, Lower, Mat, MatSym, MatSymLength, SymKind, Upper};
-use crate::zip::producer::ExpandProducer;
-use crate::zip::{ConsumeProducer, ElementwiseConstructible, KnownShape};
-use crate::zip::{
-    Producer, Zip,
-    drive::Full,
-    producer::{ToOwnedProducer, Tri},
-};
+use crate::zip::drive::Full;
+use crate::zip::producer::{ExpandProducer, ToOwnedProducer, Tri};
+use crate::zip::{ConsumeProducer, ElementwiseConstructible, KnownShape, Producer, Zip};
 
 pub trait TriExt: Sized {
     fn lower(self) -> Tri<Lower, Self>;
@@ -127,13 +123,17 @@ where
 }
 
 pub trait ConsumeExt: Sized {
-    fn consume(self) -> ConsumeProducer<Self>;
+    type Producer: Producer;
+
+    fn consume(self) -> Self::Producer;
 }
 
 impl<T> ConsumeExt for T
-where 
-    ConsumeProducer<T>: Producer
+where
+    ConsumeProducer<T>: Producer,
 {
+    type Producer = ConsumeProducer<Self>;
+
     fn consume(self) -> ConsumeProducer<Self> {
         ConsumeProducer(self)
     }
@@ -160,7 +160,8 @@ pub trait RandomConstructible<S: KnownShape, D> {
 
 #[cfg(feature = "rand")]
 const _: () = {
-    use crate::zip::{ElementwiseConstructible, drive::Domain};
+    use crate::zip::ElementwiseConstructible;
+    use crate::zip::drive::Domain;
 
     impl<S, E, D> RandomConstructible<S, D> for E
     where

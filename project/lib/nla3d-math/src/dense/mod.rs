@@ -28,6 +28,154 @@ impl std::fmt::Display for SingularMatrix {
 
 impl std::error::Error for SingularMatrix {}
 
+#[macro_export]
+macro_rules! or_else {
+    (, $else:tt) => {$else};
+    ($or:tt, $else:tt) => {$or};
+}
+
+#[macro_export]
+macro_rules! impl_operator {
+    (
+        <$($lt:lifetime$(,)?)*; $(const $const_generic:ident: $const_bound:ident$(,)?)*; $($generic:ident$(,)?)*>
+        impl $trait_name:ident$(<$rhs:ty>)? for $name:ty
+        $(where $($bind:ty: $bound:path$(,)?)*)?
+        {
+            fn = $trait_fn:ident;
+            scalar = $scalar:ty$(, $scalar_rhs:ty)?;
+            output = $output:ty;
+            output_scalar = $output_scalar:ident;
+            handle self = $handle_self:expr;
+            handle rhs = $handle_rhs:expr;
+        }
+    ) => {
+        impl<$($lt, )* $(const $const_generic: $const_bound, )* $($generic, )* $output_scalar> $trait_name$(<$rhs>)? for $name
+        where
+            $scalar: $trait_name<$($scalar_rhs, )? Output = $output_scalar>,
+            $($($bind: $bound,)*)?
+        {
+            type Output = $output;
+
+            #[inline]
+            fn $trait_fn(self, rhs: $crate::or_else!($($rhs)?, Self)) -> Self::Output {
+                Zip::from($handle_self(self))
+                    .and($handle_rhs(rhs))
+                    .map(|x, y| x.$trait_fn(y))
+            }
+        }
+    };
+    (
+        <$($lt:lifetime$(,)?)*; $(const $const_generic:ident: $const_bound:ident$(,)?)*; $($generic:ident$(,)?)*>
+        impl Ops$(<$rhs:ty>)? for $name:ty
+        $(where $($bind:ty: $bound:path$(,)?)*)? {
+            scalar = $scalar:ty$(, $scalar_rhs:ty)?;
+            output = $output:ty;
+            output scalar = $output_scalar:ident;
+            handle self = $handle_self:expr;
+            handle rhs = $handle_rhs:expr;
+        }
+    ) => {
+        $crate::impl_operator!(
+            <$($lt),*; $(const $const_generic: $const_bound),*; $($generic),*>
+            impl Add$(<$rhs>)? for $name
+            $(where $($bind: $bound,)*)?
+            {
+                fn = add;
+                scalar = $scalar$(, $scalar_rhs)?;
+                output = $output;
+                output_scalar = $output_scalar;
+                handle self = $handle_self;
+                handle rhs = $handle_rhs;
+            }
+        );
+        $crate::impl_operator!(
+            <$($lt),*; $(const $const_generic: $const_bound),*; $($generic),*>
+            impl Sub$(<$rhs>)? for $name
+            $(where $($bind: $bound,)*)?
+            {
+                fn = sub;
+                scalar = $scalar$(, $scalar_rhs)?;
+                output = $output;
+                output_scalar = $output_scalar;
+                handle self = $handle_self;
+                handle rhs = $handle_rhs;
+            }
+        );
+        $crate::impl_operator!(
+            <$($lt),*; $(const $const_generic: $const_bound),*; $($generic),*>
+            impl Mul$(<$rhs>)? for $name
+            $(where $($bind: $bound,)*)?
+            {
+                fn = mul;
+                scalar = $scalar$(, $scalar_rhs)?;
+                output = $output;
+                output_scalar = $output_scalar;
+                handle self = $handle_self;
+                handle rhs = $handle_rhs;
+            }
+        );
+        $crate::impl_operator!(
+            <$($lt),*; $(const $const_generic: $const_bound),*; $($generic),*>
+            impl Div$(<$rhs>)? for $name
+            $(where $($bind: $bound,)*)?
+            {
+                fn = div;
+                scalar = $scalar$(, $scalar_rhs)?;
+                output = $output;
+                output_scalar = $output_scalar;
+                handle self = $handle_self;
+                handle rhs = $handle_rhs;
+            }
+        );
+    };
+}
+
+#[macro_export]
+macro_rules! impl_assign_operator {
+    (
+        <$($lt:lifetime$(,)?)*; $(const $const_generic:ident: $const_bound:ident$(,)?)*; $($generic:ident$(,)?)*>
+        impl $trait_name:ident$(<$rhs:ty>)? for $name:ty
+        $(where $($bind:ty: $bound:path$(,)?)*)?
+        {
+            fn = $trait_fn:ident;
+            scalar = $scalar:ty$(, $scalar_rhs:ty)?;
+            handle rhs = $handle_rhs:expr;
+        }
+    ) => {
+        impl<$($lt, )* $(const $const_generic: $const_bound, )* $($generic, )*> $trait_name$(<$rhs>)? for $name
+        where
+            $scalar: $trait_name<$($scalar_rhs, )?>,
+            $($($bind: $bound,)*)?
+        {
+            #[inline]
+            fn $trait_fn(&mut self, rhs: $crate::or_else!($($rhs)?, Self)) {
+                Zip::from(self)
+                    .and($handle_rhs(rhs))
+                    .for_each(|x, y| x.$trait_fn(y));
+            }
+        }
+    };
+    (
+        <$($lt:lifetime$(,)?)*; $(const $const_generic:ident: $const_bound:ident$(,)?)*; $($generic:ident$(,)?)*>
+        impl Ops$(<$rhs:ty>)? for $name:ty
+        $(where $($bind:ty: $bound:path$(,)?)*)? {
+            scalar = $scalar:ty$(, $scalar_rhs:ty)?;
+            handle rhs = $handle_rhs:expr;
+        }
+    ) => {
+        $crate::impl_assign_operator!(
+            <$($lt),*; $(const $const_generic: $const_bound),*; $($generic),*>
+            impl AddAssign$(<$rhs>)? for $name
+            $(where $($bind: $bound,)*)?
+            {
+                fn = add_assign;
+                scalar = $scalar$(, $scalar_rhs)?;
+                handle rhs = $handle_rhs;
+            }
+        );
+    };
+}
+
 #[cfg(test)]
 mod tests {
     use crate::dense::{Lower, Mat, MatSym, SymKind, Upper};

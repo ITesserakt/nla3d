@@ -48,9 +48,7 @@ impl CauchyStrainTensor {
     #[inline]
     #[allow(non_snake_case)]
     pub fn E(&self) -> MatSym<3> {
-        Zip::from(&self.0)
-            .and(&MatSym::<_, f64>::identity())
-            .map(|c, i| (c - i) * 0.5)
+        (&self.0 - MatSym::identity()) * 0.5
     }
 
     #[inline]

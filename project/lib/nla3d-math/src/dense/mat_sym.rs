@@ -3,8 +3,6 @@ use core::ptr::NonNull;
 use std::fmt::Debug;
 use std::fmt::Write;
 use std::marker::PhantomData;
-use std::ops::Add;
-use std::ops::AddAssign;
 use std::ops::Deref;
 use std::ops::DerefMut;
 use std::ops::Index;
@@ -407,7 +405,7 @@ where
     }
 }
 
-impl<const N: usize, T: Zero, Kind> Zero for MatSym<N, T, Kind>
+impl<const N: usize, T: Zero, Kind: SymKind> Zero for MatSym<N, T, Kind>
 where
     Const<N>: MatSymLength,
     T: Clone,
@@ -421,24 +419,6 @@ where
 
     fn is_zero(&self) -> bool {
         self.0.data.iter().all(|it| it.is_zero())
-    }
-}
-
-impl<const N: usize, T, Kind> Add for MatSym<N, T, Kind>
-where
-    Const<N>: MatSymLength,
-    T: Add<Output = T> + Clone,
-{
-    type Output = MatSym<N, T, Kind>;
-
-    fn add(mut self, rhs: Self) -> Self::Output {
-        self.0
-            .iter_mut()
-            .zip(rhs.0.data.into_iter())
-            .for_each(|(y, x)| {
-                *y = y.clone().add(x);
-            });
-        self
     }
 }
 
@@ -504,21 +484,6 @@ where
         }
 
         list.finish()
-    }
-}
-
-impl<const N: usize, T, Kind> AddAssign for MatSym<N, T, Kind>
-where
-    Const<N>: MatSymLength,
-    T: AddAssign,
-{
-    fn add_assign(&mut self, rhs: Self) {
-        self.0
-            .iter_mut()
-            .zip(rhs.0.data.into_iter())
-            .for_each(|(y, x)| {
-                y.add_assign(x);
-            });
     }
 }
 
@@ -610,6 +575,100 @@ mod fmt_impls {
     impl_fmt!(fmt::UpperHex, "{:X}", "{:1$X}");
     impl_fmt!(fmt::Binary, "{:b}", "{:.1$b}");
     impl_fmt!(fmt::Pointer, "{:p}", "{:.1$p}");
+}
+
+mod ops_impls {
+    use std::convert::identity;
+    use std::ops::*;
+
+    use generic_array::typenum::Const;
+
+    use crate::dense::MatSym;
+    use crate::dense::MatSymLength;
+    use crate::dense::SymKind;
+    use crate::zip::{ConsumeExt, Fill, Zip};
+    use crate::{impl_assign_operator, impl_operator};
+
+    impl_operator!(<; const N: usize; T, K> impl Ops for MatSym<N, T, K>
+        where Const<N>: MatSymLength, K: SymKind
+    {
+        scalar = T;
+        output = MatSym<N, O, K>;
+        output scalar = O;
+        handle self = ConsumeExt::consume;
+        handle rhs = ConsumeExt::consume;
+    });
+
+    impl_operator!(<'a; const N: usize; T, K> impl Ops for &'a MatSym<N, T, K>
+        where Const<N>: MatSymLength, K: SymKind
+    {
+        scalar = &'a T;
+        output = MatSym<N, O, K>;
+        output scalar = O;
+        handle self = identity;
+        handle rhs = identity;
+    });
+
+    impl_operator!(<'a; const N: usize; T, K> impl Ops<&'a MatSym<N, T, K>> for MatSym<N, T, K>
+        where Const<N>: MatSymLength, K: SymKind
+    {
+        scalar = T, &'a T;
+        output = MatSym<N, O, K>;
+        output scalar = O;
+        handle self = ConsumeExt::consume;
+        handle rhs = identity;
+    });
+
+    impl_operator!(<'a; const N: usize; T, K> impl Ops<MatSym<N, T, K>> for &'a MatSym<N, T, K>
+        where Const<N>: MatSymLength, K: SymKind
+    {
+        scalar = &'a T, T;
+        output = MatSym<N, O, K>;
+        output scalar = O;
+        handle self = identity;
+        handle rhs = ConsumeExt::consume;
+    });
+
+    impl_operator!(<; const N: usize; T, K> impl Ops<T> for MatSym<N, T, K>
+        where Const<N>: MatSymLength, K: SymKind, T: Clone
+    {
+        scalar = T;
+        output = MatSym<N, O, K>;
+        output scalar = O;
+        handle self = ConsumeExt::consume;
+        handle rhs = Fill;
+    });
+
+    impl_operator!(<'a; const N: usize; T, K> impl Ops<T> for &'a MatSym<N, T, K>
+        where Const<N>: MatSymLength, K: SymKind, T: Clone
+    {
+        scalar = &'a T, T;
+        output = MatSym<N, O, K>;
+        output scalar = O;
+        handle self = identity;
+        handle rhs = Fill;
+    });
+
+    impl_assign_operator!(<; const N: usize; T, K> impl Ops for MatSym<N, T, K>
+        where Const<N>: MatSymLength, K: SymKind
+    {
+        scalar = T;
+        handle rhs = ConsumeExt::consume;
+    });
+
+    impl_assign_operator!(<'a; const N: usize; T, K> impl Ops<&'a MatSym<N, T, K>> for MatSym<N, T, K>
+        where Const<N>: MatSymLength, K: SymKind
+    {
+        scalar = T, &'a T;
+        handle rhs = identity;
+    });
+
+    impl_assign_operator!(<; const N: usize; T, K> impl Ops<T> for MatSym<N, T, K>
+        where Const<N>: MatSymLength, K: SymKind, T: Clone
+    {
+        scalar = T;
+        handle rhs = Fill;
+    });
 }
 
 #[cfg(feature = "compare")]
