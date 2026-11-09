@@ -1,9 +1,4 @@
-use core::ops::Index;
-
-use faer::traits::ComplexField;
 use num_traits::One;
-
-use crate::zip::{Domain, Free, Join, KnownShape, Meet, Producer, Zip};
 
 pub trait MatMul<Rhs>: Sized {
     type Scalar;
@@ -188,28 +183,6 @@ macro_rules! impl_matmul {
     };
 }
 
-#[inline]
-fn manual_matmul_inplace<'a, T, D, P>(
-    inner_size: usize,
-    dst: P,
-    scalar: T,
-    lhs: &impl Index<(usize, usize), Output = T>,
-    rhs: &impl Index<(usize, usize), Output = T>,
-) where
-    T: ComplexField + 'a,
-    P: Producer<Item = &'a mut T, Domain = D>,
-    D: Domain + Default + Meet<D>,
-    Free: Join<P::Shape, Output: KnownShape>,
-{
-    Zip::from_fn(D::default(), |ix| (*ix.i, *ix.j))
-        .and(dst)
-        .for_each(|(i, j), y| {
-            for k in 0..inner_size {
-                *y += scalar.clone() * lhs[(i, k)].clone() * rhs[(k, j)].clone();
-            }
-        });
-}
-
 trait RemoveRef {
     type Output;
 
@@ -255,15 +228,41 @@ where
     }
 }
 
+pub use impls::manual_matmul_inplace;
+
 mod impls {
+    use core::ops::Index;
+
     use faer::traits::ComplexField;
     use faer::{Accum, Par};
     use generic_array::typenum::Const;
 
-    use super::{MatMul, MatMulAssign, RemoveRef, manual_matmul_inplace};
+    use super::{MatMul, MatMulAssign, RemoveRef};
     use crate::dense::{DMat, Mat, MatSym, MatSymLength, SymKind};
     use crate::sparse;
-    use crate::zip::{Dynamic, Fill, Static, Zip};
+    use crate::zip::{Domain, Dynamic, Fill, Free, Join, KnownShape, Meet, Producer, Static, Zip};
+
+    #[inline]
+    pub fn manual_matmul_inplace<'a, T, D, P>(
+        inner_size: usize,
+        dst: P,
+        scalar: T,
+        lhs: &impl Index<(usize, usize), Output = T>,
+        rhs: &impl Index<(usize, usize), Output = T>,
+    ) where
+        T: ComplexField + 'a,
+        P: Producer<Item = &'a mut T, Domain = D>,
+        D: Domain + Default + Meet<D>,
+        Free: Join<P::Shape, Output: KnownShape>,
+    {
+        Zip::from_fn(D::default(), |ix| (*ix.i, *ix.j))
+            .and(dst)
+            .for_each(|(i, j), y| {
+                for k in 0..inner_size {
+                    *y += scalar.clone() * lhs[(i, k)].clone() * rhs[(k, j)].clone();
+                }
+            });
+    }
 
     impl_matmul!(<const N: usize, const M: usize, const L: usize; T: ComplexField> Mat<N, M, T>, Mat<M, L, T> => Mat<N, L, T> {
         |self, rhs, scalar, lhs|
@@ -272,7 +271,7 @@ mod impls {
         as_mut = Mat::view_mut;
         as_ref_lhs = Mat::view;
         as_ref_rhs = Mat::view;
-        override[(N + M + L) as f64 / 3.0 <= 3.0] = manual_matmul_inplace(M, self, scalar, &lhs, &rhs);
+        override[N * M * L <= 256] = manual_matmul_inplace(M, self, scalar, &lhs, &rhs);
     });
 
     impl_matmul!(<; T: ComplexField, N: faer::Shape, M: faer::Shape, K: faer::Shape> DMat<T, N, K>, DMat<T, K, M> => DMat<T, N, M> {
@@ -308,7 +307,7 @@ mod impls {
         scalar = T;
         dense_lhs = MatSym::to_mat;
         dense_rhs = MatSym::to_mat;
-        override[N <= 4] = manual_matmul_inplace(N, self, scalar, RemoveRef::forward(&lhs), RemoveRef::forward(&rhs));
+        override[N <= 5] = manual_matmul_inplace(N, self, scalar, RemoveRef::forward(&lhs), RemoveRef::forward(&rhs));
     });
 
     impl_matmul!(<const N: usize; T: ComplexField, K: SymKind> MatSym<N, T, K>, Mat<N, N, T> => Mat<N, N, T> {
@@ -317,7 +316,7 @@ mod impls {
         scalar = T;
         dense_lhs = MatSym::to_mat;
         dense_rhs = RemoveRef::forward;
-        override[N <= 4] = manual_matmul_inplace(N, self, scalar, RemoveRef::forward(&lhs), RemoveRef::forward(&rhs));
+        override[N <= 5] = manual_matmul_inplace(N, self, scalar, RemoveRef::forward(&lhs), RemoveRef::forward(&rhs));
     });
 
     impl_matmul!(<const N: usize; T: ComplexField, K: SymKind> Mat<N, N, T>, MatSym<N, T, K> => Mat<N, N, T> {
@@ -326,7 +325,7 @@ mod impls {
         scalar = T;
         dense_lhs = RemoveRef::forward;
         dense_rhs = MatSym::to_mat;
-        override[N <= 4] = manual_matmul_inplace(N, self, scalar, RemoveRef::forward(&lhs), RemoveRef::forward(&rhs));
+        override[N <= 5] = manual_matmul_inplace(N, self, scalar, RemoveRef::forward(&lhs), RemoveRef::forward(&rhs));
     });
 
     impl_matmul!(<const N: usize; T: ComplexField, K: SymKind, R: faer::Shape> DMat<T, R, usize>, MatSym<N, T, K> => DMat<T, R, usize> {
