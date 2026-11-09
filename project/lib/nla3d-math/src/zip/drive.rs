@@ -1,13 +1,10 @@
 use core::marker::PhantomData;
 
-use faer::{
-    Index, make_guard,
-    utils::bound::{Dim, Idx},
-};
-
-use crate::dense::SymKind;
+use faer::utils::bound::{Dim, Idx};
+use faer::{Index, make_guard};
 
 use super::{DefaultOutput, ElementwiseConstructible, KnownShape, MatrixFor, Producer, Space, Zip};
+use crate::dense::SymKind;
 
 #[derive(Debug, Clone, Copy)]
 pub struct DomainIndex<'r, 'c> {

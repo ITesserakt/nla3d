@@ -3,10 +3,10 @@ mod mat;
 mod mat_sym;
 
 pub use accessor::*;
+use generic_array::typenum::Const;
 pub use mat_sym::*;
 
 use crate::dense::mat::ArrayStorage;
-use generic_array::typenum::Const;
 
 pub type Vec<const N: usize, T = f64> = Mat<N, 1, T>;
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -30,8 +30,12 @@ impl std::error::Error for SingularMatrix {}
 
 #[macro_export]
 macro_rules! or_else {
-    (, $else:tt) => {$else};
-    ($or:tt, $else:tt) => {$or};
+    (, $else:tt) => {
+        $else
+    };
+    ($or:tt, $else:tt) => {
+        $or
+    };
 }
 
 #[macro_export]
@@ -178,8 +182,9 @@ macro_rules! impl_assign_operator {
 
 #[cfg(test)]
 mod tests {
-    use crate::dense::{Lower, Mat, MatSym, SymKind, Upper};
     use num_traits::Zero;
+
+    use crate::dense::{Lower, Mat, MatSym, SymKind, Upper};
 
     type M = MatSym<3>;
 

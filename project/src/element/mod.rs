@@ -19,7 +19,7 @@ pub enum ElementShape {
     QuadraticTriangle,
     QuadraticQuad,
     QuadraticTetra,
-    QuadraticHexahedron
+    QuadraticHexahedron,
 }
 
 impl ElementShape {
@@ -42,7 +42,7 @@ impl ElementShape {
             ElementShape::QuadraticHexahedron => 3,
         }
     }
-    
+
     #[inline]
     pub const fn num_nodes(&self) -> u16 {
         match self {
@@ -59,7 +59,7 @@ impl ElementShape {
             ElementShape::QuadraticTriangle => 6,
             ElementShape::QuadraticQuad => 8,
             ElementShape::QuadraticTetra => 10,
-            ElementShape::QuadraticHexahedron => 20
+            ElementShape::QuadraticHexahedron => 20,
         }
     }
 }

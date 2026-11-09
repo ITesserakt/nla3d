@@ -91,4 +91,3 @@ impl_tuple!(a: T1, b: T2; c: T3);
 impl_tuple!(a: T1, b: T2, c: T3; d: T4);
 impl_tuple!(a: T1, b: T2, c: T3, d: T4; e: T5);
 impl_tuple!(closing a: T1, b: T2, c: T3, d: T4, e: T5; f: T6);
-

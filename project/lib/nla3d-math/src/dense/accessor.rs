@@ -58,9 +58,11 @@ define_accessor!(<T> MatSym<3, T, Lower> => xx, xy, yy, xz, yz, zz [new AccessSy
 
 #[cfg(test)]
 mod tests {
+    use rand::SeedableRng;
+    use rand::rngs::SmallRng;
+
     use crate::dense::{Lower, Mat, MatSym, Upper};
     use crate::zip::{RandomConstructible, Static};
-    use rand::{SeedableRng, rngs::SmallRng};
 
     fn rng() -> SmallRng {
         SmallRng::seed_from_u64(42)

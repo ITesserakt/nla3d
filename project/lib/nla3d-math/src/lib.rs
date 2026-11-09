@@ -3,9 +3,9 @@
 #[cfg(feature = "proptest")]
 pub mod arbitrary;
 pub mod dense;
+pub mod matmul;
 pub mod sparse;
 pub mod zip;
-pub mod matmul;
 
 #[cfg(feature = "std")]
 extern crate std;

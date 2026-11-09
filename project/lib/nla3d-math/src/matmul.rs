@@ -347,12 +347,13 @@ mod impls {
 
 #[cfg(test)]
 mod tests {
-    use crate::dense::DMat;
-    use crate::dense::MatSym;
-    use crate::matmul::MatMul;
-    use crate::{FaerCompare, arbitrary::mat, m};
     use matrixcompare::prop_assert_matrix_eq;
     use proptest::{prop_assert_eq, proptest};
+
+    use crate::arbitrary::mat;
+    use crate::dense::{DMat, MatSym};
+    use crate::matmul::MatMul;
+    use crate::{FaerCompare, m};
 
     #[test]
     fn test_matmul_simple() {

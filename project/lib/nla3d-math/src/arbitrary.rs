@@ -1,23 +1,18 @@
-use core::{fmt::Debug, marker::PhantomData};
+use core::fmt::Debug;
+use core::marker::PhantomData;
 use std::collections::btree_set::BTreeSet;
 
 use generic_array::typenum::Const;
-use proptest::{
-    collection::btree_set,
-    prelude::{
-        Arbitrary, Strategy,
-        prop::{strategy::NewTree, test_runner::TestRunner},
-    },
-    strategy::ValueTree,
-};
+use proptest::collection::btree_set;
+use proptest::prelude::prop::strategy::NewTree;
+use proptest::prelude::prop::test_runner::TestRunner;
+use proptest::prelude::{Arbitrary, Strategy};
+use proptest::strategy::ValueTree;
 
-use crate::{
-    dense::{DMat, Mat, MatSym, MatSymLength, SymKind},
-    sparse,
-    zip::{
-        Domain, Dynamic, ElementwiseConstructible, Full, KnownShape, Pattern, Static, Triangular,
-        Zip,
-    },
+use crate::dense::{DMat, Mat, MatSym, MatSymLength, SymKind};
+use crate::sparse;
+use crate::zip::{
+    Domain, Dynamic, ElementwiseConstructible, Full, KnownShape, Pattern, Static, Triangular, Zip,
 };
 
 pub struct MatrixStrategy<M, S, D, E> {
@@ -218,22 +213,19 @@ fn build_sparse<T>(
 
 #[cfg(test)]
 mod tests {
-    use core::{cell::RefCell, panic::AssertUnwindSafe};
+    use core::cell::RefCell;
+    use core::panic::AssertUnwindSafe;
     use std::panic::catch_unwind;
 
     use matrixcompare::{prop_assert_matrix_eq, prop_assert_scalar_eq};
     use num_traits::Zero;
     use platform::collections::hash_set::HashSet;
-    use proptest::{
-        prelude::{Just, Strategy, any},
-        prop_assert, prop_assert_eq, prop_assume, proptest,
-    };
+    use proptest::prelude::{Just, Strategy, any};
+    use proptest::{prop_assert, prop_assert_eq, prop_assume, proptest};
 
-    use crate::{
-        arbitrary::{dmat, mat, mat_sym, sparse_mat},
-        dense::{Lower, Mat, MatSym, SymKind, Upper},
-        zip::{ConsumeProducer, Domain, Dynamic, Full, TriExt, Triangular, Zip},
-    };
+    use crate::arbitrary::{dmat, mat, mat_sym, sparse_mat};
+    use crate::dense::{Lower, Mat, MatSym, SymKind, Upper};
+    use crate::zip::{ConsumeProducer, Domain, Dynamic, Full, TriExt, Triangular, Zip};
 
     fn visit<D: Domain>(shape: Dynamic, d: D) -> Vec<(usize, usize, usize)> {
         let mut v = Vec::new();

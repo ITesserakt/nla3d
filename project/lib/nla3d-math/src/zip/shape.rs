@@ -24,7 +24,7 @@ pub trait KnownShape: Shape + Copy {
 
 #[diagnostic::on_unimplemented(
     message = "cannot zip shape `{Self}` with shape `{Rhs}`",
-    label = "these producers have incompatible sizes",
+    label = "these producers have incompatible sizes"
 )]
 pub trait Join<Rhs = Self>: Shape {
     type Output: Shape;

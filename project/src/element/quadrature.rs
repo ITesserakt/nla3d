@@ -1,14 +1,10 @@
-use core::{
-    f64::consts::{FRAC_PI_2, PI},
-    ops::{Add, Div, Mul, Sub},
-};
-use num_traits::{MulAddAssign, One, Zero};
+use core::f64::consts::{FRAC_PI_2, PI};
+use core::ops::{Add, Div, Mul, Sub};
 
-use nla3d_math::{
-    dense::{Mat, Vec},
-    m, v,
-    zip::Zip,
-};
+use nla3d_math::dense::{Mat, Vec};
+use nla3d_math::zip::Zip;
+use nla3d_math::{m, v};
+use num_traits::{MulAddAssign, One, Zero};
 
 const fn cos_approx_newton(x: f64, max_iterations: usize) -> f64 {
     let (x, sign) = if x > FRAC_PI_2 {
@@ -224,7 +220,8 @@ where
 
 #[cfg(test)]
 mod tests {
-    use core::{f64::consts::PI, ops::Neg};
+    use core::f64::consts::PI;
+    use core::ops::Neg;
 
     use matrixcompare::assert_scalar_eq;
     use nla3d_math::v;

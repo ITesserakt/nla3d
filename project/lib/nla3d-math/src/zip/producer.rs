@@ -39,12 +39,12 @@ pub struct ConsumeCursor<const N: usize, const M: usize, T> {
     taken: [[bool; N]; M],
 }
 
-pub struct SymConsumeCursor<const N: usize, T, K> 
-where 
-    Const<N>: MatSymLength
+pub struct SymConsumeCursor<const N: usize, T, K>
+where
+    Const<N>: MatSymLength,
 {
     mat: ManuallyDrop<MatSym<N, T, K>>,
-    taken: GenericArray<bool, <Const<N> as MatSymLength>::Length>
+    taken: GenericArray<bool, <Const<N> as MatSymLength>::Length>,
 }
 
 pub struct Fill<T>(pub T);
@@ -315,7 +315,7 @@ unsafe impl<const N: usize, const M: usize, T> Producer for ConsumeProducer<Mat<
 unsafe impl<const N: usize, T, K> Producer for ConsumeProducer<MatSym<N, T, K>>
 where
     Const<N>: MatSymLength,
-    K: SymKind
+    K: SymKind,
 {
     type Domain = Triangular<K>;
     type Shape = Static<N, N>;
@@ -336,7 +336,7 @@ where
     fn into_cursor(self) -> Self::Cursor {
         SymConsumeCursor {
             mat: ManuallyDrop::new(self.0),
-            taken: GenericArray::default()
+            taken: GenericArray::default(),
         }
     }
 

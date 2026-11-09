@@ -1,12 +1,11 @@
 use core::fmt::Debug;
 use std::ops::Deref;
 
-use faer::{
-    Idx, Shape, ShapeIdx,
-    sparse::{CreationError, FaerError, Pair, SparseColMatRef, SymbolicSparseColMat},
-    traits::{Index, Symbolic},
-};
-use platform::collections::{vec, vec::Vec};
+use faer::sparse::{CreationError, FaerError, Pair, SparseColMatRef, SymbolicSparseColMat};
+use faer::traits::{Index, Symbolic};
+use faer::{Idx, Shape, ShapeIdx};
+use platform::collections::vec;
+use platform::collections::vec::Vec;
 use platform::compat::boxed::Box;
 use platform::compat::sync::Arc;
 
@@ -295,11 +294,9 @@ impl<T: Debug, I: Index, R: Shape, C: Shape> Debug for Mat<T, I, R, C> {
 
 #[cfg(test)]
 mod tests {
-    use proptest::{
-        collection::vec,
-        prelude::{Just, Strategy, any},
-        prop_assert_eq, proptest,
-    };
+    use proptest::collection::vec;
+    use proptest::prelude::{Just, Strategy, any};
+    use proptest::{prop_assert_eq, proptest};
 
     use crate::sparse::{Argsort, Mat, Visit};
 

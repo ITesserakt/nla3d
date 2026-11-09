@@ -1,29 +1,19 @@
 use core::mem::MaybeUninit;
 use core::ptr::NonNull;
-use std::fmt::Debug;
-use std::fmt::Write;
+use std::fmt::{Debug, Write};
 use std::marker::PhantomData;
-use std::ops::Deref;
-use std::ops::DerefMut;
-use std::ops::Index;
-use std::ops::IndexMut;
+use std::ops::{Deref, DerefMut, Index, IndexMut};
 
 use faer::linalg::matmul::triangular::BlockStructure;
-use faer::traits::ComplexField;
-use faer::traits::RealField;
 use faer::traits::ext::ComplexFieldExt;
+use faer::traits::{ComplexField, RealField};
 use generic_array::sequence::GenericSequence;
 use generic_array::typenum::Const;
 use generic_array::{ArrayLength, GenericArray};
 use num_traits::Zero;
 
-use crate::dense::Mat;
-use crate::dense::MatSym;
-use crate::dense::SingularMatrix;
-use crate::zip::Static;
-use crate::zip::Triangular;
-use crate::zip::Zip;
-use crate::zip::{ConsumeExt, ExpandExt, TriExt};
+use crate::dense::{Mat, MatSym, SingularMatrix};
+use crate::zip::{ConsumeExt, ExpandExt, Static, TriExt, Triangular, Zip};
 
 #[derive(Debug, Clone, Copy)]
 pub struct Upper;
@@ -488,9 +478,11 @@ where
 }
 
 mod fmt_impls {
-    use super::{MatSym, MatSymLength, SymKind};
-    use generic_array::typenum::Const;
     use std::fmt;
+
+    use generic_array::typenum::Const;
+
+    use super::{MatSym, MatSymLength, SymKind};
 
     macro_rules! impl_fmt {
         ($trait: path, $fmt_str_without_precision: expr_2021, $fmt_str_with_precision: expr_2021) => {
@@ -583,9 +575,7 @@ mod ops_impls {
 
     use generic_array::typenum::Const;
 
-    use crate::dense::MatSym;
-    use crate::dense::MatSymLength;
-    use crate::dense::SymKind;
+    use crate::dense::{MatSym, MatSymLength, SymKind};
     use crate::zip::{ConsumeExt, Fill, Zip};
     use crate::{impl_assign_operator, impl_operator};
 

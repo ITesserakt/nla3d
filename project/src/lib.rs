@@ -6,7 +6,7 @@ extern crate std;
 #[cfg(not(feature = "std"))]
 extern crate core as std;
 
-pub mod element;
 pub mod dof;
+pub mod element;
 pub mod material;
 pub mod solidmech;

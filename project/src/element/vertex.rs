@@ -1,8 +1,9 @@
 use std::ops::{Index, IndexMut};
+
 use crate::element::{Element, ElementShape};
 
 pub struct Vertex {
-    nodes: [u32; 1]
+    nodes: [u32; 1],
 }
 
 impl Element for Vertex {

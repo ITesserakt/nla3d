@@ -1,5 +1,5 @@
-use core::mem::MaybeUninit;
-use core::{marker::PhantomData, mem::ManuallyDrop};
+use core::marker::PhantomData;
+use core::mem::{ManuallyDrop, MaybeUninit};
 
 use faer::Index;
 use generic_array::typenum::Const;
@@ -16,7 +16,7 @@ use crate::zip::{Dynamic, Static};
 /// `set` is sound for every `(i, j)` within that shape.
 #[diagnostic::on_unimplemented(
     message = "`{Self}` cannot be built from a zip with shape `{S}` and domain `{D}`",
-    label = "no way to fill this type from that shape and domain",
+    label = "no way to fill this type from that shape and domain"
 )]
 pub unsafe trait ElementwiseConstructible<S: Shape, D: Domain> {
     type Item;

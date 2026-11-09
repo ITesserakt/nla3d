@@ -1,9 +1,8 @@
-use nla3d_math::{
-    dense::{Mat, MatSym, Vec},
-    m, v,
-    zip::Zip,
-};
 use std::ops::{Deref, DerefMut};
+
+use nla3d_math::dense::{Mat, MatSym, Vec};
+use nla3d_math::zip::Zip;
+use nla3d_math::{m, v};
 
 static LEVI_CIVITA: Vec<3, Mat<3, 3>> = m![[
     m![[0.0, 0.0, 0.0], [0.0, 0.0, -1.0], [0.0, 1.0, 0.0]],

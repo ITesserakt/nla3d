@@ -3,7 +3,7 @@ use platform::compat::string::String;
 
 pub struct Material {
     name: String,
-    constants: HashMap<String, f64>
+    constants: HashMap<String, f64>,
 }
 
 impl Material {

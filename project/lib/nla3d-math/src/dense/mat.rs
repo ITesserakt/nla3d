@@ -1,11 +1,12 @@
 use core::ptr::NonNull;
+use std::mem::MaybeUninit;
+use std::ops::*;
+
 use faer::mat::{AsMatMut, AsMatRef};
 use faer::traits::ext::ComplexFieldExt;
 use faer::traits::{ComplexField, RealField};
 use faer::{MatMut, MatRef};
 use num_traits::{ConstOne, ConstZero, One, Zero};
-use std::mem::MaybeUninit;
-use std::ops::*;
 
 use crate::dense::{DMat, Mat, SingularMatrix, Vec};
 use crate::m;
@@ -414,8 +415,9 @@ where
 }
 
 mod fmt_impls {
-    use super::Mat;
     use std::fmt;
+
+    use super::Mat;
 
     macro_rules! impl_fmt {
         ($trait: path, $fmt_str_without_precision: expr_2021, $fmt_str_with_precision: expr_2021) => {
