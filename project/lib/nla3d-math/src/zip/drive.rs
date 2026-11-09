@@ -1,8 +1,13 @@
+use core::alloc::Layout;
 use core::marker::PhantomData;
+use core::ptr::NonNull;
 use std::ops::Deref;
 
+use faer::sparse::{CreationError, FaerError};
+use faer::traits::SignedIndex;
 use faer::utils::bound::{Dim, Idx};
 use faer::{Index, make_guard};
+use platform::collections::vec::Vec;
 use platform::compat::boxed::Box;
 
 use super::{DefaultOutput, ElementwiseConstructible, KnownShape, MatrixFor, Producer, Space, Zip};
@@ -218,12 +223,85 @@ impl<I> Deref for Pattern<I> {
 }
 
 impl<I: Clone> Pattern<I> {
+    #[inline]
     pub fn from_parts(col_ptr: Box<[I]>, col_nnz: Option<Box<[I]>>, row_idx: Box<[I]>) -> Self {
         Self(platform::compat::sync::Arc::new(PatternInner {
             col_ptr,
             col_nnz,
             row_idx,
         }))
+    }
+
+    #[inline]
+    fn try_zeroed(len: usize) -> Result<Box<[I]>, FaerError>
+    where
+        I: Index,
+    {
+        use platform::allocation::Allocator;
+
+        let ptr = if size_of::<I>() == 0 || len == 0 {
+            NonNull::dangling()
+        } else {
+            let layout = match Layout::array::<I>(len) {
+                Ok(l) => l,
+                Err(_) => return Err(FaerError::OutOfMemory),
+            };
+            platform::allocation::Global
+                .allocate_zeroed(layout)
+                .map_err(|_| FaerError::OutOfMemory)?
+                .cast()
+        };
+        Ok(unsafe { Vec::from_parts(ptr, len, len) }.into_boxed_slice())
+    }
+
+    #[inline]
+    pub fn try_from_entries(
+        rows: usize,
+        cols: usize,
+        mut entries: Box<[(I, I)]>,
+    ) -> Result<Self, CreationError>
+    where
+        I: Index,
+    {
+        let max_len = I::Signed::MAX.zx();
+        if rows > max_len || cols > max_len || entries.len() > max_len {
+            return Err(FaerError::IndexOverflow)?;
+        }
+        if entries.is_empty() {
+            let pattern = PatternInner {
+                col_ptr: Self::try_zeroed(cols)?,
+                col_nnz: None,
+                row_idx: Box::new([]),
+            };
+            return Ok(Self(platform::compat::sync::Arc::new(pattern)));
+        }
+
+        entries.sort_unstable_by_key(|&(row, col)| (col, row));
+        let mut col_counts = Self::try_zeroed(cols + 1)?;
+        for &(row, col) in &entries {
+            let slot = col_counts
+                .get_mut(col.zx() + 1)
+                .ok_or(CreationError::OutOfBounds {
+                    row: row.zx(),
+                    col: col.zx(),
+                })?;
+            *slot += I::truncate(1);
+        }
+        let col_ptr: Box<_> = col_counts
+            .iter()
+            .scan(I::truncate(0), |acc, count| {
+                *acc += *count;
+                Some(*acc)
+            })
+            .collect();
+
+        let pattern = PatternInner {
+            col_ptr,
+            col_nnz: None,
+            row_idx: entries.into_iter().map(|it| it.0).collect(),
+        };
+
+        Ok(Self(platform::compat::sync::Arc::new(pattern)))
     }
 }
 

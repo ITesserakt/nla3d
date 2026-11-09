@@ -1,12 +1,12 @@
 use core::fmt::Debug;
-use std::ops::Deref;
+use std::ptr::NonNull;
 
 use faer::prelude::SparseColMat;
 use faer::sparse::{
     CreationError, FaerError, Pair, SparseColMatRef, SymbolicSparseColMat, SymbolicSparseColMatRef,
 };
 use faer::traits::{ComplexField, Index, Symbolic};
-use faer::{Idx, Shape, ShapeIdx};
+use faer::{Idx, Shape, ShapeIdx, Unbind};
 use platform::collections::vec;
 use platform::collections::vec::Vec;
 use platform::compat::boxed::Box;
@@ -28,6 +28,16 @@ pub struct UncompressedMat<Rows: ShapeIdx, Cols: ShapeIdx, T, I: Index> {
 pub struct Mat<T = f64, I = usize, Rows = usize, Cols = usize> {
     info: SparsityInfo<I, Rows, Cols>,
     items: Box<[T]>,
+}
+
+#[derive(Debug)]
+pub struct SparseLocation(usize);
+
+impl SparseLocation {
+    #[inline]
+    pub const unsafe fn new(pos: usize) -> Self {
+        Self(pos)
+    }
 }
 
 impl<I: Index, R: Shape, C: Shape> SparsityInfo<I, R, C> {
@@ -72,6 +82,29 @@ impl<I: Index, R: Shape, C: Shape> SparsityInfo<I, R, C> {
                 row_idx.into_boxed_slice(),
             ),
         }
+    }
+
+    pub fn get(&self, i: Idx<R>, j: Idx<C>) -> Option<SparseLocation> {
+        if j >= self.cols || i >= self.rows {
+            return None;
+        }
+        let row = I::truncate(i.unbound());
+        let col = j.unbound();
+        let col_range = {
+            let start: usize = unsafe { self.pattern.col_ptr.get_unchecked(col) }.zx();
+            let end = self
+                .pattern
+                .col_nnz
+                .as_ref()
+                .map(|col_nnz| unsafe { col_nnz.get_unchecked(col) }.zx() + start)
+                .unwrap_or(unsafe { self.pattern.col_ptr.get_unchecked(col + 1) }.zx());
+            start..end
+        };
+        let slice = unsafe { self.pattern.row_idx.get_unchecked(col_range.clone()) };
+        let start = slice.partition_point(|i| i < &row);
+        let end = start + slice[start..].partition_point(|i| i <= &row);
+
+        (end == start + 1).then_some(SparseLocation(col_range.start + start))
     }
 }
 
@@ -155,21 +188,11 @@ impl<T, I, R, C> Mat<T, I, R, C> {
     }
 
     #[inline]
-    pub unsafe fn get_unchecked(&self, pos: usize) -> &T {
-        unsafe { self.items.get_unchecked(pos) }
-    }
-
-    #[inline]
-    pub unsafe fn get_unchecked_mut(&mut self, pos: usize) -> &mut T {
-        unsafe { self.items.get_unchecked_mut(pos) }
-    }
-
-    #[inline]
     pub(crate) fn from_parts(info: SparsityInfo<I, R, C>, items: Box<[T]>) -> Self {
         Self { info, items }
     }
 
-    pub fn try_new(mut uncompressed: UncompressedMat<R, C, T, I>) -> Result<Self, FaerError>
+    pub fn try_new(uncompressed: UncompressedMat<R, C, T, I>) -> Result<Self, FaerError>
     where
         R: Shape,
         C: Shape,
@@ -194,6 +217,48 @@ impl<T, I, R, C> Mat<T, I, R, C> {
             info: SparsityInfo::from_descriptor(descriptor),
             items: values.into_boxed_slice(),
         })
+    }
+
+    pub fn get(&self, i: Idx<R>, j: Idx<C>) -> Option<&T>
+    where
+        R: Shape,
+        C: Shape,
+        I: Index,
+    {
+        self.info
+            .get(i, j)
+            .map(|it| unsafe { self.items.get_unchecked(it.0) })
+    }
+
+    #[inline]
+    pub unsafe fn get_unchecked(&self, loc: SparseLocation) -> &T {
+        unsafe { self.items.get_unchecked(loc.0) }
+    }
+
+    #[inline]
+    pub unsafe fn get_unchecked_mut(&mut self, loc: SparseLocation) -> &mut T {
+        unsafe { self.items.get_unchecked_mut(loc.0) }
+    }
+
+    #[inline]
+    pub unsafe fn get_unchecked_ptr_mut(&mut self, loc: SparseLocation) -> NonNull<T> {
+        NonNull::from_mut(unsafe { self.get_unchecked_mut(loc) })
+    }
+
+    #[inline]
+    pub fn compute_nnz(&self) -> usize
+    where
+        I: Index,
+        R: Shape,
+        C: Shape,
+    {
+        match self.info.pattern.col_nnz.as_deref() {
+            Some(col_nnz) => col_nnz.iter().fold(0, |acc, it| acc + it.zx()),
+            None => {
+                self.info.pattern.col_ptr[self.info.cols.unbound()].zx()
+                    - self.info.pattern.col_ptr[0].zx()
+            }
+        }
     }
 
     pub fn view(&self) -> faer::sparse::SparseColMatRef<'_, I, T, R, C>
@@ -266,6 +331,7 @@ impl<T: Debug, I: Index, R: Shape, C: Shape> Debug for Mat<T, I, R, C> {
 
 #[cfg(test)]
 mod tests {
+    use matrixcompare::SparseAccess;
     use proptest::num::f64::{ANY, NORMAL};
     use proptest::prelude::any;
     use proptest::{prop_assert, prop_assert_eq, proptest};
@@ -273,6 +339,8 @@ mod tests {
     use crate::arbitrary::{dmat, sparse_mat};
     use crate::matmul::MatMul;
     use crate::sparse::Mat;
+    use crate::sparse_pattern;
+    use crate::zip::{Dynamic, ExpandExt, Full, Zip};
 
     #[test]
     fn test_new_mat() {
@@ -307,5 +375,65 @@ mod tests {
             prop_assert_eq!(out.nrows(), 200);
             prop_assert_eq!(out.ncols(), 4);
         }
+
+        #[test]
+        fn sparse_mat_passes_faer_checks(s in sparse_mat(10, 10, 5, any::<f64>())) {
+            for i in 0..10 {
+                for j in 0..10 {
+                    let position = s.sparsity().get(i, j);
+                    let faer_result = s.view().get(i, j);
+                    prop_assert_eq!(position.is_some(), faer_result.is_some());
+                    if let Some(position) = position {
+                        let value = unsafe { s.get_unchecked(position) };
+                        prop_assert_eq!(value, faer_result.unwrap());
+                    }
+                }
+            }
+        }
+
+        #[test]
+        fn convert_dmat_to_sparse(m in dmat(20, 20, any::<f64>()), threshold in any::<f64>()) {
+            let mut uncompressed = Mat::new((20, 20));
+            Zip::from_fn(Full, |ix| (*ix.i, *ix.j)).and(&m).for_each(|(i, j), value| {
+                if value.abs() < threshold { return; }
+                uncompressed.add_entry(i, j, *value).unwrap();
+            });
+
+            let mat = uncompressed.compress();
+            prop_assert!(mat.compute_nnz() <= 400);
+            let all_eq = Zip::from(&mat).and(&m).fold(true, |acc, s, d| {
+                acc && s == d
+            });
+            prop_assert!(all_eq);
+            let all_eq_expanded = Zip::from(mat.expand()).and(&m).fold(true, |acc, s, d| {
+                match s {
+                    Some(s) => acc && s == d,
+                    None => acc && *d < threshold
+                }
+            });
+            prop_assert!(all_eq_expanded);
+        }
+    }
+
+    #[test]
+    fn test_new_mat_with_zip() {
+        let pattern = sparse_pattern!(5 x 5 (
+            0, 0;
+            2, 2;
+            1, 1;
+            3, 4;
+            4, 3
+        ));
+
+        let mat = Zip::from_fn(pattern, |ix| ix.pos as f64 + 5.0)
+            .with_shape(Dynamic { rows: 5, cols: 5 })
+            .collect::<Mat>();
+
+        let view = mat.view();
+        assert_eq!(view.get(0, 0), Some(&5.0));
+        assert_eq!(view.get(1, 1), Some(&6.0));
+        assert_eq!(view.get(2, 2), Some(&7.0));
+        assert_eq!(view.get(4, 3), Some(&8.0));
+        assert_eq!(view.get(3, 4), Some(&9.0));
     }
 }

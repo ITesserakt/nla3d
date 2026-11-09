@@ -32,5 +32,6 @@ panic = "abort"
 [profile.no_std-release]
 inherits = "release"
 panic = "abort"
-lto = true
+lto = "fat"
+codegen-units = 1
 strip = true

@@ -10,6 +10,7 @@ use platform::compat::borrow::ToOwned;
 
 use crate::dense::{DMat, Mat, MatSym, MatSymLength, SymKind};
 use crate::sparse;
+use crate::sparse::SparseLocation;
 use crate::zip::drive::{Domain, DomainIndex, Full, Triangular};
 use crate::zip::{Dynamic, Free, Pattern, Shape, Static};
 
@@ -592,6 +593,83 @@ where
     }
 }
 
+unsafe impl<'a, T, I, R, C> Producer for ExpandProducer<&'a sparse::Mat<T, I, R, C>>
+where
+    I: faer::Index,
+    R: faer::Shape,
+    C: faer::Shape,
+{
+    type Domain = Full;
+    type Shape = Dynamic;
+    type Item = Option<&'a T>;
+    type Cursor = Self;
+
+    #[inline(always)]
+    fn domain(&self) -> Self::Domain {
+        Full
+    }
+
+    #[inline(always)]
+    fn shape(&self) -> Self::Shape {
+        self.0.shape()
+    }
+
+    #[inline(always)]
+    fn into_cursor(self) -> Self::Cursor {
+        self
+    }
+
+    #[inline(always)]
+    unsafe fn get_unchecked(cursor: &mut Self::Cursor, index: DomainIndex) -> Self::Item {
+        let i = unsafe { cursor.0.nrows().unchecked_idx(*index.i) };
+        let j = unsafe { cursor.0.ncols().unchecked_idx(*index.j) };
+        cursor
+            .0
+            .sparsity()
+            .get(i, j)
+            .map(|it| unsafe { cursor.0.get_unchecked(it) })
+    }
+}
+
+unsafe impl<'a, T, I, R, C> Producer for ExpandProducer<&'a mut sparse::Mat<T, I, R, C>>
+where
+    I: faer::Index,
+    R: faer::Shape,
+    C: faer::Shape,
+{
+    type Domain = Full;
+    type Shape = Dynamic;
+    type Item = Option<&'a mut T>;
+    type Cursor = Self;
+
+    #[inline(always)]
+    fn domain(&self) -> Self::Domain {
+        Full
+    }
+
+    #[inline(always)]
+    fn shape(&self) -> Self::Shape {
+        self.0.shape()
+    }
+
+    #[inline(always)]
+    fn into_cursor(self) -> Self::Cursor {
+        self
+    }
+
+    #[inline(always)]
+    unsafe fn get_unchecked(cursor: &mut Self::Cursor, index: DomainIndex) -> Self::Item {
+        let i = unsafe { cursor.0.nrows().unchecked_idx(*index.i) };
+        let j = unsafe { cursor.0.ncols().unchecked_idx(*index.j) };
+        cursor
+            .0
+            .sparsity()
+            .get(i, j)
+            .map(|it| unsafe { cursor.0.get_unchecked_ptr_mut(it) })
+            .map(|mut it| unsafe { it.as_mut() })
+    }
+}
+
 unsafe impl<'a, T, I, R, C> Producer for &'a sparse::Mat<T, I, R, C>
 where
     I: faer::Index,
@@ -624,6 +702,45 @@ where
 
     #[inline(always)]
     unsafe fn get_unchecked(cursor: &mut Self::Cursor, index: DomainIndex) -> Self::Item {
-        unsafe { cursor.get_unchecked(index.pos) }
+        let pos = unsafe { SparseLocation::new(index.pos) };
+        unsafe { cursor.get_unchecked(pos) }
+    }
+}
+
+unsafe impl<'a, T, I, R, C> Producer for &'a mut sparse::Mat<T, I, R, C>
+where
+    I: faer::Index,
+    R: faer::Shape,
+    C: faer::Shape,
+{
+    type Domain = Pattern<I>;
+    type Shape = Dynamic;
+    type Item = &'a mut T;
+    type Cursor = Self;
+
+    #[inline(always)]
+    fn domain(&self) -> Self::Domain {
+        self.sparsity().pattern.clone()
+    }
+
+    #[inline(always)]
+    fn shape(&self) -> Self::Shape {
+        let info = self.sparsity();
+        Dynamic {
+            rows: info.rows.unbound(),
+            cols: info.cols.unbound(),
+        }
+    }
+
+    #[inline(always)]
+    fn into_cursor(self) -> Self::Cursor {
+        self
+    }
+
+    #[inline(always)]
+    unsafe fn get_unchecked(cursor: &mut Self::Cursor, index: DomainIndex) -> Self::Item {
+        let pos = unsafe { SparseLocation::new(index.pos) };
+        let mut slot = unsafe { cursor.get_unchecked_ptr_mut(pos) };
+        unsafe { slot.as_mut() }
     }
 }

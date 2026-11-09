@@ -72,3 +72,13 @@ macro_rules! m {
         $crate::dense::Mat::from_array([$($components, )*])
     };
 }
+
+#[macro_export]
+macro_rules! sparse_pattern {
+    [$rows:literal x $cols:literal ($($row:expr, $col:expr$(;)?)*)] => {
+        $crate::zip::Pattern::try_from_entries(
+            $rows, $cols, 
+            platform::compat::boxed::Box::new([$(($row, $col), )*])
+        ).unwrap()
+    };
+}

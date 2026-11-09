@@ -13,6 +13,12 @@ pub mod compat {
     pub use std::{borrow, boxed, string, sync};
 }
 
+pub mod allocation {
+    pub use alloc::alloc::{
+        Allocator, Global, alloc, alloc_zeroed, dealloc, handle_alloc_error, realloc,
+    };
+}
+
 pub mod collections {
     #[cfg(not(feature = "std"))]
     pub use alloc::{collections::*, vec};

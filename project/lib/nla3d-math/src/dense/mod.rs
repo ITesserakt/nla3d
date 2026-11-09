@@ -222,7 +222,6 @@ mod tests {
                 let k = Upper::flat_index(n, i, j);
                 let (i_, j_) = Upper::wide_index(n, k);
 
-                println!("{k}, {i_}, {j_}");
                 assert!(i == i_ && j == j_ || i == j_ && j == i_);
             }
         }
