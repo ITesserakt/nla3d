@@ -55,9 +55,9 @@ where
     type Matrix<V> = crate::dense::MatSym<N, V, K>;
 }
 
-impl<'p, I: Index, S: Shape> DefaultOutput for Space<S, Pattern<'p, I>> {
+impl<'p, I: Index, S: Shape> DefaultOutput for Space<S, Pattern<I>> {
     type Shape = S;
-    type Domain = Pattern<'p, I>;
+    type Domain = Pattern<I>;
     type Matrix<V> = crate::sparse::Mat<V, I>;
 }
 

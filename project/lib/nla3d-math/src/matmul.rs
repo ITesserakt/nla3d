@@ -3,6 +3,8 @@ use core::ops::Index;
 use faer::traits::ComplexField;
 use num_traits::One;
 
+use crate::dense::DMat;
+use crate::sparse;
 use crate::zip::{Domain, Free, Join, KnownShape, Meet, Producer, Zip};
 
 pub trait MatMul<Rhs>: Sized {
@@ -262,6 +264,7 @@ mod impls {
 
     use super::{MatMul, MatMulAssign, RemoveRef, manual_matmul_inplace};
     use crate::dense::{DMat, Mat, MatSym, MatSymLength, SymKind};
+    use crate::sparse;
     use crate::zip::{Dynamic, Fill, Static, Zip};
 
     impl_matmul!(<const N: usize, const M: usize, const L: usize; T: ComplexField> Mat<N, M, T>, Mat<M, L, T> => Mat<N, L, T> {
@@ -343,6 +346,29 @@ mod impls {
         dense_lhs = MatSym::to_mat;
         dense_rhs = RemoveRef::forward;
     });
+
+    impl<T: ComplexField, I: faer::Index> MatMul<DMat<T>> for sparse::Mat<T, I> {
+        type Scalar = T;
+        type Output = DMat<T>;
+
+        fn matmul_scalar(self, rhs: DMat<T>, scalar: Self::Scalar) -> Self::Output {
+            let mut output = Zip::from(Fill(T::zero_impl()))
+                .with_shape(Dynamic {
+                    rows: self.nrows(),
+                    cols: rhs.ncols(),
+                })
+                .collect::<DMat<T>>();
+            faer::sparse::linalg::matmul::sparse_dense_matmul(
+                output.as_mut(),
+                Accum::Replace,
+                self.view(),
+                rhs.as_ref(),
+                scalar,
+                Par::Seq,
+            );
+            output
+        }
+    }
 }
 
 #[cfg(test)]

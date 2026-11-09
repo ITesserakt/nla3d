@@ -146,7 +146,7 @@ where
     }
 }
 
-unsafe impl<'p, I, T, S> ElementwiseConstructible<S, Pattern<'p, I>>
+unsafe impl<'p, I, T, S> ElementwiseConstructible<S, Pattern<I>>
     for sparse::Mat<T, I, usize, usize>
 where
     I: Index,
@@ -155,9 +155,9 @@ where
     type Item = T;
     type Uninit = (SparsityInfo<I>, Box<[MaybeUninit<T>]>);
 
-    fn uninit(shape: (usize, usize), domain: Pattern<'p, I>) -> Self::Uninit {
+    fn uninit(shape: (usize, usize), domain: Pattern<I>) -> Self::Uninit {
         let info = SparsityInfo::from_pattern(shape, domain);
-        let nnz = info.compute_nnz();
+        let nnz = info.descriptor().compute_nnz();
         (info, Box::new_uninit_slice(nnz))
     }
 

@@ -199,11 +199,7 @@ fn build_sparse<T>(
         row_idx.extend(column.iter().copied());
         col_ptr.push(row_idx.len());
     }
-    let pattern = Pattern {
-        col_ptr: &col_ptr,
-        col_nnz: None,
-        row_idx: &row_idx,
-    };
+    let pattern = Pattern::from_parts(col_ptr.into_boxed_slice(), None, row_idx.into_boxed_slice());
     let mut values = values.into_iter();
 
     Zip::from_fn(pattern, |_| values.next().unwrap())
@@ -283,7 +279,7 @@ mod tests {
                 .flat_map(|i| (0..4).map(move |j| (i, j)))
                 .filter(|&(i, j)| m.view().get(i, j).is_some())
                 .count();
-            prop_assert_eq!(stored, m.compute_nnz());
+            prop_assert_eq!(stored, m.view().compute_nnz());
             prop_assert!(stored <= 4 * 3);
         }
 

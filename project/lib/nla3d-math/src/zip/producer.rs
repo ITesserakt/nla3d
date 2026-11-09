@@ -2,14 +2,16 @@ use core::marker::PhantomData;
 use core::mem::ManuallyDrop;
 use core::ptr::NonNull;
 
+use faer::matrix_free::LinOp;
 use faer::{MatMut, MatRef, Stride};
 use generic_array::GenericArray;
 use generic_array::typenum::Const;
 use platform::compat::borrow::ToOwned;
 
 use crate::dense::{DMat, Mat, MatSym, MatSymLength, SymKind};
+use crate::sparse;
 use crate::zip::drive::{Domain, DomainIndex, Full, Triangular};
-use crate::zip::{Dynamic, Free, Shape, Static};
+use crate::zip::{Dynamic, Free, Pattern, Shape, Static};
 
 /// # Safety
 /// - `shape()` is the true extent: `get_unchecked` is sound for every
@@ -587,5 +589,41 @@ where
     #[inline(always)]
     unsafe fn get_unchecked(cursor: &mut Self::Cursor, index: DomainIndex) -> Self::Item {
         unsafe { <&MatSym<N, T, K>>::get_unchecked(&mut cursor.0, index) }
+    }
+}
+
+unsafe impl<'a, T, I, R, C> Producer for &'a sparse::Mat<T, I, R, C>
+where
+    I: faer::Index,
+    R: faer::Shape,
+    C: faer::Shape,
+{
+    type Domain = Pattern<I>;
+    type Shape = Dynamic;
+    type Item = &'a T;
+    type Cursor = Self;
+
+    #[inline(always)]
+    fn domain(&self) -> Self::Domain {
+        self.sparsity().pattern.clone()
+    }
+
+    #[inline(always)]
+    fn shape(&self) -> Self::Shape {
+        let info = self.sparsity();
+        Dynamic {
+            rows: info.rows.unbound(),
+            cols: info.cols.unbound(),
+        }
+    }
+
+    #[inline(always)]
+    fn into_cursor(self) -> Self::Cursor {
+        self
+    }
+
+    #[inline(always)]
+    unsafe fn get_unchecked(cursor: &mut Self::Cursor, index: DomainIndex) -> Self::Item {
+        unsafe { cursor.get_unchecked(index.pos) }
     }
 }

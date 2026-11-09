@@ -1,7 +1,9 @@
 use core::marker::PhantomData;
+use std::ops::Deref;
 
 use faer::utils::bound::{Dim, Idx};
 use faer::{Index, make_guard};
+use platform::compat::boxed::Box;
 
 use super::{DefaultOutput, ElementwiseConstructible, KnownShape, MatrixFor, Producer, Space, Zip};
 use crate::dense::SymKind;
@@ -45,11 +47,14 @@ pub struct Full;
 pub struct Triangular<Kind>(pub PhantomData<Kind>);
 
 #[derive(Debug)]
-pub struct Pattern<'p, I = usize> {
-    pub(crate) col_ptr: &'p [I],
-    pub(crate) col_nnz: Option<&'p [I]>,
-    pub(crate) row_idx: &'p [I],
+pub struct PatternInner<I> {
+    pub(crate) col_ptr: Box<[I]>,
+    pub(crate) col_nnz: Option<Box<[I]>>,
+    pub(crate) row_idx: Box<[I]>,
 }
+
+#[derive(Debug)]
+pub struct Pattern<I = usize>(platform::compat::sync::Arc<PatternInner<I>>);
 
 impl<Kind> Clone for Triangular<Kind> {
     fn clone(&self) -> Self {
@@ -65,13 +70,21 @@ impl<Kind> Default for Triangular<Kind> {
     }
 }
 
-impl<I> Clone for Pattern<'_, I> {
+impl<I> Clone for Pattern<I> {
     fn clone(&self) -> Self {
-        *self
+        Self(self.0.clone())
     }
 }
 
-impl<I> Copy for Pattern<'_, I> {}
+impl<I: PartialEq> PartialEq for Pattern<I> {
+    #[inline]
+    fn eq(&self, other: &Self) -> bool {
+        platform::compat::sync::Arc::ptr_eq(&self.0, &other.0)
+            || self.col_ptr == other.col_ptr
+                && self.col_nnz == other.col_nnz
+                && self.row_idx == other.row_idx
+    }
+}
 
 unsafe impl Domain for Full {
     #[inline]
@@ -129,7 +142,7 @@ unsafe impl<K: SymKind> Domain for Triangular<K> {
     }
 }
 
-unsafe impl<I: Index> Domain for Pattern<'_, I> {
+unsafe impl<I: Index> Domain for Pattern<I> {
     fn drive<R>(
         &self,
         rows: Dim<'_>,
@@ -137,8 +150,8 @@ unsafe impl<I: Index> Domain for Pattern<'_, I> {
         mut initial: R,
         mut f: impl FnMut(R, DomainIndex) -> R,
     ) -> R {
-        let col_ptr = self.col_ptr;
-        let row_idx = self.row_idx;
+        let col_ptr = &self.col_ptr;
+        let row_idx = &self.row_idx;
         for j in cols.indices() {
             let start = col_ptr[*j].zx();
             let end = col_ptr[*j + 1].zx();
@@ -167,10 +180,10 @@ unsafe impl<K: SymKind> Meet<Triangular<K>> for Full {
     }
 }
 
-unsafe impl<'p, I: Index> Meet<Pattern<'p, I>> for Full {
-    type Output = Pattern<'p, I>;
+unsafe impl<'p, I: Index> Meet<Pattern<I>> for Full {
+    type Output = Pattern<I>;
 
-    fn meet(self, rhs: Pattern<'p, I>) -> Self::Output {
+    fn meet(self, rhs: Pattern<I>) -> Self::Output {
         rhs
     }
 }
@@ -183,10 +196,10 @@ unsafe impl<K: SymKind> Meet<Triangular<K>> for Triangular<K> {
     }
 }
 
-unsafe impl<'p, I: Index> Meet<Pattern<'p, I>> for Pattern<'p, I> {
-    type Output = Pattern<'p, I>;
+unsafe impl<'p, I: Index> Meet<Pattern<I>> for Pattern<I> {
+    type Output = Pattern<I>;
 
-    fn meet(self, rhs: Pattern<'p, I>) -> Self::Output {
+    fn meet(self, rhs: Pattern<I>) -> Self::Output {
         assert_eq!(
             self, rhs,
             "Different sparsity patterns are not allowed: mix them beforehand"
@@ -195,11 +208,22 @@ unsafe impl<'p, I: Index> Meet<Pattern<'p, I>> for Pattern<'p, I> {
     }
 }
 
-impl<'p, I: PartialEq> PartialEq for Pattern<'p, I> {
-    fn eq(&self, other: &Self) -> bool {
-        self.col_ptr == other.col_ptr
-            && self.col_nnz == other.col_nnz
-            && self.row_idx == other.row_idx
+impl<I> Deref for Pattern<I> {
+    type Target = PatternInner<I>;
+
+    #[inline]
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl<I: Clone> Pattern<I> {
+    pub fn from_parts(col_ptr: Box<[I]>, col_nnz: Option<Box<[I]>>, row_idx: Box<[I]>) -> Self {
+        Self(platform::compat::sync::Arc::new(PatternInner {
+            col_ptr,
+            col_nnz,
+            row_idx,
+        }))
     }
 }
 

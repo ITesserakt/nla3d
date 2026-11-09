@@ -1,71 +1,22 @@
 use core::fmt::Debug;
 use std::ops::Deref;
 
-use faer::sparse::{CreationError, FaerError, Pair, SparseColMatRef, SymbolicSparseColMat};
-use faer::traits::{Index, Symbolic};
+use faer::prelude::SparseColMat;
+use faer::sparse::{
+    CreationError, FaerError, Pair, SparseColMatRef, SymbolicSparseColMat, SymbolicSparseColMatRef,
+};
+use faer::traits::{ComplexField, Index, Symbolic};
 use faer::{Idx, Shape, ShapeIdx};
 use platform::collections::vec;
 use platform::collections::vec::Vec;
 use platform::compat::boxed::Box;
-use platform::compat::sync::Arc;
 
 use crate::zip::Pattern;
 
 pub struct SparsityInfo<I = usize, Rows = usize, Cols = usize> {
-    descriptor: Arc<SymbolicSparseColMat<I, Rows, Cols>>,
-}
-
-#[derive(Debug, Clone, Copy)]
-#[repr(transparent)]
-struct Visit<T>(T);
-
-// FIXME: make sure that this struct is exact copy from faer
-#[derive(Debug)]
-struct Argsort<I> {
-    idx: Vec<Visit<I>>,
-    all_nnz: usize,
-    nnz: usize,
-}
-
-impl<I: Index> Argsort<I> {
-    fn apply_ordering<T>(&mut self, values: &mut [T])
-    where
-        I: Index,
-    {
-        // assert that no duplicate indicies found
-        assert_eq!(self.all_nnz, self.nnz);
-        assert_eq!(self.nnz, values.len());
-
-        for visit in &mut self.idx {
-            visit.set_visited(false);
-        }
-
-        for pos in 0..self.nnz {
-            if self.idx[pos].is_visited() {
-                continue;
-            }
-
-            let mut current = pos;
-            loop {
-                let visit = &mut self.idx[current];
-                visit.set_visited(true);
-
-                current = visit.get().zx();
-                values.swap(pos, current);
-
-                if pos == current {
-                    break;
-                }
-            }
-        }
-    }
-}
-
-impl<I> From<faer::sparse::Argsort<I>> for Argsort<I> {
-    #[inline]
-    fn from(value: faer::sparse::Argsort<I>) -> Self {
-        unsafe { std::mem::transmute(value) }
-    }
+    pub rows: Rows,
+    pub cols: Cols,
+    pub pattern: Pattern<I>,
 }
 
 pub struct UncompressedMat<Rows: ShapeIdx, Cols: ShapeIdx, T, I: Index> {
@@ -79,80 +30,66 @@ pub struct Mat<T = f64, I = usize, Rows = usize, Cols = usize> {
     items: Box<[T]>,
 }
 
-impl<T, I, Rows, Cols> Deref for Mat<T, I, Rows, Cols> {
-    type Target = SymbolicSparseColMat<I, Rows, Cols>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.info.descriptor
-    }
-}
-
-impl<I: Index> Visit<I> {
-    #[inline]
-    fn is_visited(&self) -> bool {
-        let top_bit = I::truncate(1 << (I::BITS - 1));
-        self.0 & top_bit != I::truncate(0)
-    }
-
-    #[inline]
-    fn set_visited(&mut self, visited: bool) {
-        let top_bit = I::truncate(1 << (I::BITS - 1));
-        let slot = &mut self.0;
-        if visited {
-            *slot = *slot | top_bit;
-        } else {
-            *slot = *slot & !top_bit
-        }
-    }
-
-    #[inline]
-    fn get(&self) -> I {
-        let top_bit = I::truncate(1 << (I::BITS - 1));
-        self.0 & !top_bit
-    }
-}
-
 impl<I: Index, R: Shape, C: Shape> SparsityInfo<I, R, C> {
     #[inline]
     pub fn view(&self) -> SparseColMatRef<'_, I, Symbolic, R, C> {
-        let descriptor = self.descriptor.deref().as_ref();
+        let descriptor = self.descriptor();
         SparseColMatRef::new(descriptor, Symbolic::materialize(descriptor.compute_nnz()))
     }
 
+    #[inline]
+    pub fn descriptor(&self) -> SymbolicSparseColMatRef<'_, I, R, C> {
+        unsafe {
+            SymbolicSparseColMatRef::new_unchecked(
+                self.rows,
+                self.cols,
+                &self.pattern.col_ptr,
+                self.pattern.col_nnz.as_deref(),
+                &self.pattern.row_idx,
+            )
+        }
+    }
+
+    #[inline]
     pub fn from_pattern(shape: (R, C), pattern: Pattern<I>) -> Self {
-        let descriptor = SymbolicSparseColMat::new_checked(
-            shape.0,
-            shape.1,
-            pattern.col_ptr.to_vec(),
-            pattern.col_nnz.map(|it| it.to_vec()),
-            pattern.row_idx.to_vec(),
-        );
         SparsityInfo {
-            descriptor: Arc::new(descriptor),
+            rows: shape.0,
+            cols: shape.1,
+            pattern,
+        }
+    }
+
+    #[inline]
+    fn from_descriptor(descriptor: SymbolicSparseColMat<I, R, C>) -> Self {
+        let (rows, cols, col_ptr, col_nnz, row_idx) = descriptor.into_parts();
+
+        Self {
+            rows,
+            cols,
+            pattern: Pattern::from_parts(
+                col_ptr.into_boxed_slice(),
+                col_nnz.map(|it| it.into_boxed_slice()),
+                row_idx.into_boxed_slice(),
+            ),
         }
     }
 }
 
-impl<I, R, C> Clone for SparsityInfo<I, R, C> {
+impl<I, R: Clone, C: Clone> Clone for SparsityInfo<I, R, C> {
+    #[inline]
     fn clone(&self) -> Self {
         Self {
-            descriptor: self.descriptor.clone(),
+            rows: self.rows.clone(),
+            cols: self.cols.clone(),
+            pattern: self.pattern.clone(),
         }
-    }
-}
-
-impl<I, R, C> Deref for SparsityInfo<I, R, C> {
-    type Target = SymbolicSparseColMat<I, R, C>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.descriptor
     }
 }
 
 impl<I: Index, R: Shape, C: Shape> PartialEq for SparsityInfo<I, R, C> {
+    #[inline]
     fn eq(&self, other: &Self) -> bool {
-        Arc::ptr_eq(&self.descriptor, &other.descriptor)
-            || self.col_ptr() == other.col_ptr() && self.row_idx() == other.row_idx()
+        self.rows == other.rows && self.cols == other.cols && self.pattern == other.pattern
     }
 }
 
@@ -163,7 +100,10 @@ where
     I: Index,
 {
     #[inline]
-    pub fn compress(self) -> Mat<T, I, R, C> {
+    pub fn compress(self) -> Mat<T, I, R, C>
+    where
+        T: ComplexField,
+    {
         Mat::try_new(self).unwrap()
     }
 
@@ -190,6 +130,41 @@ impl<T, I, R, C> Mat<T, I, R, C> {
     }
 
     #[inline]
+    pub fn sparsity(&self) -> &SparsityInfo<I, R, C>
+    where
+        R: Clone,
+        C: Clone,
+    {
+        &self.info
+    }
+
+    #[inline]
+    pub fn nrows(&self) -> R
+    where
+        R: Clone,
+    {
+        self.info.rows.clone()
+    }
+
+    #[inline]
+    pub fn ncols(&self) -> C
+    where
+        C: Clone,
+    {
+        self.info.cols.clone()
+    }
+
+    #[inline]
+    pub unsafe fn get_unchecked(&self, pos: usize) -> &T {
+        unsafe { self.items.get_unchecked(pos) }
+    }
+
+    #[inline]
+    pub unsafe fn get_unchecked_mut(&mut self, pos: usize) -> &mut T {
+        unsafe { self.items.get_unchecked_mut(pos) }
+    }
+
+    #[inline]
     pub(crate) fn from_parts(info: SparsityInfo<I, R, C>, items: Box<[T]>) -> Self {
         Self { info, items }
     }
@@ -199,6 +174,7 @@ impl<T, I, R, C> Mat<T, I, R, C> {
         R: Shape,
         C: Shape,
         I: Index,
+        T: ComplexField,
     {
         let (descriptor, ordering) = match SymbolicSparseColMat::try_new_from_indices(
             uncompressed.shape.0,
@@ -211,14 +187,12 @@ impl<T, I, R, C> Mat<T, I, R, C> {
                 unreachable!("All elements should be inbounds: {row} {col}")
             }
         };
-        let mut ordering = Argsort::from(ordering);
-        ordering.apply_ordering(&mut uncompressed.values);
+        let matrix = SparseColMat::new_from_argsort(descriptor, &ordering, &uncompressed.values)?;
+        let (descriptor, values) = matrix.into_parts();
 
         Ok(Self {
-            info: SparsityInfo {
-                descriptor: Arc::new(descriptor),
-            },
-            items: uncompressed.values.into_boxed_slice(),
+            info: SparsityInfo::from_descriptor(descriptor),
+            items: values.into_boxed_slice(),
         })
     }
 
@@ -228,7 +202,7 @@ impl<T, I, R, C> Mat<T, I, R, C> {
         C: Shape,
         I: Index,
     {
-        faer::sparse::SparseColMatRef::new(self.info.descriptor.deref().as_ref(), &self.items)
+        faer::sparse::SparseColMatRef::new(self.info.descriptor().as_ref(), &self.items)
     }
 
     pub fn view_mut(&mut self) -> faer::sparse::SparseColMatMut<'_, I, T, R, C>
@@ -237,7 +211,7 @@ impl<T, I, R, C> Mat<T, I, R, C> {
         C: Shape,
         I: Index,
     {
-        faer::sparse::SparseColMatMut::new(self.info.descriptor.deref().as_ref(), &mut self.items)
+        faer::sparse::SparseColMatMut::new(self.info.descriptor().as_ref(), &mut self.items)
     }
 }
 
@@ -251,9 +225,7 @@ where
     fn from(value: faer::sparse::SparseColMat<I, T, R, C>) -> Self {
         let (descriptor, values) = value.into_parts();
         Self {
-            info: SparsityInfo {
-                descriptor: Arc::new(descriptor),
-            },
+            info: SparsityInfo::from_descriptor(descriptor),
             items: values.into_boxed_slice(),
         }
     }
@@ -261,7 +233,7 @@ where
 
 impl<I: Index, R: Shape, C: Shape> Debug for SparsityInfo<I, R, C> {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        let (nrows, ncols) = self.descriptor.shape();
+        let (nrows, ncols) = (self.rows, self.cols);
         writeln!(f, "  ┌ {:>width$} ┐", "", width = 2 * ncols.unbound() - 1)?;
         let view = self.view();
 
@@ -294,81 +266,13 @@ impl<T: Debug, I: Index, R: Shape, C: Shape> Debug for Mat<T, I, R, C> {
 
 #[cfg(test)]
 mod tests {
-    use proptest::collection::vec;
-    use proptest::prelude::{Just, Strategy, any};
-    use proptest::{prop_assert_eq, proptest};
+    use proptest::num::f64::{ANY, NORMAL};
+    use proptest::prelude::any;
+    use proptest::{prop_assert, prop_assert_eq, proptest};
 
-    use crate::sparse::{Argsort, Mat, Visit};
-
-    #[test]
-    fn test_argsort_identity() {
-        let mut argsort = Argsort {
-            idx: vec![Visit(0_u32), Visit(1), Visit(2), Visit(3), Visit(4)],
-            all_nnz: 5,
-            nnz: 5,
-        };
-        let mut array = [2, 3, 1, 6, 2];
-
-        argsort.apply_ordering(&mut array);
-        assert_eq!(array, [2, 3, 1, 6, 2]);
-    }
-
-    #[test]
-    fn test_argsort_empty() {
-        let mut argsort = Argsort::<usize> {
-            idx: vec![],
-            all_nnz: 0,
-            nnz: 0,
-        };
-        let mut array: [(); 0] = [];
-
-        argsort.apply_ordering(&mut array);
-        assert_eq!(array, []);
-    }
-
-    #[test]
-    fn test_argsort() {
-        let mut argsort = Argsort {
-            idx: vec![
-                Visit(1usize),
-                Visit(5),
-                Visit(4),
-                Visit(3),
-                Visit(2),
-                Visit(0),
-            ],
-            all_nnz: 6,
-            nnz: 6,
-        };
-        let mut array = [2, 6, 5, 4, 3, 1];
-
-        argsort.apply_ordering(&mut array);
-        assert_eq!(array, [1, 2, 3, 4, 5, 6])
-    }
-
-    #[test]
-    fn test_multiple_argsort() {
-        let mut argsort = Argsort {
-            idx: vec![
-                Visit(1usize),
-                Visit(5),
-                Visit(4),
-                Visit(3),
-                Visit(2),
-                Visit(0),
-            ],
-            all_nnz: 6,
-            nnz: 6,
-        };
-        let mut array = [2, 6, 5, 4, 3, 1];
-
-        argsort.apply_ordering(&mut array);
-        assert_eq!(array, [1, 2, 3, 4, 5, 6]);
-        argsort.apply_ordering(&mut array);
-        assert_eq!(array, [6, 1, 5, 4, 3, 2]);
-        argsort.apply_ordering(&mut array);
-        assert_eq!(array, [2, 6, 3, 4, 5, 1]);
-    }
+    use crate::arbitrary::{dmat, sparse_mat};
+    use crate::matmul::MatMul;
+    use crate::sparse::Mat;
 
     #[test]
     fn test_new_mat() {
@@ -397,19 +301,11 @@ mod tests {
         })]
 
         #[test]
-        fn argsort_is_scatter(
-            (idx, vals) in (0usize..64).prop_flat_map(|n| (
-                Just((0..n).collect::<Vec<_>>()).prop_shuffle(),
-                vec(any::<i32>(), n),
-            ))
-        ) {
-            let n = idx.len();
-            let mut expected = vals.clone();
-            for k in 0..n { expected[idx[k]] = vals[k]; }
-            let mut a = Argsort { idx: idx.iter().map(|&p| Visit(p)).collect(), all_nnz: n, nnz: n };
-            let mut got = vals;
-            a.apply_ordering(&mut got);
-            prop_assert_eq!(got, expected);
+        fn sparse_dense_matmul(a in sparse_mat(200, 10, 6, NORMAL), b in dmat(10, 4, NORMAL)) {
+            let out = a.matmul(b);
+
+            prop_assert_eq!(out.nrows(), 200);
+            prop_assert_eq!(out.ncols(), 4);
         }
     }
 }
