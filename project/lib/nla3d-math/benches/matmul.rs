@@ -27,39 +27,58 @@ where
     MatSym::random_uniform(Static, &mut rng)
 }
 
-fn bench_manual_square<const N: usize>(g: &mut BenchmarkGroup<'_, WallTime>) {
-    let a = random_mat::<N, N>(42);
-    let b_mat = random_mat::<N, N>(123);
+const SEEDS: [u64; 5] = [42, 123, 7, 9999, 314159];
 
+fn bench_manual_square<const N: usize>(g: &mut BenchmarkGroup<'_, WallTime>) {
+    let mut a_mats = [Mat::<N, N, f64>::ZERO; SEEDS.len()];
+    let mut b_mats = [Mat::<N, N, f64>::ZERO; SEEDS.len()];
+    for (i, &seed) in SEEDS.iter().enumerate() {
+        a_mats[i] = random_mat::<N, N>(seed);
+        b_mats[i] = random_mat::<N, N>(seed.wrapping_add(1));
+    }
     g.bench_function(&format!("manual_matmul_square_{}x{}", N, N), |bencher| {
         bencher.iter(|| {
             let mut result = Mat::<N, N, f64>::ZERO;
-            manual_matmul_inplace(N, &mut result, black_box(1.0_f64), &a, &b_mat);
+            for i in 0..SEEDS.len() {
+                manual_matmul_inplace(N, &mut result, black_box(1.0_f64), &a_mats[i], &b_mats[i]);
+            }
             black_box(result)
         });
     });
 }
 
 fn bench_faer_square<const N: usize>(g: &mut BenchmarkGroup<'_, WallTime>) {
-    let a = random_mat::<N, N>(42);
-    let b_mat = random_mat::<N, N>(123);
-
+    let mut a_mats = [Mat::<N, N, f64>::ZERO; SEEDS.len()];
+    let mut b_mats = [Mat::<N, N, f64>::ZERO; SEEDS.len()];
+    for (i, &seed) in SEEDS.iter().enumerate() {
+        a_mats[i] = random_mat::<N, N>(seed);
+        b_mats[i] = random_mat::<N, N>(seed.wrapping_add(1));
+    }
     g.bench_function(&format!("faer_matmul_square_{}x{}", N, N), |bencher| {
         bencher.iter(|| {
             let mut result = Mat::<N, N, f64>::ZERO;
-            matmul(result.view_mut(), Accum::Replace, a.view(), b_mat.view(), black_box(1.0_f64), Par::Seq);
+            for i in 0..SEEDS.len() {
+                matmul(result.view_mut(), Accum::Replace, a_mats[i].view(), b_mats[i].view(), black_box(1.0_f64), Par::Seq);
+            }
             black_box(result)
         });
     });
 }
 
 fn bench_trait_dispatch_square<const N: usize>(g: &mut BenchmarkGroup<'_, WallTime>) {
-    let a = random_mat::<N, N>(42);
-    let b_mat = random_mat::<N, N>(123);
-
+    let mut a_mats = [Mat::<N, N, f64>::ZERO; SEEDS.len()];
+    let mut b_mats = [Mat::<N, N, f64>::ZERO; SEEDS.len()];
+    for (i, &seed) in SEEDS.iter().enumerate() {
+        a_mats[i] = random_mat::<N, N>(seed);
+        b_mats[i] = random_mat::<N, N>(seed.wrapping_add(1));
+    }
     g.bench_function(&format!("trait_matmul_square_{}x{}", N, N), |bencher| {
         bencher.iter(|| {
-            black_box(&a).matmul(black_box(&b_mat))
+            let mut result = Mat::<N, N, f64>::ZERO;
+            for i in 0..SEEDS.len() {
+                result = black_box(&a_mats[i]).matmul(black_box(&b_mats[i]));
+            }
+            black_box(result)
         });
     });
 }
@@ -104,26 +123,36 @@ fn manual_vs_faer_square(c: &mut Criterion) {
 }
 
 fn bench_manual_rectangular<const N: usize, const M: usize, const L: usize>(g: &mut BenchmarkGroup<'_, WallTime>) {
-    let a = random_mat::<N, M>(42);
-    let b_mat = random_mat::<M, L>(123);
-
+    let mut a_mats = [Mat::<N, M, f64>::ZERO; SEEDS.len()];
+    let mut b_mats = [Mat::<M, L, f64>::ZERO; SEEDS.len()];
+    for (i, &seed) in SEEDS.iter().enumerate() {
+        a_mats[i] = random_mat::<N, M>(seed);
+        b_mats[i] = random_mat::<M, L>(seed.wrapping_add(1));
+    }
     g.bench_function(&format!("manual_matmul_rect_{}x{}x{}x{}", N, M, M, L), |bencher| {
         bencher.iter(|| {
             let mut result = Mat::<N, L, f64>::ZERO;
-            manual_matmul_inplace(M, &mut result, black_box(1.0_f64), &a, &b_mat);
+            for i in 0..SEEDS.len() {
+                manual_matmul_inplace(M, &mut result, black_box(1.0_f64), &a_mats[i], &b_mats[i]);
+            }
             black_box(result)
         });
     });
 }
 
 fn bench_faer_rectangular<const N: usize, const M: usize, const L: usize>(g: &mut BenchmarkGroup<'_, WallTime>) {
-    let a = random_mat::<N, M>(42);
-    let b_mat = random_mat::<M, L>(123);
-
+    let mut a_mats = [Mat::<N, M, f64>::ZERO; SEEDS.len()];
+    let mut b_mats = [Mat::<M, L, f64>::ZERO; SEEDS.len()];
+    for (i, &seed) in SEEDS.iter().enumerate() {
+        a_mats[i] = random_mat::<N, M>(seed);
+        b_mats[i] = random_mat::<M, L>(seed.wrapping_add(1));
+    }
     g.bench_function(&format!("faer_matmul_rect_{}x{}x{}x{}", N, M, M, L), |bencher| {
         bencher.iter(|| {
             let mut result = Mat::<N, L, f64>::ZERO;
-            matmul(result.view_mut(), Accum::Replace, a.view(), b_mat.view(), black_box(1.0_f64), Par::Seq);
+            for i in 0..SEEDS.len() {
+                matmul(result.view_mut(), Accum::Replace, a_mats[i].view(), b_mats[i].view(), black_box(1.0_f64), Par::Seq);
+            }
             black_box(result)
         });
     });
@@ -158,13 +187,14 @@ fn bench_matsym_manual<const N: usize>(g: &mut BenchmarkGroup<'_, WallTime>)
 where
     generic_array::typenum::Const<N>: nla3d_math::dense::MatSymLength,
 {
-    let a = random_matsym::<N>(42);
-    let b_mat = random_matsym::<N>(123);
-
+    let a_mats: [MatSym::<N, f64, Lower>; SEEDS.len()] = core::array::from_fn(|i| random_matsym::<N>(SEEDS[i]));
+    let b_mats: [MatSym::<N, f64, Lower>; SEEDS.len()] = core::array::from_fn(|i| random_matsym::<N>(SEEDS[i].wrapping_add(1)));
     g.bench_function(&format!("matsym_manual_{}x{}", N, N), |bencher| {
         bencher.iter(|| {
             let mut result = Mat::<N, N, f64>::ZERO;
-            manual_matmul_inplace(N, &mut result, black_box(1.0_f64), &a, &b_mat);
+            for i in 0..SEEDS.len() {
+                manual_matmul_inplace(N, &mut result, black_box(1.0_f64), &a_mats[i], &b_mats[i]);
+            }
             black_box(result)
         });
     });
@@ -174,15 +204,16 @@ fn bench_matsym_faer<const N: usize>(g: &mut BenchmarkGroup<'_, WallTime>)
 where
     generic_array::typenum::Const<N>: nla3d_math::dense::MatSymLength,
 {
-    let a = random_matsym::<N>(42);
-    let b_mat = random_matsym::<N>(123);
-    let a_dense = a.to_mat();
-    let b_dense = b_mat.to_mat();
-
+    let a_mats: [MatSym::<N, f64, Lower>; SEEDS.len()] = core::array::from_fn(|i| random_matsym::<N>(SEEDS[i]));
+    let b_mats: [MatSym::<N, f64, Lower>; SEEDS.len()] = core::array::from_fn(|i| random_matsym::<N>(SEEDS[i].wrapping_add(1)));
+    let a_denses: [Mat::<N, N, f64>; SEEDS.len()] = core::array::from_fn(|i| a_mats[i].to_mat());
+    let b_denses: [Mat::<N, N, f64>; SEEDS.len()] = core::array::from_fn(|i| b_mats[i].to_mat());
     g.bench_function(&format!("matsym_faer_{}x{}", N, N), |bencher| {
         bencher.iter(|| {
             let mut result = Mat::<N, N, f64>::ZERO;
-            matmul(result.view_mut(), Accum::Replace, a_dense.view(), b_dense.view(), black_box(1.0_f64), Par::Seq);
+            for i in 0..SEEDS.len() {
+                matmul(result.view_mut(), Accum::Replace, a_denses[i].view(), b_denses[i].view(), black_box(1.0_f64), Par::Seq);
+            }
             black_box(result)
         });
     });
@@ -192,12 +223,15 @@ fn bench_matsym_trait<const N: usize>(g: &mut BenchmarkGroup<'_, WallTime>)
 where
     generic_array::typenum::Const<N>: nla3d_math::dense::MatSymLength,
 {
-    let a = random_matsym::<N>(42);
-    let b_mat = random_matsym::<N>(123);
-
+    let a_mats: [MatSym::<N, f64, Lower>; SEEDS.len()] = core::array::from_fn(|i| random_matsym::<N>(SEEDS[i]));
+    let b_mats: [MatSym::<N, f64, Lower>; SEEDS.len()] = core::array::from_fn(|i| random_matsym::<N>(SEEDS[i].wrapping_add(1)));
     g.bench_function(&format!("matsym_trait_{}x{}", N, N), |bencher| {
         bencher.iter(|| {
-            black_box(&a).matmul(black_box(&b_mat))
+            let mut result = Mat::<N, N, f64>::ZERO;
+            for i in 0..SEEDS.len() {
+                result = black_box(&a_mats[i]).matmul(black_box(&b_mats[i]));
+            }
+            black_box(result)
         });
     });
 }
@@ -238,15 +272,16 @@ fn dmat_matmul_baseline(c: &mut Criterion) {
     group.sample_size(100);
 
     for &n in &[8, 16, 32, 64] {
-        let a = random_dmat(n, n, 42);
-        let b_mat = random_dmat(n, n, 123);
-
+        let a_mats: [DMat<f64>; SEEDS.len()] = core::array::from_fn(|i| random_dmat(n, n, SEEDS[i]));
+        let b_mats: [DMat<f64>; SEEDS.len()] = core::array::from_fn(|i| random_dmat(n, n, SEEDS[i].wrapping_add(1)));
         group.bench_function(&format!("dmat_faer_{}x{}", n, n), |bencher| {
             bencher.iter(|| {
                 let mut result: DMat<f64> = Zip::from(Fill(f64::ZERO))
                     .with_shape(Dynamic { rows: n, cols: n })
                     .collect_into();
-                matmul(result.as_mut(), Accum::Replace, a.as_ref(), b_mat.as_ref(), black_box(1.0_f64), Par::Seq);
+                for i in 0..SEEDS.len() {
+                    matmul(result.as_mut(), Accum::Replace, a_mats[i].as_ref(), b_mats[i].as_ref(), black_box(1.0_f64), Par::Seq);
+                }
                 black_box(result)
             });
         });
@@ -260,36 +295,42 @@ fn matmul_assign_bench(c: &mut Criterion) {
     group.sample_size(100);
 
     {
-        let a = random_mat::<3, 3>(42);
-        let b_mat = random_mat::<3, 3>(123);
+        let a_mats: [Mat::<3, 3, f64>; SEEDS.len()] = core::array::from_fn(|i| random_mat::<3, 3>(SEEDS[i]));
+        let b_mats: [Mat::<3, 3, f64>; SEEDS.len()] = core::array::from_fn(|i| random_mat::<3, 3>(SEEDS[i].wrapping_add(1)));
         group.bench_function("matmul_assign_3x3", |bencher| {
             bencher.iter(|| {
                 let mut result = Mat::<3, 3, f64>::ZERO;
-                result.matmul_assign(black_box(&a), black_box(&b_mat));
+                for i in 0..SEEDS.len() {
+                    result.matmul_assign(black_box(&a_mats[i]), black_box(&b_mats[i]));
+                }
                 black_box(result)
             });
         });
     }
 
     {
-        let a = random_mat::<16, 16>(42);
-        let b_mat = random_mat::<16, 16>(123);
+        let a_mats: [Mat::<16, 16, f64>; SEEDS.len()] = core::array::from_fn(|i| random_mat::<16, 16>(SEEDS[i]));
+        let b_mats: [Mat::<16, 16, f64>; SEEDS.len()] = core::array::from_fn(|i| random_mat::<16, 16>(SEEDS[i].wrapping_add(1)));
         group.bench_function("matmul_assign_16x16", |bencher| {
             bencher.iter(|| {
                 let mut result = Mat::<16, 16, f64>::ZERO;
-                result.matmul_assign(black_box(&a), black_box(&b_mat));
+                for i in 0..SEEDS.len() {
+                    result.matmul_assign(black_box(&a_mats[i]), black_box(&b_mats[i]));
+                }
                 black_box(result)
             });
         });
     }
 
     {
-        let a = random_mat::<32, 32>(42);
-        let b_mat = random_mat::<32, 32>(123);
+        let a_mats: [Mat::<32, 32, f64>; SEEDS.len()] = core::array::from_fn(|i| random_mat::<32, 32>(SEEDS[i]));
+        let b_mats: [Mat::<32, 32, f64>; SEEDS.len()] = core::array::from_fn(|i| random_mat::<32, 32>(SEEDS[i].wrapping_add(1)));
         group.bench_function("matmul_assign_32x32", |bencher| {
             bencher.iter(|| {
                 let mut result = Mat::<32, 32, f64>::ZERO;
-                result.matmul_assign(black_box(&a), black_box(&b_mat));
+                for i in 0..SEEDS.len() {
+                    result.matmul_assign(black_box(&a_mats[i]), black_box(&b_mats[i]));
+                }
                 black_box(result)
             });
         });
