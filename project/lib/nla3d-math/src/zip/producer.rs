@@ -2,7 +2,6 @@ use core::marker::PhantomData;
 use core::mem::ManuallyDrop;
 use core::ptr::NonNull;
 
-use faer::matrix_free::LinOp;
 use faer::{MatMut, MatRef, Stride};
 use generic_array::GenericArray;
 use generic_array::typenum::Const;

@@ -384,13 +384,23 @@ macro_rules! impl_zip {
 
 impl<T, S, D: Domain> Zip<(T,), S, D> {
     #[inline]
-    pub fn collect<M>(self) -> M
+    pub fn collect_into<M>(self) -> M
     where
         T: Producer,
         M: ElementwiseConstructible<S, D, Item = T::Item>,
         S: KnownShape,
     {
         self.map_into_inner(|x| x)
+    }
+
+    #[inline]
+    pub fn collect(self) -> MatrixFor<S, D, T::Item>
+    where
+        T: Producer,
+        S: KnownShape,
+        Space<S, D>: DefaultOutput<Shape = S, Domain = D>,
+    {
+        self.collect_into()
     }
 }
 

@@ -501,39 +501,3 @@ mod fmt_impls {
     impl_fmt!(fmt::Binary, "{:b}", "{:.1$b}");
     impl_fmt!(fmt::Pointer, "{:p}", "{:.1$p}");
 }
-
-#[cfg(test)]
-mod tests {
-    use matrixcompare::assert_matrix_eq;
-
-    use crate::{FaerCompare, m, v};
-
-    #[test]
-    fn test_vec_addition() {
-        let a = v![1, 2, 3];
-        let b = v![4, 5, 6];
-        let c = v![5, 7, 9];
-
-        assert_matrix_eq!(c, a + b);
-        assert_matrix_eq!(c, &a + b);
-        assert_matrix_eq!(c, a + &b);
-        assert_matrix_eq!(c, &a + &b);
-    }
-
-    #[test]
-    fn test_vec_assign_addition() {
-        let a = v![1, 2, 3];
-        let mut b = v![0, 0, 0];
-
-        b += a;
-        assert_matrix_eq!(b, a);
-    }
-
-    #[test]
-    fn test_into_dyn() {
-        let a = m![[1, 0, 0], [0, 1, 0], [0, 0, 1]];
-        let b = a.into_dyn();
-
-        assert_matrix_eq!(a, FaerCompare(b));
-    }
-}

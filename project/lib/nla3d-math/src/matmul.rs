@@ -3,8 +3,6 @@ use core::ops::Index;
 use faer::traits::ComplexField;
 use num_traits::One;
 
-use crate::dense::DMat;
-use crate::sparse;
 use crate::zip::{Domain, Free, Join, KnownShape, Meet, Producer, Zip};
 
 pub trait MatMul<Rhs>: Sized {
@@ -143,7 +141,7 @@ macro_rules! impl_matmul {
             |$self, $rhs_param, $scalar_param| {
                 scalar = $scalar;
                 impl = {
-                    let mut output: $out = Zip::from(Fill(T::zero_impl())).with_shape($shape).collect();
+                    let mut output: $out = Zip::from(Fill(T::zero_impl())).with_shape($shape).collect_into();
                     output.matmul_assign_scalar($self, $rhs_param, $scalar_param);
                     output
                 };
@@ -357,7 +355,7 @@ mod impls {
                     rows: self.nrows(),
                     cols: rhs.ncols(),
                 })
-                .collect::<DMat<T>>();
+                .collect();
             faer::sparse::linalg::matmul::sparse_dense_matmul(
                 output.as_mut(),
                 Accum::Replace,
@@ -367,50 +365,6 @@ mod impls {
                 Par::Seq,
             );
             output
-        }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use matrixcompare::prop_assert_matrix_eq;
-    use proptest::{prop_assert_eq, proptest};
-
-    use crate::arbitrary::mat;
-    use crate::dense::{DMat, MatSym};
-    use crate::matmul::MatMul;
-    use crate::{FaerCompare, m};
-
-    #[test]
-    fn test_matmul_simple() {
-        let identity = MatSym::from_mat(m![[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]]);
-        let m = m![[1.0, 2.0, 3.0], [4.0, 5.0, 6.0], [7.0, 8.0, 9.0]];
-
-        assert_eq!(
-            identity.matmul(m),
-            m![[1.0, 2.0, 3.0], [4.0, 5.0, 6.0], [7.0, 8.0, 9.0]]
-        );
-    }
-
-    proptest! {
-        #![proptest_config(proptest::test_runner::Config {
-            #[cfg(miri)]
-            failure_persistence: None,
-            #[cfg(miri)]
-            cases: 32,
-            ..Default::default()
-        })]
-
-        #[test]
-        #[allow(semicolon_in_expressions_from_non_local_macros)]
-        fn test_matmul_static(a in mat::<2, 4, _>(-1000.0..1000.0), b in mat::<4, 3, _>(-1000.0..1000.0), s in -1000.0..1000.0) {
-            let da = a.into_dyn();
-            let db = b.into_dyn();
-
-            let out_manual = a.matmul_scalar(b, s);
-            let out_faer: DMat = s * da * db;
-            prop_assert_eq!(out_manual.shape(), out_faer.shape());
-            prop_assert_matrix_eq!(out_manual, FaerCompare(out_faer), comp=abs, tol=1e-6);
         }
     }
 }

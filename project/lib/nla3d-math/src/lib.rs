@@ -7,6 +7,9 @@ pub mod matmul;
 pub mod sparse;
 pub mod zip;
 
+#[cfg(test)]
+mod tests;
+
 #[cfg(feature = "std")]
 extern crate std;
 
@@ -77,7 +80,7 @@ macro_rules! m {
 macro_rules! sparse_pattern {
     [$rows:literal x $cols:literal ($($row:expr, $col:expr$(;)?)*)] => {
         $crate::zip::Pattern::try_from_entries(
-            $rows, $cols, 
+            $rows, $cols,
             platform::compat::boxed::Box::new([$(($row, $col), )*])
         ).unwrap()
     };

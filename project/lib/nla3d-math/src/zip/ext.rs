@@ -65,7 +65,7 @@ impl<T: Producer<Shape: KnownShape>> CollectIntoExt for T {
     where
         DMat<Self::Item>: ElementwiseConstructible<Self::Shape, Self::Domain, Item = Self::Item>,
     {
-        Zip::from(self).collect()
+        Zip::from(self).collect_into()
     }
 
     #[inline]
@@ -74,7 +74,7 @@ impl<T: Producer<Shape: KnownShape>> CollectIntoExt for T {
         Mat<N, M, Self::Item>:
             ElementwiseConstructible<Self::Shape, Self::Domain, Item = Self::Item>,
     {
-        Zip::from(self).collect()
+        Zip::from(self).collect_into()
     }
 
     #[inline]
@@ -84,7 +84,7 @@ impl<T: Producer<Shape: KnownShape>> CollectIntoExt for T {
             ElementwiseConstructible<Self::Shape, Self::Domain, Item = Self::Item>,
         Const<N>: MatSymLength,
     {
-        Zip::from(self).collect()
+        Zip::from(self).collect_into()
     }
 
     #[inline]
@@ -94,7 +94,7 @@ impl<T: Producer<Shape: KnownShape>> CollectIntoExt for T {
             ElementwiseConstructible<Self::Shape, Self::Domain, Item = Self::Item>,
         Const<N>: MatSymLength,
     {
-        Zip::from(self).collect()
+        Zip::from(self).collect_into()
     }
 }
 
@@ -181,7 +181,7 @@ const _: () = {
 
             Zip::from_fn(D::default(), |_| distribution.sample(rng))
                 .with_shape(shape)
-                .collect()
+                .collect_into()
         }
     }
 };

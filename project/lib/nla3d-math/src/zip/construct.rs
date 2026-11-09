@@ -146,8 +146,7 @@ where
     }
 }
 
-unsafe impl<'p, I, T, S> ElementwiseConstructible<S, Pattern<I>>
-    for sparse::Mat<T, I, usize, usize>
+unsafe impl<'p, I, T, S> ElementwiseConstructible<S, Pattern<I>> for sparse::Mat<T, I, usize, usize>
 where
     I: Index,
     S: Fits<Dynamic>,
