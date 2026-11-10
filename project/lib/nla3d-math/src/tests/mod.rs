@@ -1,7 +1,4 @@
-//! Comprehensive property tests for the `nla3d-math` crate.
 #![allow(semicolon_in_expressions_from_non_local_macros)]
-
-mod utils;
 
 use core::panic::AssertUnwindSafe;
 use std::panic::catch_unwind;
@@ -14,15 +11,15 @@ use proptest::{prop_assert, prop_assert_eq, prop_assume, proptest};
 
 use crate::arbitrary::{dmat, mat, mat_sym, sparse_mat};
 use crate::dense::{Lower, Mat, MatSym, SymKind, Upper};
-use crate::m;
 use crate::matmul::{MatMul, MatMulAssign};
 use crate::tests::utils::{
     Tracked, clear_drops, get_drops_sorted, make_symmetric, normal_f64, sym_case, visit,
 };
-use crate::zip::{
-    ConsumeProducer, Dynamic, ExpandExt, Fill, FillStatic, Full, Meet, ToOwnedProducer, TriExt,
-    Triangular, Zip,
-};
+use crate::zip::ext::{ConsumeExt, ExpandExt, Fill, FillStatic, OwnedExt, TriExt};
+use crate::zip::{Dynamic, Full, Meet, Triangular, Zip};
+use crate::{m, sparse};
+
+mod utils;
 
 proptest! {
     #![proptest_config(proptest::test_runner::Config {
@@ -128,7 +125,7 @@ proptest! {
 
     #[test]
     fn consume_producer_sum(a in mat::<3, 3, _>(normal_f64())) {
-        let sum = Zip::from(ConsumeProducer(a)).fold(0.0_f64, |acc, x| acc + x);
+        let sum = Zip::from(a.consume()).fold(0.0_f64, |acc, x| acc + x);
         let manual: f64 = (0..3).flat_map(|i| (0..3).map(move |j| a[(i, j)])).sum();
         prop_assert_scalar_eq!(sum, manual, comp=abs, tol=1e-6);
     }
@@ -137,7 +134,7 @@ proptest! {
 
     #[test]
     fn to_owned_producer_mat(a in mat::<3, 3, _>(normal_f64())) {
-        let owned = Zip::from(ToOwnedProducer(&a)).map(|x| *x);
+        let owned = Zip::from(a.as_owned()).map(|x| x);
         prop_assert_eq!(owned, a);
     }
 
@@ -433,7 +430,7 @@ proptest! {
                 expected += s[(i, j)];
             }
         }
-        let sum = Zip::from(ConsumeProducer(s)).fold(0.0_f64, |acc, x| acc + x);
+        let sum = Zip::from(s.consume()).fold(0.0_f64, |acc, x| acc + x);
         prop_assert_scalar_eq!(sum, expected, comp=abs, tol=1e-6);
     }
 
@@ -472,9 +469,7 @@ proptest! {
 
     #[test]
     fn convert_dmat_to_sparse(m in dmat(20, 20, any::<f64>()), threshold in any::<f64>()) {
-        use crate::sparse::Mat;
-        use crate::zip::{ExpandExt, Full};
-        let mut uncompressed = Mat::new((20, 20));
+        let mut uncompressed = sparse::Mat::new((20, 20));
         Zip::from_fn(Full, |ix| (*ix.i, *ix.j)).and(&m).for_each(|(i, j), value| {
             if value.abs() < threshold { return; }
             uncompressed.add_entry(i, j, *value).unwrap();
@@ -610,8 +605,8 @@ proptest! {
         let _ = catch_unwind(AssertUnwindSafe(|| {
             let mut seen = 0;
             let f = |x: Tracked| { if seen == panic_at { panic!() } seen += 1; drop(x) };
-            if tri { Zip::from(ConsumeProducer(m).lower()).for_each(f) }
-            else   { Zip::from(ConsumeProducer(m)).for_each(f) }
+            if tri { Zip::from(m.consume().lower()).for_each(f) }
+            else   { Zip::from(m.consume()).for_each(f) }
         }));
         let d = get_drops_sorted();
         prop_assert_eq!(d, (0..9).collect::<Vec<_>>());
@@ -812,7 +807,6 @@ fn into_dyn() {
 
 #[test]
 fn zip_fold() {
-    use crate::zip::ExpandExt;
     let a = m![[1, 2, 3], [2, 3, 4], [5, 6, 7]];
     let b = MatSym::<3, f64>::from_mat(m![[0.0, 1.0, 0.0], [0.0, 0.0, 0.0], [0.0, 0.0, 0.0]]);
     let sum = Zip::from(&a)
@@ -823,7 +817,6 @@ fn zip_fold() {
 
 #[test]
 fn zip_for_each() {
-    use crate::zip::ExpandExt;
     let a = m![[1, 2, 3], [2, 3, 4], [5, 6, 7]];
     let b = MatSym::<3, f64>::from_mat(m![[0.0, 1.0, 0.0], [0.0, 0.0, 0.0], [0.0, 0.0, 0.0]]);
     let mut total_non_zero = 0;
@@ -845,7 +838,6 @@ fn zip_map_different_types() {
 
 #[test]
 fn zip_map_same_type() {
-    use crate::zip::ExpandExt;
     let b = MatSym::<3, f64>::from_mat(m![[0.0, 1.0, 0.0], [0.0, 0.0, 0.0], [0.0, 0.0, 0.0]]);
     let out = Zip::from(b.expand())
         .and(b.expand())
@@ -866,7 +858,7 @@ fn for_each_mut_items_can_be_retained() {
 #[test]
 fn change_output_type() {
     let a = m![[1, 2], [3, 4]];
-    let b = Zip::from(ConsumeProducer(a)).map(|x| x);
+    let b = Zip::from(a.consume()).map(|x| x);
     assert_eq!(a, b);
 }
 
@@ -883,7 +875,7 @@ fn zip_panicing() {
     COUNTER.store(0, std::sync::atomic::Ordering::SeqCst);
     let a = m![[IncOnDrop(1), IncOnDrop(2)], [IncOnDrop(3), IncOnDrop(4)]];
     let result = catch_unwind(|| {
-        Zip::from(ConsumeProducer(a)).for_each(|x| {
+        Zip::from(a.consume()).for_each(|x| {
             let x = ManuallyDrop::new(x);
             if x.0 == 3 {
                 panic!("Test");

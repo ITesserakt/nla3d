@@ -1,23 +1,18 @@
 mod construct;
 mod drive;
-mod ext;
+pub mod ext;
 mod producer;
 mod shape;
 mod tuple;
 
 pub use construct::{ElementwiseConstructible, Nothing};
 pub use drive::{Domain, DomainIndex, Full, Meet, Pattern, Triangular};
-#[cfg(feature = "rand")]
-pub use ext::RandomConstructible;
-pub use ext::{CollectIntoExt, ConsumeExt, ExpandExt, OwnedExt, TriExt};
-use faer::Index;
-pub use producer::{
-    ConsumeProducer, Fill, FillStatic, FromFn, Producer, RawMut, ToOwnedProducer, Tri,
-};
+pub use producer::{Producer, RawMut};
 pub use shape::{Dynamic, Fits, Free, Join, KnownShape, Shape, Static};
 pub use tuple::Push;
 
 use crate::dense::{MatSymLength, SymKind};
+use crate::zip::ext::FromFn;
 
 pub struct Space<S, D>(S, D);
 
@@ -55,7 +50,7 @@ where
     type Matrix<V> = crate::dense::MatSym<N, V, K>;
 }
 
-impl<'p, I: Index, S: Shape> DefaultOutput for Space<S, Pattern<I>> {
+impl<'p, I: faer::Index, S: Shape> DefaultOutput for Space<S, Pattern<I>> {
     type Shape = S;
     type Domain = Pattern<I>;
     type Matrix<V> = crate::sparse::Mat<V, I>;

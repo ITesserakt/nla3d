@@ -10,7 +10,7 @@ use num_traits::{ConstOne, ConstZero, One, Zero};
 
 use crate::dense::{DMat, Mat, SingularMatrix, Vec};
 use crate::m;
-use crate::zip::{ConsumeProducer, Zip};
+use crate::zip::ext::{CollectIntoExt, ConsumeExt};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(transparent)]
@@ -42,7 +42,7 @@ impl<const N: usize, const M: usize, T> Mat<N, M, T> {
 
     #[inline]
     pub fn into_dyn(self) -> DMat<T> {
-        Zip::from(ConsumeProducer(self)).map_into(|it| it)
+        self.consume().into_dyn()
     }
 
     #[inline]
@@ -275,7 +275,8 @@ mod ops_impls {
     use std::ops::*;
 
     use crate::dense::Mat;
-    use crate::zip::{ConsumeExt, Fill, Zip};
+    use crate::zip::Zip;
+    use crate::zip::ext::{ConsumeExt, Fill};
     use crate::{impl_assign_operator, impl_operator};
 
     impl_operator!(<;const N: usize, const M: usize; T> impl Ops for Mat<N, M, T> {

@@ -11,9 +11,11 @@ use generic_array::sequence::GenericSequence;
 use generic_array::typenum::Const;
 use generic_array::{ArrayLength, GenericArray};
 use num_traits::Zero;
+use platform::compat::borrow::ToOwned;
 
-use crate::dense::{Mat, MatSym, SingularMatrix};
-use crate::zip::{ConsumeExt, ExpandExt, Static, TriExt, Triangular, Zip};
+use crate::dense::{DMat, Mat, MatSym, SingularMatrix};
+use crate::zip::ext::{CollectIntoExt, ConsumeExt, ExpandExt, OwnedExt, TriExt};
+use crate::zip::{Static, Triangular, Zip};
 
 #[derive(Debug, Clone, Copy)]
 pub struct Upper;
@@ -187,6 +189,15 @@ where
     #[inline]
     pub unsafe fn get_unchecked_mut_flat(&mut self, k: usize) -> &mut T {
         unsafe { self.0.data.get_unchecked_mut(k) }
+    }
+
+    #[inline]
+    pub fn to_dyn(&self) -> DMat<T::Owned>
+    where
+        T: ToOwned,
+        Kind: SymKind,
+    {
+        self.expand().as_owned().into_dyn()
     }
 
     #[inline]
@@ -576,7 +587,8 @@ mod ops_impls {
     use generic_array::typenum::Const;
 
     use crate::dense::{MatSym, MatSymLength, SymKind};
-    use crate::zip::{ConsumeExt, Fill, Zip};
+    use crate::zip::Zip;
+    use crate::zip::ext::{ConsumeExt, Fill};
     use crate::{impl_assign_operator, impl_operator};
 
     impl_operator!(<; const N: usize; T, K> impl Ops for MatSym<N, T, K>

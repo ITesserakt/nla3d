@@ -240,7 +240,8 @@ mod impls {
     use super::{MatMul, MatMulAssign, RemoveRef};
     use crate::dense::{DMat, Mat, MatSym, MatSymLength, SymKind};
     use crate::sparse;
-    use crate::zip::{Domain, Dynamic, Fill, Free, Join, KnownShape, Meet, Producer, Static, Zip};
+    use crate::zip::ext::Fill;
+    use crate::zip::{Domain, Dynamic, Free, Join, KnownShape, Meet, Producer, Static, Zip};
 
     #[inline]
     pub fn manual_matmul_inplace<'a, T, D, P>(
