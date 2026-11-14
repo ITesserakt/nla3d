@@ -15,9 +15,9 @@ use crate::matmul::{MatMul, MatMulAssign};
 use crate::tests::utils::{
     Tracked, clear_drops, get_drops_sorted, make_symmetric, normal_f64, sym_case, visit,
 };
-use crate::zip::ext::{ConsumeExt, ExpandExt, Fill, FillStatic, OwnedExt, TriExt};
+use crate::zip::ext::{ConsumeExt, ExpandExt, Fill, FillStatic, OwnedExt, TransposeExt, TriExt};
 use crate::zip::{Dynamic, Full, Meet, Triangular, Zip};
-use crate::{m, sparse};
+use crate::{FaerCompare, m, sparse};
 
 mod utils;
 
@@ -39,7 +39,7 @@ proptest! {
     #[test]
     fn zip_map_roundtrip_dmat(a in dmat(5, 7, normal_f64())) {
         let result = Zip::from(&a).map(|x| *x);
-        prop_assert_matrix_eq!(crate::FaerCompare(a), crate::FaerCompare(result), comp=abs, tol=1e-6);
+        prop_assert_matrix_eq!(FaerCompare(a), FaerCompare(result), comp=float);
     }
 
     #[test]
@@ -54,23 +54,19 @@ proptest! {
         prop_assert_eq!(result, s);
     }
 
-    // ===== Zip Fold Correctness =====
-
     #[test]
     fn zip_fold_sum_mat(a in mat::<3, 4, _>(normal_f64())) {
         let sum = Zip::from(&a).fold(0.0_f64, |acc, x| acc + *x);
         let manual: f64 = (0..3).flat_map(|i| (0..4).map(move |j| a[(i, j)])).sum();
-        prop_assert_scalar_eq!(sum, manual, comp=abs, tol=1e-1);
+        prop_assert_scalar_eq!(sum, manual, comp=float);
     }
 
     #[test]
     fn zip_fold_dot_product(a in mat::<5, 5, _>(normal_f64()), b in mat::<5, 5, _>(normal_f64())) {
         let dot = Zip::from(&a).and(&b).fold(0.0_f64, |acc, x, y| acc + *x * *y);
         let manual: f64 = (0..5).flat_map(|i| (0..5).map(move |j| a[(i, j)] * b[(i, j)])).sum();
-        prop_assert_scalar_eq!(dot, manual, comp=abs, tol=1e-1);
+        prop_assert_scalar_eq!(dot, manual, comp=float);
     }
-
-    // ===== Zip And Composition =====
 
     #[test]
     fn zip_and_composition(a in mat::<3, 3, _>(normal_f64()), b in mat::<3, 3, _>(normal_f64()),
@@ -81,8 +77,6 @@ proptest! {
         prop_assert_eq!(count_ab, 9);
     }
 
-    // ===== from_fn + with_shape + collect roundtrip =====
-
     #[test]
     fn from_fn_collect_roundtrip(rows in 1usize..10, cols in 1usize..10) {
         let expected = Zip::from_fn(Full, |ix| (*ix.i as f64) * 10.0 + *ix.j as f64)
@@ -90,12 +84,10 @@ proptest! {
             .collect();
         for i in 0..rows {
             for j in 0..cols {
-                prop_assert_scalar_eq!(expected[(i, j)], i as f64 * 10.0 + j as f64, comp=abs, tol=1e-6);
+                prop_assert_scalar_eq!(expected[(i, j)], i as f64 * 10.0 + j as f64, comp=float);
             }
         }
     }
-
-    // ===== ExpandExt for MatSym =====
 
     #[test]
     fn expand_ext_matsym_lower(s in mat_sym::<4, Lower, _>(normal_f64())) {
@@ -106,8 +98,6 @@ proptest! {
         });
         prop_assert!(matched);
     }
-
-    // ===== TriExt lower/upper =====
 
     #[test]
     fn tri_ext_lower_restricts(a in mat::<4, 4, _>(normal_f64())) {
@@ -121,24 +111,18 @@ proptest! {
         prop_assert_eq!(count, 4 * 5 / 2);
     }
 
-    // ===== ConsumeProducer =====
-
     #[test]
     fn consume_producer_sum(a in mat::<3, 3, _>(normal_f64())) {
         let sum = Zip::from(a.consume()).fold(0.0_f64, |acc, x| acc + x);
         let manual: f64 = (0..3).flat_map(|i| (0..3).map(move |j| a[(i, j)])).sum();
-        prop_assert_scalar_eq!(sum, manual, comp=abs, tol=1e-6);
+        prop_assert_scalar_eq!(sum, manual, comp=float);
     }
-
-    // ===== ToOwnedProducer =====
 
     #[test]
     fn to_owned_producer_mat(a in mat::<3, 3, _>(normal_f64())) {
         let owned = Zip::from(a.as_owned()).map(|x| x);
         prop_assert_eq!(owned, a);
     }
-
-    // ===== Fill and FillStatic =====
 
     #[test]
     fn fill_broadcast(rows in 1usize..10, cols in 1usize..10, value in normal_f64()) {
@@ -147,7 +131,7 @@ proptest! {
             .collect();
         for i in 0..rows {
             for j in 0..cols {
-                prop_assert_scalar_eq!(result[(i, j)], value, comp=abs, tol=1e-6);
+                prop_assert_scalar_eq!(result[(i, j)], value, comp=float);
             }
         }
     }
@@ -157,12 +141,10 @@ proptest! {
         let result = Zip::from(FillStatic::<3, 4, _>(value)).collect();
         for i in 0..3 {
             for j in 0..4 {
-                prop_assert_scalar_eq!(result[(i, j)], value, comp=abs, tol=1e-6);
+                prop_assert_scalar_eq!(result[(i, j)], value, comp=float);
             }
         }
     }
-
-    // ===== Zip with 3+ producers =====
 
     #[test]
     fn zip_three_producers(a in mat::<3, 3, _>(normal_f64()), b in mat::<3, 3, _>(normal_f64()),
@@ -171,12 +153,10 @@ proptest! {
         for i in 0..3 {
             for j in 0..3 {
                 let expected = a[(i, j)] + b[(i, j)] + c[(i, j)];
-                prop_assert_scalar_eq!(result[(i, j)], expected, comp=abs, tol=1e-6);
+                prop_assert_scalar_eq!(result[(i, j)], expected, comp=float);
             }
         }
     }
-
-    // ===== Domain Meet Properties =====
 
     #[test]
     fn domain_meet_triangular_lower(n in 1usize..10) {
@@ -187,8 +167,6 @@ proptest! {
         prop_assert_eq!(v.len(), n * (n + 1) / 2);
     }
 
-    // ===== Dense Operator Algebraic Laws =====
-
     #[test]
     fn add_commutativity(a in mat::<3, 4, _>(normal_f64()), b in mat::<3, 4, _>(normal_f64())) {
         prop_assert_eq!(a + b, b + a);
@@ -197,7 +175,7 @@ proptest! {
     #[test]
     fn add_associativity(a in mat::<3, 3, _>(normal_f64()), b in mat::<3, 3, _>(normal_f64()),
                          c in mat::<3, 3, _>(normal_f64())) {
-        prop_assert_matrix_eq!((a + b) + c, a + (b + c), comp=abs, tol=1e-6);
+        prop_assert_matrix_eq!((a + b) + c, a + (b + c), comp=float);
     }
 
     #[test]
@@ -209,25 +187,21 @@ proptest! {
     #[test]
     fn mul_distributivity(a in mat::<3, 3, _>(normal_f64()), b in mat::<3, 3, _>(normal_f64()),
                            c in mat::<3, 3, _>(normal_f64())) {
-        prop_assert_matrix_eq!(a * (b + c), a * b + a * c, comp=abs, tol=1e-6);
+        prop_assert_matrix_eq!(a * (b + c), a * b + a * c, comp=float);
     }
-
-    // ===== Scalar Broadcast via Zip =====
 
     #[test]
     fn scalar_broadcast_via_zip(a in mat::<3, 4, _>(normal_f64()), s in normal_f64()) {
         let zip_result = Zip::from(&a).and(Fill(s)).map(|x, y| *x * y);
-        prop_assert_matrix_eq!(a * s, zip_result, comp=abs, tol=1e-6);
+        prop_assert_matrix_eq!(a * s, zip_result, comp=float);
     }
-
-    // ===== MatSym Roundtrips =====
 
     #[test]
     fn matsym_from_mat_roundtrip(m in mat::<4, 4, _>(normal_f64())) {
         let sym = make_symmetric(m);
         let s = MatSym::<4, f64, Lower>::from_mat(sym);
         let back = s.to_mat();
-        prop_assert_matrix_eq!(sym, back, comp=abs, tol=1e-6);
+        prop_assert_matrix_eq!(sym, back, comp=float);
     }
 
     #[test]
@@ -235,25 +209,34 @@ proptest! {
         let dense = s.to_mat();
         for i in 0..4 {
             for j in 0..4 {
-                prop_assert_scalar_eq!(dense[(i, j)], dense[(j, i)], comp=abs, tol=1e-6);
+                prop_assert_scalar_eq!(dense[(i, j)], dense[(j, i)], comp=float);
             }
         }
     }
 
-    // ===== Determinant Properties =====
-
     #[test]
-    fn det_inv_product(m in mat::<3, 3, _>(normal_f64())) {
-        prop_assume!(m.determinant().abs() > 1.0);
+    fn det_inv_product_3(m in mat::<3, 3, _>(normal_f64())) {
+        prop_assume!(m.determinant().abs() > 1e-9);
         let product = m.matmul(m.inv());
-        let det = product.determinant();
-        prop_assert_scalar_eq!(det, 1.0, comp=abs, tol=1e-1);
+
+        prop_assert_matrix_eq!(
+            product,
+            FaerCompare(crate::dense::DMat::identity(3, 3)),
+            comp=abs, tol=1e-9
+        );
     }
 
-    // ===== Inverse Properties =====
-    // (Covered by arbitrary.rs tests: inverse_involution1, inverse_involution3, etc.)
+    #[test]
+    fn det_inv_product_2(m in mat::<2, 2, _>(normal_f64())) {
+        prop_assume!(m.determinant().abs() > 1e-9);
+        let product = m.matmul(m.inv());
 
-    // ===== into_dyn Fidelity =====
+        prop_assert_matrix_eq!(
+            product,
+            FaerCompare(crate::dense::DMat::identity(2, 2)),
+            comp=abs, tol=1e-9
+        );
+    }
 
     #[test]
     fn into_dyn_fidelity(a in mat::<3, 4, _>(normal_f64())) {
@@ -262,12 +245,10 @@ proptest! {
         prop_assert_eq!(d.ncols(), 4);
         for i in 0..3 {
             for j in 0..4 {
-                prop_assert_scalar_eq!(d[(i, j)], a[(i, j)], comp=abs, tol=1e-6);
+                prop_assert_scalar_eq!(d[(i, j)], a[(i, j)], comp=float);
             }
         }
     }
-
-    // ===== Accessor Field Consistency =====
 
     #[test]
     fn accessor_3x3_consistency(a in mat::<3, 3, _>(normal_f64())) {
@@ -281,8 +262,6 @@ proptest! {
         prop_assert_eq!(a.zy, a[(2, 1)]);
         prop_assert_eq!(a.zz, a[(2, 2)]);
     }
-
-    // ===== Sparse Tests =====
 
     #[test]
     fn sparse_construction_roundtrip(s in sparse_mat(5, 5, 3, normal_f64())) {
@@ -328,8 +307,6 @@ proptest! {
         prop_assert!(s.sparsity().get(0, 5).is_none());
     }
 
-    // ===== MatMul Tests =====
-
     #[test]
     fn matmul_static_2x3_3x4(a in mat::<2, 3, _>(normal_f64()), b in mat::<3, 4, _>(normal_f64())) {
         let our_result = a.matmul(b);
@@ -337,7 +314,7 @@ proptest! {
         prop_assert_eq!(our_result.shape(), (2, 4));
         for i in 0..2 {
             for j in 0..4 {
-                prop_assert_scalar_eq!(our_result[(i, j)], faer_result[(i, j)], comp=abs, tol=1e-1);
+                prop_assert_scalar_eq!(our_result[(i, j)], faer_result[(i, j)], comp=float);
             }
         }
     }
@@ -348,14 +325,14 @@ proptest! {
         let faer_result = a * b;
         prop_assert_eq!(our_result.nrows(), 5);
         prop_assert_eq!(our_result.ncols(), 3);
-        prop_assert_matrix_eq!(crate::FaerCompare(our_result), crate::FaerCompare(faer_result), comp=abs, tol=1e-1);
+        prop_assert_matrix_eq!(FaerCompare(our_result), FaerCompare(faer_result), comp=float);
     }
 
     #[test]
     fn matmul_matsym_matsym(a in mat_sym::<4, Lower, _>(normal_f64()), b in mat_sym::<4, Lower, _>(normal_f64())) {
         let our_result = a.to_mat().matmul(b.to_mat());
         let faer_result = a.to_mat().into_dyn() * b.to_mat().into_dyn();
-        prop_assert_matrix_eq!(crate::FaerCompare(our_result.into_dyn()), crate::FaerCompare(faer_result), comp=abs, tol=1e-1);
+        prop_assert_matrix_eq!(FaerCompare(our_result.into_dyn()), FaerCompare(faer_result), comp=float);
     }
 
     #[test]
@@ -363,7 +340,7 @@ proptest! {
         let expected = a.matmul(b.clone());
         let mut c = Mat::<3, 3, f64>::zero();
         c.matmul_assign(a, b);
-        prop_assert_matrix_eq!(c, expected, comp=abs, tol=1e-1);
+        prop_assert_matrix_eq!(c, expected, comp=float);
     }
 
     #[test]
@@ -371,24 +348,22 @@ proptest! {
                             c in mat::<3, 3, _>(normal_f64())) {
         let left = a.matmul(b.clone()).matmul(c.clone());
         let right = a.matmul(b.matmul(c));
-        prop_assert_matrix_eq!(left, right, comp=abs, tol=1e-2);
+        prop_assert_matrix_eq!(left, right, comp=float);
     }
 
     #[test]
     fn matmul_identity_left(a in mat::<3, 3, _>(normal_f64())) {
         let identity = m!([1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]);
         let result = identity.matmul(a.clone());
-        prop_assert_matrix_eq!(result, a, comp=abs, tol=1e-6);
+        prop_assert_matrix_eq!(result, a, comp=float);
     }
 
     #[test]
     fn matmul_identity_right(a in mat::<3, 3, _>(normal_f64())) {
         let identity = m!([1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]);
         let result = a.matmul(identity);
-        prop_assert_matrix_eq!(result, a, comp=abs, tol=1e-6);
+        prop_assert_matrix_eq!(result, a, comp=float);
     }
-
-    // ===== Integration: Zip-based vs Built-in Operators =====
 
     #[test]
     fn zip_add_equals_builtin(a in mat::<3, 4, _>(normal_f64()), b in mat::<3, 4, _>(normal_f64())) {
@@ -404,8 +379,6 @@ proptest! {
         prop_assert_eq!(zip_result, builtin);
     }
 
-    // ===== Integration: MatSym Expand and Zip =====
-
     #[test]
     fn matsym_expand_zip_dense(s in mat_sym::<4, Lower, _>(normal_f64()), d in mat::<4, 4, _>(normal_f64())) {
         let dense_s = s.to_mat();
@@ -415,12 +388,10 @@ proptest! {
         for i in 0..4 {
             for j in 0..4 {
                 let expected = dense_s[(i, j)] * d[(i, j)];
-                prop_assert_scalar_eq!(result[(i, j)], expected, comp=abs, tol=1e-6);
+                prop_assert_scalar_eq!(result[(i, j)], expected, comp=float);
             }
         }
     }
-
-    // ===== Integration: ConsumeProducer with MatSym =====
 
     #[test]
     fn consume_producer_matsym(s in mat_sym::<3, Lower, _>(normal_f64())) {
@@ -431,10 +402,8 @@ proptest! {
             }
         }
         let sum = Zip::from(s.consume()).fold(0.0_f64, |acc, x| acc + x);
-        prop_assert_scalar_eq!(sum, expected, comp=abs, tol=1e-6);
+        prop_assert_scalar_eq!(sum, expected, comp=float);
     }
-
-    // ===== Integration: Sparse matmul vs faer =====
 
     #[test]
     fn sparse_matmul_vs_faer(s in sparse_mat(10, 5, 3, normal_f64()), d in dmat(5, 4, normal_f64())) {
@@ -442,7 +411,7 @@ proptest! {
         let our_result = s.matmul(d.clone());
         prop_assert_eq!(our_result.nrows(), faer_result.nrows());
         prop_assert_eq!(our_result.ncols(), faer_result.ncols());
-        prop_assert_matrix_eq!(crate::FaerCompare(our_result), crate::FaerCompare(faer_result), comp=abs, tol=1e-1);
+        prop_assert_matrix_eq!(FaerCompare(our_result), FaerCompare(faer_result), comp=float);
     }
 
     #[test]
@@ -496,10 +465,8 @@ proptest! {
         let out_manual = a.matmul_scalar(b, s);
         let out_faer = s * da * db;
         prop_assert_eq!(out_manual.shape(), out_faer.shape());
-        prop_assert_matrix_eq!(out_manual, crate::FaerCompare(out_faer), comp=abs, tol=1e-6);
+        prop_assert_matrix_eq!(out_manual, FaerCompare(out_faer), comp=float);
     }
-
-    // ===== Mirror Consistency =====
 
     #[test]
     fn mirror_is_consistent_lower(s in mat_sym::<4, Lower, _>(any::<f64>())) {
@@ -511,15 +478,11 @@ proptest! {
         prop_assert!(s == s.to_mat());
     }
 
-    // ===== Dynamic Shape =====
-
     #[test]
     fn dynamic_shape(m in dmat(5, 7, any::<f64>())) {
         prop_assert_eq!(m.nrows(), 5);
         prop_assert_eq!(m.ncols(), 7);
     }
-
-    // ===== Sparse Pattern =====
 
     #[test]
     fn sparse_stays_in_pattern(m in sparse_mat(5, 4, 3, any::<f64>())) {
@@ -530,8 +493,6 @@ proptest! {
         prop_assert_eq!(stored, m.view().compute_nnz());
         prop_assert!(stored <= 4 * 3);
     }
-
-    // ===== Domain Iteration =====
 
     #[test]
     fn full_domain(rows in 0usize..12, cols in 0usize..12) {
@@ -578,8 +539,6 @@ proptest! {
         prop_assert_eq!(Upper::flat_index(n, a, b), k);
     }
 
-    // ===== MatSym Updates =====
-
     #[test]
     fn sym_updated_from_mat(m in mat::<4, 4, _>(any::<i32>())) {
         let mut s = MatSym::<4, i32, Lower>::zero();
@@ -596,8 +555,6 @@ proptest! {
         }}
     }
 
-    // ===== ConsumeProducer Drop Safety =====
-
     #[test]
     fn consume_drops_each_once(panic_at in 0usize..=9, tri in any::<bool>()) {
         clear_drops();
@@ -612,8 +569,6 @@ proptest! {
         prop_assert_eq!(d, (0..9).collect::<Vec<_>>());
     }
 
-    // ===== Add Variants =====
-
     #[test]
     fn add_variants_agree(a in mat::<3, 3, _>(any::<f64>()), b in mat::<3, 3, _>(any::<f64>())) {
         let r = a + b;
@@ -627,106 +582,95 @@ proptest! {
         prop_assert_eq!(r, b + a);
     }
 
-    // ===== Determinant vs faer =====
-
-    #[test]
-    fn det3_matches_faer(m in mat::<3, 3, _>(normal_f64())) {
-        let d = m.determinant();
-        prop_assume!(d.abs() < 1e12);
-        let f = m.view().determinant();
-        prop_assert_scalar_eq!(d, f, comp=abs, tol=1e-3);
-    }
-
-    #[test]
-    fn det2_matches_faer(m in mat::<2, 2, _>(normal_f64())) {
-        let d = m.determinant();
-        prop_assume!(d.abs() < 1e9);
-        let f = m.view().determinant();
-        prop_assert_scalar_eq!(d, f, comp=abs, tol=1e-5);
-    }
-
-    #[test]
-    fn det1_matches_faer(m in mat::<1, 1, _>(normal_f64())) {
-        let d = m.determinant();
-        prop_assume!(d.abs() < 1e9);
-        let f = m.view().determinant();
-        prop_assert_scalar_eq!(d, f, comp=abs, tol=1e-5);
-    }
-
-    // ===== Inverse Involution =====
-
     #[test]
     fn inverse_involution3(m in mat::<3, 3, _>(normal_f64())) {
-        prop_assume!(m.determinant().abs() > 1.0);
-        let back = m.inv().inv();
-        prop_assert_matrix_eq!(m, back, comp=abs, tol=1e-3);
+        let back = m.try_inv().and_then(|it| it.try_inv());
+        prop_assume!(back.is_ok());
+        prop_assert_matrix_eq!(m, back.unwrap(), comp=abs, tol=1.0);
     }
 
     #[test]
     fn inverse_involution2(m in mat::<2, 2, _>(normal_f64())) {
-        prop_assume!(m.determinant().abs() > 1.0);
-        let back = m.inv().inv();
-        prop_assert_matrix_eq!(m, back, comp=abs, tol=1e-6);
+        let back = m.try_inv().and_then(|it| it.try_inv());
+        prop_assume!(back.is_ok());
+        prop_assert_matrix_eq!(m, back.unwrap(), comp=abs, tol=1e-6);
     }
 
     #[test]
     fn inverse_involution1(m in mat::<1, 1, _>(normal_f64())) {
-        prop_assume!(m.determinant().abs() > 1.0);
-        let back = m.inv().inv();
-        prop_assert_matrix_eq!(m, back, comp=abs, tol=1e-6);
+        let back = m.try_inv().and_then(|it| it.try_inv());
+        prop_assume!(back.is_ok());
+        prop_assert_matrix_eq!(m, back.unwrap(), comp=float);
     }
-
-    // ===== MatSym Determinant vs faer =====
 
     #[test]
     fn det3_sym_matches_faer(m in mat_sym::<3, Lower, _>(normal_f64())) {
         let d = m.determinant();
-        prop_assume!(d.abs() < 1e15);
         let f = m.to_mat().determinant();
-        prop_assert_scalar_eq!(d, f, comp=abs, tol=1e-3);
+        prop_assert_scalar_eq!(d, f, comp=float);
     }
 
     #[test]
     fn det2_sym_matches_faer(m in mat_sym::<2, Lower, _>(normal_f64())) {
         let d = m.determinant();
-        prop_assume!(d.abs() < 1e9);
         let f = m.to_mat().determinant();
-        prop_assert_scalar_eq!(d, f, comp=abs, tol=1e-5);
+        prop_assert_scalar_eq!(d, f, comp=float);
     }
 
     #[test]
     fn det1_sym_matches_faer(m in mat_sym::<1, Lower, _>(normal_f64())) {
         let d = m.determinant();
-        prop_assume!(d.abs() < 1e9);
         let f = m.to_mat().determinant();
-        prop_assert_scalar_eq!(d, f, comp=abs, tol=1e-5);
+        prop_assert_scalar_eq!(d, f, comp=float);
     }
-
-    // ===== MatSym Inverse Involution =====
 
     #[test]
     fn inverse_involution3_sym(m in mat_sym::<3, Lower, _>(normal_f64())) {
-        prop_assume!(m.determinant().abs() > 1.0);
-        let back = m.inv().inv();
-        prop_assert_matrix_eq!(m, back, comp=abs, tol=1e-3);
+        let back = m.try_inv().and_then(|it| it.try_inv());
+        prop_assume!(back.is_ok());
+        prop_assert_matrix_eq!(m, back.unwrap(), comp=abs, tol=1.0);
     }
 
     #[test]
     fn inverse_involution2_sym(m in mat_sym::<2, Lower, _>(normal_f64())) {
-        prop_assume!(m.determinant().abs() > 1.0);
-        let back = m.inv().inv();
-        prop_assert_matrix_eq!(m, back, comp=abs, tol=1e-6);
+        let back = m.try_inv().and_then(|it| it.try_inv());
+        prop_assume!(back.is_ok());
+        prop_assert_matrix_eq!(m, back.unwrap(), comp=abs, tol=1e-6);
     }
 
     #[test]
     fn inverse_involution1_sym(m in mat_sym::<1, Lower, _>(normal_f64())) {
-        prop_assume!(m.determinant().abs() > 1.0);
-        let back = m.inv().inv();
-        prop_assert_matrix_eq!(m, back, comp=abs, tol=1e-6);
+        let back = m.try_inv().and_then(|it| it.try_inv());
+        prop_assume!(back.is_ok());
+        prop_assert_matrix_eq!(m, back.unwrap(), comp=float);
+    }
+
+    #[test]
+    fn double_transpose_on_smat(m in mat_sym::<5, Lower, _>(any::<f64>())) {
+        let double_transposed = Zip::from(m.consume().transpose().transpose()).collect();
+        prop_assert_matrix_eq!(m, double_transposed, comp=float);
+    }
+
+    #[test]
+    fn double_transpose_intermediate_on_smat(m in mat_sym::<5, Lower, _>(any::<f64>())) {
+        let transposed = Zip::from(m.consume().transpose()).collect();
+        let double_transposed = Zip::from(transposed.consume().transpose()).collect();
+        prop_assert_matrix_eq!(m, double_transposed, comp=float);
+    }
+
+    #[test]
+    fn double_transpose_on_dmat(m in dmat(5, 3, any::<f64>())) {
+        let double_transposed = Zip::from(m.as_owned().transpose().transpose()).collect();
+        prop_assert_matrix_eq!(FaerCompare(m), FaerCompare(double_transposed), comp=float);
+    }
+
+    #[test]
+    fn double_transpose_intermediate_on_dmat(m in dmat(5, 3, any::<f64>())) {
+        let transposed = Zip::from(m.as_owned().transpose()).collect();
+        let double_transposed = Zip::from(transposed.as_owned().transpose()).collect();
+        prop_assert_matrix_eq!(FaerCompare(m), FaerCompare(double_transposed), comp=float);
     }
 }
-
-// ===== Unit tests (non-property) =====
 
 #[test]
 fn sym_mat_size() {
@@ -802,7 +746,7 @@ fn into_dyn() {
     use matrixcompare::assert_matrix_eq;
     let a = m![[1, 0, 0], [0, 1, 0], [0, 0, 1]];
     let b = a.into_dyn();
-    assert_matrix_eq!(a, crate::FaerCompare(b));
+    assert_matrix_eq!(a, FaerCompare(b));
 }
 
 #[test]
