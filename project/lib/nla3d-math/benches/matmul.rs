@@ -51,7 +51,14 @@ fn bench_manual_square<const N: usize>(g: &mut BenchmarkGroup<'_, WallTime>) {
         bencher.iter(|| {
             let mut result = Mat::<N, N, f64>::ZERO;
             for i in 0..SEEDS.len() {
-                manual_matmul_inplace(N, &mut result, black_box(1.0_f64), &a_mats[i], &b_mats[i]);
+                manual_matmul_inplace(
+                    N,
+                    Accum::Add,
+                    &mut result,
+                    black_box(1.0_f64),
+                    &a_mats[i],
+                    &b_mats[i],
+                );
             }
             black_box(result)
         });
@@ -156,6 +163,7 @@ fn bench_manual_rectangular<const N: usize, const M: usize, const L: usize>(
                 for i in 0..SEEDS.len() {
                     manual_matmul_inplace(
                         M,
+                        Accum::Add,
                         &mut result,
                         black_box(1.0_f64),
                         &a_mats[i],
@@ -235,7 +243,14 @@ where
         bencher.iter(|| {
             let mut result = Mat::<N, N, f64>::ZERO;
             for i in 0..SEEDS.len() {
-                manual_matmul_inplace(N, &mut result, black_box(1.0_f64), &a_mats[i], &b_mats[i]);
+                manual_matmul_inplace(
+                    N,
+                    Accum::Add,
+                    &mut result,
+                    black_box(1.0_f64),
+                    &a_mats[i],
+                    &b_mats[i],
+                );
             }
             black_box(result)
         });

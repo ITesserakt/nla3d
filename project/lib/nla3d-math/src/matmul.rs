@@ -1,8 +1,8 @@
-use std::ops::Index;
-
+use faer::Accum;
 use faer::traits::ComplexField;
 use num_traits::One;
 
+use crate::matmul::implementation_traits::{DenseOperand, Materialize};
 use crate::zip::ext::Fill;
 use crate::zip::{KnownShape, Producer, Zip};
 
@@ -41,33 +41,41 @@ where
 #[inline]
 pub fn manual_matmul_inplace<'a, T, P>(
     inner_size: usize,
+    accum: Accum,
     dst: P,
     scalar: T,
-    lhs: &impl Index<(usize, usize), Output = T>,
-    rhs: &impl Index<(usize, usize), Output = T>,
+    lhs: &impl DenseOperand<Scalar = T>,
+    rhs: &impl DenseOperand<Scalar = T>,
 ) where
     T: ComplexField + 'a,
     P: Producer<Item = &'a mut T, Shape: KnownShape>,
 {
     log::trace!("Using manual matrix multiplication");
+    let op = match accum {
+        Accum::Replace => |y: &mut T, acc, scalar| *y = acc * scalar,
+        Accum::Add => |y: &mut T, acc, scalar| *y += acc * scalar,
+    };
+    assert_eq!(lhs.cols().materialize(), inner_size);
+    assert_eq!(rhs.rows().materialize(), inner_size);
+
     Zip::from(dst)
         .indexed()
         .and(Fill(scalar))
         .for_each(|y, (i, j), scalar| {
+            let mut acc = T::zero_impl();
             for k in 0..inner_size {
-                *y += scalar.clone() * lhs[(i, k)].clone() * rhs[(k, j)].clone();
+                acc += unsafe { lhs.get_unchecked(i, k) * rhs.get_unchecked(k, j) };
             }
+            op(y, acc, scalar);
         });
 }
 
 mod implementation_traits {
-    use std::ops::Index;
-
     use faer::mat::{AsMatMut, AsMatRef};
+    use faer::sparse::linalg::matmul::{DenseSparseMatMul, SparseDenseMatMul};
     use faer::sparse::{FaerError, SparseColMatRef, SparseRowMatRef};
     use faer::traits::ComplexField;
     use faer::{Accum, Par};
-    use faer::sparse::linalg::matmul::{DenseSparseMatMul, SparseDenseMatMul};
     use generic_array::typenum::Const;
     use num_traits::Zero;
 
@@ -78,8 +86,6 @@ mod implementation_traits {
 
     pub struct Dense;
     pub struct Sparse;
-
-    struct IndexWrapper<T>(T);
 
     pub trait Operand {
         type Kind;
@@ -101,7 +107,7 @@ mod implementation_traits {
         fn dense(&self) -> Self::View<'_>;
         fn rows(&self) -> Self::Rows;
         fn cols(&self) -> Self::Cols;
-        fn index(&self, i: usize, j: usize) -> &Self::Scalar;
+        unsafe fn get_unchecked(&self, i: usize, j: usize) -> Self::Scalar;
     }
 
     pub trait SparseOperand: Operand<Kind = Sparse> {
@@ -144,17 +150,8 @@ mod implementation_traits {
         }
 
         #[inline]
-        fn index(&self, i: usize, j: usize) -> &Self::Scalar {
-            T::index(self, i, j)
-        }
-    }
-
-    impl<T: DenseOperand> Index<(usize, usize)> for IndexWrapper<T> {
-        type Output = T::Scalar;
-
-        #[inline]
-        fn index(&self, index: (usize, usize)) -> &Self::Output {
-            DenseOperand::index(&self.0, index.0, index.1)
+        unsafe fn get_unchecked(&self, i: usize, j: usize) -> Self::Scalar {
+            unsafe { T::get_unchecked(self, i, j) }
         }
     }
 
@@ -178,20 +175,19 @@ mod implementation_traits {
         }
 
         fn cols(&self) -> usize {
-            T::rows(self)
+            T::cols(self)
         }
     }
 
-    #[diagnostic::on_unimplemented(
-        message = "cannot multiply `{L}` by `{R}`",
-        label = "no multiplication is defined for these operand kinds"
-    )]
     pub trait Product<L, R> {
         type Scalar;
         type Out;
         type Wrapper<T>;
 
         fn product(lhs: &L, rhs: &R, scalar: Self::Scalar) -> Self::Wrapper<Self::Out>;
+    }
+
+    pub trait ProductInto<L, R>: Product<L, R> {
         fn product_into(
             out: &mut Self::Out,
             lhs: &L,
@@ -256,7 +252,16 @@ mod implementation_traits {
             Self::product_into(&mut out, lhs, rhs, scalar, Accum::Replace, Par::Seq);
             out
         }
+    }
 
+    impl<L, R, S> ProductInto<L, R> for (Dense, Dense)
+    where
+        L: DenseOperand<Scalar = S>,
+        R: DenseOperand<Scalar = S>,
+        L::Cols: Conforms<R::Rows, L, R>,
+        L::Rows: HaveOutput<R::Cols>,
+        S: ComplexField + Zero,
+    {
         #[inline]
         fn product_into(
             out: &mut Self::Out,
@@ -269,7 +274,9 @@ mod implementation_traits {
             const SMALL_LIMIT: usize = 128;
             const fn manual_override<N: Materialize, K: Materialize, M: Materialize>() -> bool {
                 match (N::VALUE, K::VALUE, M::VALUE) {
-                    (Some(n), Some(k), Some(m)) => n * k * m <= SMALL_LIMIT,
+                    (Some(n), Some(k), Some(m)) => {
+                        n.saturating_mul(k).saturating_mul(m) <= SMALL_LIMIT
+                    }
                     _ => false,
                 }
             }
@@ -277,10 +284,11 @@ mod implementation_traits {
             if const { manual_override::<L::Rows, L::Cols, R::Cols>() } {
                 manual_matmul_inplace(
                     lhs.cols().materialize(),
+                    accum,
                     out.as_mat_mut(),
                     scalar,
-                    &IndexWrapper(lhs),
-                    &IndexWrapper(rhs),
+                    lhs,
+                    rhs,
                 );
                 return;
             }
@@ -315,19 +323,6 @@ mod implementation_traits {
             let info = SparsityInfo::from_descriptor(sparsity);
             Ok(sparse::Mat::from_parts(info, values.into_boxed_slice()))
         }
-
-        #[inline]
-        fn product_into(
-            out: &mut Self::Out,
-            lhs: &L,
-            rhs: &R,
-            scalar: Self::Scalar,
-            _: Accum,
-            _: Par,
-        ) -> Result<(), FaerError> {
-            *out = Self::product(lhs, rhs, scalar)?;
-            Ok(())
-        }
     }
 
     impl<L, R, S> Product<L, R> for (Dense, Sparse)
@@ -335,7 +330,7 @@ mod implementation_traits {
         L: DenseOperand<Scalar = S>,
         R: SparseOperand<Scalar = S>,
         S: ComplexField,
-        for<'a> R::View<'a>: DenseSparseMatMul<S>
+        for<'a> R::View<'a>: DenseSparseMatMul<S>,
     {
         type Scalar = S;
         type Out = DMat<S>;
@@ -348,7 +343,15 @@ mod implementation_traits {
             Self::product_into(&mut out, lhs, rhs, scalar, Accum::Replace, Par::Seq);
             out
         }
+    }
 
+    impl<L, R, S> ProductInto<L, R> for (Dense, Sparse)
+    where
+        L: DenseOperand<Scalar = S>,
+        R: SparseOperand<Scalar = S>,
+        S: ComplexField,
+        for<'a> R::View<'a>: DenseSparseMatMul<S>,
+    {
         #[inline]
         fn product_into(
             out: &mut Self::Out,
@@ -375,7 +378,7 @@ mod implementation_traits {
         L: SparseOperand<Scalar = S>,
         R: DenseOperand<Scalar = S>,
         S: ComplexField,
-        for<'a> L::View<'a>: SparseDenseMatMul<S>
+        for<'a> L::View<'a>: SparseDenseMatMul<S>,
     {
         type Scalar = S;
         type Out = DMat<S>;
@@ -388,7 +391,15 @@ mod implementation_traits {
             Self::product_into(&mut out, lhs, rhs, scalar, Accum::Replace, Par::Seq);
             out
         }
+    }
 
+    impl<L, R, S> ProductInto<L, R> for (Sparse, Dense)
+    where
+        L: SparseOperand<Scalar = S>,
+        R: DenseOperand<Scalar = S>,
+        S: ComplexField,
+        for<'a> L::View<'a>: SparseDenseMatMul<S>,
+    {
         fn product_into(
             out: &mut Self::Out,
             lhs: &L,
@@ -425,7 +436,7 @@ mod implementation_traits {
 
     impl<L: Operand, R: Operand, S, O, W> MatMulAssign<L, R> for O
     where
-        K<L, R>: Product<L, R, Scalar = S, Out = O, Wrapper<()> = W>,
+        K<L, R>: ProductInto<L, R, Scalar = S, Out = O, Wrapper<()> = W>,
     {
         fn matmul_assign_scalar(&mut self, lhs: L, rhs: R, scalar: S) -> W {
             <K<L, R>>::product_into(self, &lhs, &rhs, scalar, Accum::Add, Par::Seq)
@@ -518,7 +529,7 @@ mod implementation {
         type Kind = Dense;
     }
 
-    impl<const N: usize, const M: usize, T> DenseOperand for Mat<N, M, T> {
+    impl<const N: usize, const M: usize, T: Clone> DenseOperand for Mat<N, M, T> {
         type Scalar = T;
         type View<'a>
             = MatRef<'a, T>
@@ -543,8 +554,8 @@ mod implementation {
         }
 
         #[inline]
-        fn index(&self, i: usize, j: usize) -> &Self::Scalar {
-            std::ops::Index::index(self, (i, j))
+        unsafe fn get_unchecked(&self, i: usize, j: usize) -> Self::Scalar {
+            unsafe { self.get_unchecked(i, j).clone() }
         }
     }
 
@@ -552,7 +563,7 @@ mod implementation {
         type Kind = Dense;
     }
 
-    impl<T> DenseOperand for DMat<T> {
+    impl<T: Clone> DenseOperand for DMat<T> {
         type Scalar = T;
         type View<'a>
             = MatRef<'a, T>
@@ -577,8 +588,8 @@ mod implementation {
         }
 
         #[inline]
-        fn index(&self, i: usize, j: usize) -> &Self::Scalar {
-            std::ops::Index::index(self, (i, j))
+        unsafe fn get_unchecked(&self, i: usize, j: usize) -> Self::Scalar {
+            unsafe { self.get_unchecked(i, j).clone() }
         }
     }
 
@@ -618,8 +629,8 @@ mod implementation {
         }
 
         #[inline]
-        fn index(&self, i: usize, j: usize) -> &Self::Scalar {
-            std::ops::Index::index(self, (i, j))
+        unsafe fn get_unchecked(&self, i: usize, j: usize) -> Self::Scalar {
+            unsafe { self.get_unchecked(i, j).clone() }
         }
     }
 
@@ -654,7 +665,7 @@ mod implementation {
         type Kind = T::Kind;
     }
 
-    impl<T> DenseOperand for TransposeProducer<T>
+    impl<T: Clone> DenseOperand for TransposeProducer<T>
     where
         T: DenseOperand,
         T: AsMatRef<T = T::Scalar, Rows = usize, Cols = usize>,
@@ -683,8 +694,8 @@ mod implementation {
         }
 
         #[inline]
-        fn index(&self, i: usize, j: usize) -> &Self::Scalar {
-            self.0.index(j, i)
+        unsafe fn get_unchecked(&self, i: usize, j: usize) -> Self::Scalar {
+            unsafe { self.0.get_unchecked(j, i) }
         }
     }
 
