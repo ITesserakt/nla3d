@@ -76,7 +76,7 @@ impl<I: Index, R: Shape, C: Shape> SparsityInfo<I, R, C> {
     }
 
     #[inline]
-    fn from_descriptor(descriptor: SymbolicSparseColMat<I, R, C>) -> Self
+    pub(crate) fn from_descriptor(descriptor: SymbolicSparseColMat<I, R, C>) -> Self
     where
         I: Hash,
     {

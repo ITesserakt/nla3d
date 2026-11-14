@@ -9,7 +9,7 @@ use faer::traits::ext::ComplexFieldExt;
 use faer::traits::{ComplexField, RealField};
 use generic_array::sequence::GenericSequence;
 use generic_array::typenum::Const;
-use generic_array::{ArrayLength, GenericArray};
+use generic_array::{ArrayLength, GenericArray, IntoArrayLength};
 use num_traits::Zero;
 use platform::compat::borrow::ToOwned;
 
@@ -227,6 +227,16 @@ where
     {
         MatSym(SymArrayStorage {
             data: GenericArray::repeat(element),
+            _phantom: PhantomData,
+        })
+    }
+
+    pub const fn from_array<const M: usize>(array: [T; M]) -> Self
+    where
+        Const<M>: IntoArrayLength<ArrayLength = <Const<N> as MatSymLength>::Length>
+    {
+        Self(SymArrayStorage {
+            data: GenericArray::from_array(array),
             _phantom: PhantomData,
         })
     }
