@@ -22,6 +22,12 @@ pub trait KnownShape: Shape + Copy {
     fn materialize(self) -> (usize, usize);
 }
 
+pub trait ShapeTranspose: Shape {
+    type Output: Shape;
+
+    fn transpose(self) -> Self::Output;
+}
+
 #[diagnostic::on_unimplemented(
     message = "cannot zip shape `{Self}` with shape `{Rhs}`",
     label = "these producers have incompatible sizes"
@@ -107,9 +113,33 @@ impl KnownShape for Dynamic {
         (self.rows, self.cols)
     }
 }
+impl ShapeTranspose for Dynamic {
+    type Output = Self;
+
+    fn transpose(self) -> Self::Output {
+        Dynamic {
+            rows: self.cols,
+            cols: self.rows,
+        }
+    }
+}
 impl<const N: usize, const M: usize> KnownShape for Static<N, M> {
     fn materialize(self) -> (usize, usize) {
         (N, M)
+    }
+}
+impl<const N: usize, const M: usize> ShapeTranspose for Static<N, M> {
+    type Output = Static<M, N>;
+
+    fn transpose(self) -> Self::Output {
+        Static
+    }
+}
+impl ShapeTranspose for Free {
+    type Output = Self;
+
+    fn transpose(self) -> Self::Output {
+        Self
     }
 }
 

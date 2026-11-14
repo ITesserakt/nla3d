@@ -7,8 +7,8 @@ use generic_array::typenum::Const;
 use crate::dense::{DMat, Mat, MatSym, MatSymLength, SymKind};
 use crate::sparse;
 use crate::sparse::SparseLocation;
-use crate::zip::drive::{Domain, DomainIndex, Full, Triangular};
-use crate::zip::{Dynamic, Pattern, Shape, Static};
+use crate::zip::drive::{Domain, Full, Triangular};
+use crate::zip::{DomainIndex, Dynamic, Pattern, Shape, Static};
 
 /// # Safety
 /// - `shape()` is the true extent: `get_unchecked` is sound for every

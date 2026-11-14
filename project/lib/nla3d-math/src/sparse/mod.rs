@@ -39,6 +39,11 @@ impl SparseLocation {
     pub const unsafe fn new(pos: usize) -> Self {
         Self(pos)
     }
+
+    #[inline]
+    pub const unsafe fn into_inner(self) -> usize {
+        self.0
+    }
 }
 
 impl<I: Index, R: Shape, C: Shape> SparsityInfo<I, R, C> {
@@ -265,13 +270,13 @@ impl<T, I, R, C> Mat<T, I, R, C> {
         }
     }
 
-    pub fn view(&self) -> faer::sparse::SparseColMatRef<'_, I, T, R, C>
+    pub fn view(&self) -> SparseColMatRef<'_, I, T, R, C>
     where
         R: Shape,
         C: Shape,
         I: Index,
     {
-        faer::sparse::SparseColMatRef::new(self.info.descriptor().as_ref(), &self.items)
+        SparseColMatRef::new(self.info.descriptor().as_ref(), &self.items)
     }
 
     pub fn view_mut(&mut self) -> faer::sparse::SparseColMatMut<'_, I, T, R, C>
@@ -284,14 +289,14 @@ impl<T, I, R, C> Mat<T, I, R, C> {
     }
 }
 
-impl<I, T, R, C> From<faer::sparse::SparseColMat<I, T, R, C>> for Mat<T, I, R, C>
+impl<I, T, R, C> From<SparseColMat<I, T, R, C>> for Mat<T, I, R, C>
 where
     R: Shape,
     C: Shape,
     I: Index + Hash,
 {
     #[inline]
-    fn from(value: faer::sparse::SparseColMat<I, T, R, C>) -> Self {
+    fn from(value: SparseColMat<I, T, R, C>) -> Self {
         let (descriptor, values) = value.into_parts();
         Self {
             info: SparsityInfo::from_descriptor(descriptor),
@@ -332,3 +337,36 @@ impl<T: Debug, I: Index, R: Shape, C: Shape> Debug for Mat<T, I, R, C> {
         )
     }
 }
+
+#[cfg(feature = "compare")]
+const _: () = {
+    use matrixcompare::*;
+
+    impl<T: Clone, I: faer::Index, R: Shape, C: Shape> Matrix<T> for Mat<T, I, R, C> {
+        fn rows(&self) -> usize {
+            self.info.rows.unbound()
+        }
+
+        fn cols(&self) -> usize {
+            self.info.cols.unbound()
+        }
+
+        fn access(&self) -> Access<'_, T> {
+            Access::Sparse(self)
+        }
+    }
+
+    impl<T: Clone, I: faer::Index, R: Shape, C: Shape> SparseAccess<T> for Mat<T, I, R, C> {
+        fn nnz(&self) -> usize {
+            self.compute_nnz()
+        }
+
+        fn fetch_triplets(&self) -> Vec<(usize, usize, T)> {
+            let mut triplets = vec![];
+            crate::zip::Zip::from_fn(self.info.pattern.clone(), |ix| (*ix.i, *ix.j))
+                .and(self)
+                .for_each(|(i, j), x| triplets.push((i, j, x.clone())));
+            triplets
+        }
+    }
+};

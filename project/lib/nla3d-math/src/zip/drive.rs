@@ -17,10 +17,10 @@ use super::{DefaultOutput, ElementwiseConstructible, KnownShape, MatrixFor, Prod
 use crate::dense::SymKind;
 
 #[derive(Debug, Clone, Copy)]
-pub struct DomainIndex<'r, 'c> {
+pub struct DomainIndex<'r, 'c, P = usize> {
     pub i: Idx<'r>,
     pub j: Idx<'c>,
-    pub pos: usize,
+    pub pos: P,
 }
 
 #[diagnostic::on_unimplemented(
@@ -349,8 +349,10 @@ impl<I: Clone, S> Pattern<I, S> {
 
 macro_rules! impl_zip {
     ($($n:ident: $t:ident$(,)?)+) => {
-        impl<S, D: Domain, $($t: Producer,)+> Zip<($($t,)+), S, D> {
-            /// Visits every (i, j) exactly once, column-major.
+        impl<S, D: Domain, $($t,)+> Zip<($($t,)+), S, D>
+        where
+            $($t: Producer, )+
+        {
             #[inline(always)]
             fn drive<R>(self, initial: R, mut f: impl FnMut(R, DomainIndex, $($t::Item,)+) -> R) -> R
             where
