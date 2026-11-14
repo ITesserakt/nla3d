@@ -145,8 +145,8 @@ impl<T: RealField> Mat<2, 2, T> {
         }
         let inv_det = det.recip();
         let adjugate = m![
-            [self.yy.clone(), -self.xy.clone()],
-            [-self.yx.clone(), self.xx.clone()]
+            [self.yy.clone(), -self.yx.clone()],
+            [-self.xy.clone(), self.xx.clone()]
         ];
 
         Ok(adjugate * inv_det)
@@ -167,34 +167,32 @@ impl<T: RealField> Mat<3, 3, T> {
         }
         let inv_det = det.recip();
 
-        let adjugate = m![
+        Ok(m![
             [
-                self[(1, 1)].clone() * self[(2, 2)].clone()
-                    - self[(1, 2)].clone() * self[(2, 1)].clone(),
-                self[(0, 2)].clone() * self[(2, 1)].clone()
-                    - self[(0, 1)].clone() * self[(2, 2)].clone(),
-                self[(0, 1)].clone() * self[(1, 2)].clone()
-                    - self[(0, 2)].clone() * self[(1, 1)].clone()
+                self[(1, 1)].clone() * self[(2, 2)].clone() * inv_det.clone()
+                    - self[(1, 2)].clone() * self[(2, 1)].clone() * inv_det.clone(),
+                self[(1, 2)].clone() * self[(2, 0)].clone() * inv_det.clone()
+                    - self[(1, 0)].clone() * self[(2, 2)].clone() * inv_det.clone(),
+                self[(1, 0)].clone() * self[(2, 1)].clone() * inv_det.clone()
+                    - self[(1, 1)].clone() * self[(2, 0)].clone() * inv_det.clone()
             ],
             [
-                self[(1, 2)].clone() * self[(2, 0)].clone()
-                    - self[(1, 0)].clone() * self[(2, 2)].clone(),
-                self[(0, 0)].clone() * self[(2, 2)].clone()
-                    - self[(0, 2)].clone() * self[(2, 0)].clone(),
-                self[(0, 2)].clone() * self[(1, 0)].clone()
-                    - self[(0, 0)].clone() * self[(1, 2)].clone()
+                self[(0, 2)].clone() * self[(2, 1)].clone() * inv_det.clone()
+                    - self[(0, 1)].clone() * self[(2, 2)].clone() * inv_det.clone(),
+                self[(0, 0)].clone() * self[(2, 2)].clone() * inv_det.clone()
+                    - self[(0, 2)].clone() * self[(2, 0)].clone() * inv_det.clone(),
+                self[(0, 1)].clone() * self[(2, 0)].clone() * inv_det.clone()
+                    - self[(0, 0)].clone() * self[(2, 1)].clone() * inv_det.clone()
             ],
             [
-                self[(1, 0)].clone() * self[(2, 1)].clone()
-                    - self[(1, 1)].clone() * self[(2, 0)].clone(),
-                self[(0, 1)].clone() * self[(2, 0)].clone()
-                    - self[(0, 0)].clone() * self[(2, 1)].clone(),
-                self[(0, 0)].clone() * self[(1, 1)].clone()
-                    - self[(0, 1)].clone() * self[(1, 0)].clone()
+                self[(0, 1)].clone() * self[(1, 2)].clone() * inv_det.clone()
+                    - self[(0, 2)].clone() * self[(1, 1)].clone() * inv_det.clone(),
+                self[(0, 2)].clone() * self[(1, 0)].clone() * inv_det.clone()
+                    - self[(0, 0)].clone() * self[(1, 2)].clone() * inv_det.clone(),
+                self[(0, 0)].clone() * self[(1, 1)].clone() * inv_det.clone()
+                    - self[(0, 1)].clone() * self[(1, 0)].clone() * inv_det.clone()
             ]
-        ];
-
-        Ok(adjugate * inv_det)
+        ])
     }
 }
 
