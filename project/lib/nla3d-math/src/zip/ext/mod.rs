@@ -15,3 +15,5 @@ pub use fill::{Fill, FillStatic};
 pub use from_fn::FromFn;
 pub use transpose::TransposeExt;
 pub use tri::TriExt;
+
+pub(crate) use transpose::TransposeProducer;

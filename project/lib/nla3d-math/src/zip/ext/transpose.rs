@@ -1,12 +1,43 @@
+use std::ops::Index;
+
+use faer::mat::{AsMatMut, AsMatRef};
+use faer::{MatMut, MatRef};
+
 use crate::dense::SymKind;
 use crate::sparse::SparsityInfo;
 use crate::zip::shape::ShapeTranspose;
-use crate::zip::{DomainIndex, Full, KnownShape, Pattern, Producer, Triangular};
+use crate::zip::{
+    DefaultOutput, Domain, DomainIndex, Full, Join, KnownShape, MatrixFor, Meet, Pattern, Producer,
+    Space, Triangular,
+};
 
-pub trait TransposeExt {
+pub trait TransposeExt: Sized {
     type Producer: Producer;
 
     fn transpose(self) -> Self::Producer;
+
+    fn transposed<S, D, T>(self) -> MatrixFor<S, D, T>
+    where
+        Self::Producer: Producer<Shape = S, Domain = D, Item = T>,
+        S: KnownShape,
+        D: Domain,
+        Space<S, D>: DefaultOutput<Shape = S, Domain = D>,
+    {
+        crate::zip::Zip::from(self.transpose()).collect()
+    }
+
+    fn is_symmetric<T, D, S>(self) -> bool
+    where
+        Self: Copy + Producer<Item = T, Domain = D, Shape = S>,
+        Self::Producer: Producer<Item = T, Domain = D, Shape = <S as ShapeTranspose>::Output>,
+        T: PartialEq,
+        D: Domain + Meet<D>,
+        S: ShapeTranspose + Join<<S as ShapeTranspose>::Output, Output: KnownShape>,
+    {
+        crate::zip::Zip::from(self)
+            .and(self.transpose())
+            .fold(true, |acc, a, b| acc && a == b)
+    }
 }
 
 impl<T> TransposeExt for T
@@ -20,7 +51,7 @@ where
     }
 }
 
-pub struct TransposeProducer<P>(P);
+pub struct TransposeProducer<P>(pub(crate) P);
 
 pub trait Helper<P>
 where
@@ -145,5 +176,35 @@ where
         };
 
         Some(unsafe { P::get_unchecked(cursor, index) })
+    }
+}
+
+impl<T: AsMatRef> TransposeProducer<T> {
+    pub fn view(&self) -> MatRef<'_, T::T, T::Cols, T::Rows> {
+        self.0.as_mat_ref().transpose()
+    }
+}
+
+impl<T: AsMatMut> TransposeProducer<T> {
+    pub fn view_mut(&mut self) -> MatMut<'_, T::T, T::Cols, T::Rows> {
+        self.0.as_mat_mut().transpose_mut()
+    }
+}
+
+impl<T: Index<(usize, usize)>> Index<(usize, usize)> for TransposeProducer<T> {
+    type Output = T::Output;
+
+    #[inline]
+    fn index(&self, (i, j): (usize, usize)) -> &Self::Output {
+        self.0.index((j, i))
+    }
+}
+
+impl<T: Index<(usize, usize)>> Index<(usize, usize)> for &TransposeProducer<T> {
+    type Output = T::Output;
+
+    #[inline]
+    fn index(&self, (i, j): (usize, usize)) -> &Self::Output {
+        self.0.index((j, i))
     }
 }

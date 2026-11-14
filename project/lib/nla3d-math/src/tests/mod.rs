@@ -653,8 +653,8 @@ proptest! {
 
     #[test]
     fn double_transpose_intermediate_on_smat(m in mat_sym::<5, Lower, _>(any::<f64>())) {
-        let transposed = Zip::from(m.consume().transpose()).collect();
-        let double_transposed = Zip::from(transposed.consume().transpose()).collect();
+        let transposed = m.consume().transposed();
+        let double_transposed = transposed.consume().transposed();
         prop_assert_matrix_eq!(m, double_transposed, comp=float);
     }
 
@@ -666,9 +666,18 @@ proptest! {
 
     #[test]
     fn double_transpose_intermediate_on_dmat(m in dmat(5, 3, any::<f64>())) {
-        let transposed = Zip::from(m.as_owned().transpose()).collect();
-        let double_transposed = Zip::from(transposed.as_owned().transpose()).collect();
+        let transposed = m.as_owned().transposed();
+        let double_transposed = transposed.as_owned().transposed();
         prop_assert_matrix_eq!(FaerCompare(m), FaerCompare(double_transposed), comp=float);
+    }
+
+    #[test]
+    fn self_transpose_matmul_is_symmetric_static(a in mat::<3, 5, _>(normal_f64())) {
+        let aat = a.matmul(a.transpose());
+        let ata = a.transpose().matmul(a);
+
+        prop_assert_matrix_eq!(aat, aat.consume().transposed(), comp=float);
+        prop_assert_matrix_eq!(ata, ata.consume().transposed(), comp=float);
     }
 }
 

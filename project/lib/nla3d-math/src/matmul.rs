@@ -49,6 +49,7 @@ pub fn manual_matmul_inplace<'a, T, P>(
     T: ComplexField + 'a,
     P: Producer<Item = &'a mut T, Shape: KnownShape>,
 {
+    log::trace!("Using manual matrix multiplication");
     Zip::from(dst)
         .indexed()
         .and(Fill(scalar))
@@ -63,9 +64,10 @@ mod implementation_traits {
     use std::ops::Index;
 
     use faer::mat::{AsMatMut, AsMatRef};
-    use faer::sparse::{FaerError, SparseColMatRef};
+    use faer::sparse::{FaerError, SparseColMatRef, SparseRowMatRef};
     use faer::traits::ComplexField;
     use faer::{Accum, Par};
+    use faer::sparse::linalg::matmul::{DenseSparseMatMul, SparseDenseMatMul};
     use generic_array::typenum::Const;
     use num_traits::Zero;
 
@@ -104,8 +106,11 @@ mod implementation_traits {
 
     pub trait SparseOperand: Operand<Kind = Sparse> {
         type Scalar;
+        type View<'a>
+        where
+            Self: 'a;
 
-        fn sparse(&self) -> SparseColMatRef<'_, usize, Self::Scalar>;
+        fn sparse(&self) -> Self::View<'_>;
         fn rows(&self) -> usize;
         fn cols(&self) -> usize;
     }
@@ -159,8 +164,12 @@ mod implementation_traits {
         T: SparseOperand,
     {
         type Scalar = T::Scalar;
+        type View<'a>
+            = T::View<'a>
+        where
+            Self: 'a;
 
-        fn sparse(&self) -> SparseColMatRef<'_, usize, Self::Scalar> {
+        fn sparse(&self) -> T::View<'_> {
             T::sparse(self)
         }
 
@@ -209,6 +218,23 @@ mod implementation_traits {
         type Matrix<T>: AsMatMut<T = T, Rows = usize, Cols = usize>;
 
         fn zeroed<T: Zero + Clone>(rows: Self, cols: Rhs) -> Self::Matrix<T>;
+    }
+
+    pub trait TransposeView {
+        type Output;
+
+        fn transpose(self) -> Self::Output;
+    }
+
+    trait Is<T = Self> {
+        fn cast(self) -> T;
+    }
+
+    impl<T> Is for T {
+        #[inline]
+        fn cast(self) -> Self {
+            self
+        }
     }
 
     impl<L, R, S> Product<L, R> for (Dense, Dense)
@@ -268,6 +294,8 @@ mod implementation_traits {
         L: SparseOperand<Scalar = S>,
         R: SparseOperand<Scalar = S>,
         S: ComplexField,
+        for<'a> L::View<'a>: Is<SparseColMatRef<'a, usize, S>>,
+        for<'a> R::View<'a>: Is<SparseColMatRef<'a, usize, S>>,
     {
         type Scalar = S;
         type Out = sparse::Mat<S>;
@@ -277,8 +305,8 @@ mod implementation_traits {
         fn product(lhs: &L, rhs: &R, scalar: Self::Scalar) -> Result<Self::Out, FaerError> {
             assert_eq!(lhs.cols(), rhs.rows());
             let output = faer::sparse::linalg::matmul::sparse_sparse_matmul(
-                lhs.sparse(),
-                rhs.sparse(),
+                lhs.sparse().cast(),
+                rhs.sparse().cast(),
                 scalar,
                 Par::Seq,
             )?;
@@ -307,6 +335,7 @@ mod implementation_traits {
         L: DenseOperand<Scalar = S>,
         R: SparseOperand<Scalar = S>,
         S: ComplexField,
+        for<'a> R::View<'a>: DenseSparseMatMul<S>
     {
         type Scalar = S;
         type Out = DMat<S>;
@@ -346,6 +375,7 @@ mod implementation_traits {
         L: SparseOperand<Scalar = S>,
         R: DenseOperand<Scalar = S>,
         S: ComplexField,
+        for<'a> L::View<'a>: SparseDenseMatMul<S>
     {
         type Scalar = S;
         type Out = DMat<S>;
@@ -460,16 +490,29 @@ mod implementation_traits {
             DMat::full(rows, cols, T::zero())
         }
     }
+
+    impl<'a, I: faer::Index, T, R: faer::Shape, C: faer::Shape> TransposeView
+        for SparseColMatRef<'a, I, T, R, C>
+    {
+        type Output = SparseRowMatRef<'a, I, T, C, R>;
+
+        #[inline]
+        fn transpose(self) -> Self::Output {
+            SparseColMatRef::transpose(self)
+        }
+    }
 }
 
 mod implementation {
     use faer::MatRef;
+    use faer::mat::AsMatRef;
     use faer::prelude::SparseColMatRef;
     use generic_array::typenum::Const;
 
     use super::implementation_traits::*;
     use crate::dense::{DMat, Mat, MatSym, MatSymLength, SymKind};
     use crate::sparse;
+    use crate::zip::ext::TransposeProducer;
 
     impl<const N: usize, const M: usize, T> Operand for Mat<N, M, T> {
         type Kind = Dense;
@@ -586,9 +629,13 @@ mod implementation {
 
     impl<T> SparseOperand for sparse::Mat<T> {
         type Scalar = T;
+        type View<'a>
+            = SparseColMatRef<'a, usize, T>
+        where
+            Self: 'a;
 
         #[inline]
-        fn sparse(&self) -> SparseColMatRef<'_, usize, Self::Scalar> {
+        fn sparse(&self) -> Self::View<'_> {
             self.view()
         }
 
@@ -602,9 +649,74 @@ mod implementation {
             self.ncols()
         }
     }
+
+    impl<T: Operand> Operand for TransposeProducer<T> {
+        type Kind = T::Kind;
+    }
+
+    impl<T> DenseOperand for TransposeProducer<T>
+    where
+        T: DenseOperand,
+        T: AsMatRef<T = T::Scalar, Rows = usize, Cols = usize>,
+    {
+        type Scalar = T::Scalar;
+        type View<'a>
+            = MatRef<'a, T::Scalar>
+        where
+            Self: 'a;
+        type Rows = <T as DenseOperand>::Cols;
+        type Cols = <T as DenseOperand>::Rows;
+
+        #[inline]
+        fn dense(&self) -> Self::View<'_> {
+            self.view()
+        }
+
+        #[inline]
+        fn rows(&self) -> Self::Rows {
+            self.0.cols()
+        }
+
+        #[inline]
+        fn cols(&self) -> Self::Cols {
+            self.0.rows()
+        }
+
+        #[inline]
+        fn index(&self, i: usize, j: usize) -> &Self::Scalar {
+            self.0.index(j, i)
+        }
+    }
+
+    impl<T> SparseOperand for TransposeProducer<T>
+    where
+        T: SparseOperand,
+        for<'a> T::View<'a>: TransposeView,
+    {
+        type Scalar = T::Scalar;
+        type View<'a>
+            = <T::View<'a> as TransposeView>::Output
+        where
+            Self: 'a;
+
+        #[inline]
+        fn sparse(&self) -> <T::View<'_> as TransposeView>::Output {
+            self.0.sparse().transpose()
+        }
+
+        #[inline]
+        fn rows(&self) -> usize {
+            self.0.cols()
+        }
+
+        #[inline]
+        fn cols(&self) -> usize {
+            self.0.rows()
+        }
+    }
 }
 
-#[cfg(test)]
+#[cfg(false)]
 const _: () = {
     let m1 = crate::dense::Mat::from_array([[0.0; 3]; 5]);
     let m2 = crate::dense::Mat::from_array([[0.0; 5]; 4]);

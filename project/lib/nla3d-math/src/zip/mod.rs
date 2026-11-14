@@ -91,6 +91,20 @@ impl<T, S, D> Zip<T, S, D> {
         let shape = value.shape();
         Zip(self.0.push(value), self.1.meet(domain), self.2.join(shape))
     }
+
+    #[inline]
+    pub fn indexed(self) -> Zip<T::Output, S, D>
+    where
+        T: Push<FromFn<D, fn(DomainIndex) -> (usize, usize)>>,
+        D: Domain,
+    {
+        Zip(
+            self.0
+                .push(FromFn::new(self.1.clone(), |ix| (*ix.i, *ix.j))),
+            self.1,
+            self.2,
+        )
+    }
 }
 
 impl<T, D> Zip<T, Free, D> {
