@@ -27,6 +27,11 @@ pub struct SymArrayStorage<T, N: MatSymLength, Kind> {
     _phantom: PhantomData<Kind>,
 }
 
+impl<T: Copy, M: MatSymLength, Kind> Copy for SymArrayStorage<T, M, Kind> where
+    <M::Length as ArrayLength>::ArrayType<T>: Copy
+{
+}
+
 impl<T: Debug, N: MatSymLength, K> Debug for SymArrayStorage<T, N, K> {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         f.debug_struct("SymArrayStorage")
@@ -52,6 +57,13 @@ where
     fn clone(&self) -> Self {
         Self(self.0.clone())
     }
+}
+
+impl<T: Copy, const N: usize, K> Copy for MatSym<N, T, K>
+where
+    <<Const<N> as MatSymLength>::Length as ArrayLength>::ArrayType<T>: Copy,
+    Const<N>: MatSymLength,
+{
 }
 
 pub trait MatSymLength {
