@@ -82,6 +82,8 @@ mod implementation_traits {
     pub trait Operand {
         type Kind;
     }
+
+    #[diagnostic::do_not_recommend]
     impl<T: Operand + ?Sized> Operand for &T {
         type Kind = T::Kind;
     }
@@ -108,6 +110,7 @@ mod implementation_traits {
         fn cols(&self) -> usize;
     }
 
+    #[diagnostic::do_not_recommend]
     impl<T> DenseOperand for &T
     where
         T: DenseOperand,
@@ -150,6 +153,30 @@ mod implementation_traits {
         }
     }
 
+    #[diagnostic::do_not_recommend]
+    impl<T> SparseOperand for &T
+    where
+        T: SparseOperand,
+    {
+        type Scalar = T::Scalar;
+
+        fn sparse(&self) -> SparseColMatRef<'_, usize, Self::Scalar> {
+            T::sparse(self)
+        }
+
+        fn rows(&self) -> usize {
+            T::rows(self)
+        }
+
+        fn cols(&self) -> usize {
+            T::rows(self)
+        }
+    }
+
+    #[diagnostic::on_unimplemented(
+        message = "cannot multiply `{L}` by `{R}`",
+        label = "no multiplication is defined for these operand kinds"
+    )]
     pub trait Product<L, R> {
         type Scalar;
         type Out;
@@ -167,10 +194,10 @@ mod implementation_traits {
     }
 
     #[diagnostic::on_unimplemented(
-        message = "inner dimensions do not match: `{Self}` x `{Other}`",
-        note = "static dimensions must be equal at compile time"
+        message = "cannot multiply `{Lhs}` by `{Rhs}`: inner dimensions differ",
+        label = "left operand has {Self} columns, right operand has {Other} rows"
     )]
-    pub trait Conforms<Other> {}
+    pub trait Conforms<Other, Lhs, Rhs> {}
 
     pub trait Materialize {
         const VALUE: Option<usize>;
@@ -188,7 +215,7 @@ mod implementation_traits {
     where
         L: DenseOperand<Scalar = S>,
         R: DenseOperand<Scalar = S>,
-        L::Cols: Conforms<R::Rows>,
+        L::Cols: Conforms<R::Rows, L, R>,
         L::Rows: HaveOutput<R::Cols>,
         S: ComplexField + Zero,
     {
@@ -222,7 +249,13 @@ mod implementation_traits {
             }
 
             if const { manual_override::<L::Rows, L::Cols, R::Cols>() } {
-                manual_matmul_inplace(lhs.cols().materialize(), out.as_mat_mut(), scalar, &IndexWrapper(lhs), &IndexWrapper(rhs));
+                manual_matmul_inplace(
+                    lhs.cols().materialize(),
+                    out.as_mat_mut(),
+                    scalar,
+                    &IndexWrapper(lhs),
+                    &IndexWrapper(rhs),
+                );
                 return;
             }
 
@@ -387,10 +420,10 @@ mod implementation_traits {
         }
     }
 
-    impl<const N: usize> Conforms<Const<N>> for Const<N> {}
-    impl<const N: usize> Conforms<Const<N>> for usize {}
-    impl<const N: usize> Conforms<usize> for Const<N> {}
-    impl Conforms<usize> for usize {}
+    impl<const N: usize, L, R> Conforms<Const<N>, L, R> for Const<N> {}
+    impl<const N: usize, L, R> Conforms<Const<N>, L, R> for usize {}
+    impl<const N: usize, L, R> Conforms<usize, L, R> for Const<N> {}
+    impl<L, R> Conforms<usize, L, R> for usize {}
 
     impl<const N: usize, const M: usize> HaveOutput<Const<M>> for Const<N> {
         type Matrix<T> = Mat<N, M, T>;
